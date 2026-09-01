@@ -3,3 +3,9 @@ v1.0,independent-pd,395-only,9B,Q6_K,5064,128,0,1,5.879,861.55,30.24,,,server-se
 v1.0,independent-pd,pd-first-512,9B,Q6_K,5064,128,,,5.720,886.62,30.22,512,,server-second-run
 v1.0,independent-pd,pd-first-2048,9B,Q6_K,5064,128,,,5.077,999.16,30.18,2048,,server-second-run
 v1.0,independent-pd,full-pd,9B,Q6_K,5064,128,1,0,3.496,1452.29,30.28,5063,208.57,server-second-run
+v2.0,fused-layer,3060-only,9B,Q6_K,5064,128,1,0,,1589.00,43.87,,,llama-bench-pp-tg
+v2.0,fused-layer,395-only,9B,Q6_K,5064,128,0,1,,970.00,31.27,,,llama-bench-pp-tg
+v2.0,fused-layer,fusion-50,9B,Q6_K,5064,128,0.50,0.50,,1865.08,,,,llama-bench-pp
+v2.0,fused-layer,fusion-58,9B,Q6_K,5064,128,0.58,0.42,,2129.69,,,,llama-bench-pp
+v2.0,fused-layer,fusion-64,9B,Q6_K,5064,128,0.64,0.36,,1999.51,37.16,,,llama-bench-pp-tg
+v2.0,fused-layer,fusion-70,9B,Q6_K,5064,128,0.70,0.30,,1893.87,,,,llama-bench-pp
