@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md)
 
+## v2.2
+
+- 发布重叠细化：prefill 1893.87 tok/s。
+
 ## v2.1
 
 - 发布首个融合流水：prefill 1865.08 tok/s。
