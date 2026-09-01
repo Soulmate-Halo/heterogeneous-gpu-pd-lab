@@ -1,0 +1,3 @@
+control_id,device,model,quantization,prompt_tokens,context_depth,kv_type,prefill_tok_s,engine,source_date,source_url,directly_comparable,reason
+dgx-spark-9b-tq3,DGX Spark GB10,Qwen3.5 9B,TQ3_4S,2048,,,2766.28,llama.cpp-tq3 PR 53,2026-06-30,https://github.com/turbo-tan/llama.cpp-tq3/pull/53,false,Different quantization prompt length fork and FP4 cache-on kernel
+dgx-spark-30b-a3b-q4,DGX Spark GB10,Nemotron-3-Nano-30B-A3B,UD-Q4_K_XL,2048,0,f16,809.55,llama-cpp-turboquant commit 1766c9133 build 8793,2026-04-01,https://github.com/TheTom/llama-cpp-turboquant/issues/44,false,Different model architecture and size quantization prompt length and fork
