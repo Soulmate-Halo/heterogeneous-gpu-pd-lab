@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md)
 
+## v2.3
+
+- 发布平衡细化：prefill 1999.51 tok/s，decode 37.16 tok/s。
+
 ## v2.2
 
 - 发布重叠细化：prefill 1893.87 tok/s。

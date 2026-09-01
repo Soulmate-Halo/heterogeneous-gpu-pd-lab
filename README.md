@@ -4,7 +4,7 @@
 
 This release records the public evolution of a heterogeneous fused-layer pipeline using an RTX 3060 12GB and an AMD Ryzen AI Max+ 395 / Radeon 8060S on one host.
 
-Current release: **v2.2 — Overlap Refinement**. Public revision labels intentionally omit the internal layer-allocation policy. Deployment steps, commands, patches, endpoints, and credentials are not published.
+Current release: **v2.3 — Balance Refinement**. Public revision labels intentionally omit the internal layer-allocation policy. Deployment steps, commands, patches, endpoints, and credentials are not published.
 
 ## Architecture
 
@@ -20,6 +20,7 @@ Test envelope: 9B Q6_K, pp5064; tg128 only where recorded.
 | AI Max+ 395 baseline | Vulkan endpoint only | 970.00 tok/s | 31.27 tok/s |
 | v2.1 | First Fused Pipeline | 1865.08 tok/s | Not recorded |
 | v2.2 | Overlap Refinement | 1893.87 tok/s | Not recorded |
+| v2.3 | Balance Refinement | 1999.51 tok/s | 37.16 tok/s |
 
 The checkpoint data is experimental and limited to one host and a short single-concurrency benchmark. Internal layer ratios are intentionally undisclosed.
 
