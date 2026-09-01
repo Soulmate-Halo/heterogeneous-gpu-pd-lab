@@ -1,0 +1,5 @@
+version,architecture,configuration,model,quantization,prompt_tokens,output_tokens,split_3060,split_395,ttft_s,prefill_tok_s,decode_tok_s,handoff_tokens,handoff_mib,measurement
+v1.0,independent-pd,395-only,9B,Q6_K,5064,128,0,1,5.879,861.55,30.24,,,server-second-run
+v1.0,independent-pd,pd-first-512,9B,Q6_K,5064,128,,,5.720,886.62,30.22,512,,server-second-run
+v1.0,independent-pd,pd-first-2048,9B,Q6_K,5064,128,,,5.077,999.16,30.18,2048,,server-second-run
+v1.0,independent-pd,full-pd,9B,Q6_K,5064,128,1,0,3.496,1452.29,30.28,5063,208.57,server-second-run
