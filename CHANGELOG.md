@@ -2,7 +2,7 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
-## v2.5
+## v2.4
 
 - Named the final asynchronous layered-PD form **Dense Acceleration** and defined its concurrent compute window as the **Dense Region**.
 - Published the final Dense Acceleration checkpoint at 2129.69 tok/s, while keeping the v2.3-only 37.16 tok/s decode result explicitly separated.
