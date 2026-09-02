@@ -1,4 +1,4 @@
-# <img src="assets/soulmate-spirit.png" alt="器灵 Soulmate 小灵魂" width="44" align="absmiddle"> AI Max+ 395 稠密加速 — 异构 GPU PD 实验室
+# <img src="assets/soulmate-spirit.png" alt="器灵 Soulmate 小灵魂" width="44" align="absmiddle"> 小显存加速卡 + 大显存低算力主机稠密加速 — 异构 GPU PD 实验室
 
 [English](README.md)
 
