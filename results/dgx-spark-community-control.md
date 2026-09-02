@@ -18,18 +18,18 @@ These rows are externally reported community measurements. They are recorded wit
 
 It is close in model size but differs in quantization, prompt length, fork, and a fork-specific native FP4 cache-on kernel path.
 
-## Control B — independent llama-bench-style community report
+## Control B — Qwen3.8-27B long-prompt community report
 
 | Field | Value |
 | --- | --- |
 | Device | NVIDIA DGX Spark / GB10 |
-| Workload | Nemotron-3-Nano-30B-A3B, UD-Q4_K_XL |
-| Metric | pp2048 at depth 0 with f16 KV |
-| Prefill | 809.55 tok/s |
-| Engine | `TheTom/llama-cpp-turboquant`, commit `1766c9133`, build 8793 |
-| Source date | Issue opened 2026-04-01 |
-| Source | [Issue #44](https://github.com/TheTom/llama-cpp-turboquant/issues/44) |
+| Workload | Qwen3.8-27B, `RadixArk/Qwen3.8-27B-NVFP4` |
+| Metric | Cold prefill at 100K / 200K / 300K prompt tokens; cache flushed between depths |
+| Prefill | 1170 / 800 / 615 tok/s |
+| Engine | SGLang + DFlash2, 1M-context profile, FP8 KV, memory fraction 0.70 |
+| Source date | Measured 2026-08-29 |
+| Source | [hasso5703 benchmark at commit `17e7e228`](https://github.com/hasso5703/dgx-spark-qwen38/blob/17e7e2280e632b0a3ab91839c8c7522b256937ac/BENCHMARKS.md#L232-L243) |
 
-It differs in model architecture and size, quantization, prompt length, and fork. It is therefore contextual evidence only.
+It uses the same model family and dense 27B scale as the local exploratory line, but differs in quantization, engine, prompt depths, and measurement method. It is therefore contextual evidence only.
 
 Machine-readable data: [dgx-spark-community-controls.csv](../data/dgx-spark-community-controls.csv).
