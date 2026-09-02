@@ -10,6 +10,10 @@ Current release: **v2.5 — Dense Acceleration (Asynchronous Layered PD)**. This
 
 This gives low-compute, large-memory hosts (e.g. DGX Spark, AI Max+ 395) combined with high-compute, small-memory cards (e.g. RTX 3060, RTX 3080) more application opportunity and scenarios.
 
+![Dense Acceleration structure: an overlapping memory cell split into a sparse region that holds the model and a dense region that computes decode & prefill](assets/dense-region-structure.png)
+
+*Structure: the overlapping memory cell splits into a **sparse region** that holds the model and a **dense region** that does the compute; a model falling into the dense region gets significant, lossless decode & prefill acceleration.*
+
 ## What changed
 
 - **v1.0** separated prefill and decode and transferred state to the AI Max+ 395.
