@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md)
 
+## v2.8
+
+- 纠正计算归属：最新 27B-C 与 27B-D 均由 RTX 3080 承担全部 Prefill 与 Decode 计算，AI Max+ 395 改为纯 KV-only 远端存储池（不参与 Prefill 与 Decode），为每条流提供 1M 上下文容量（1M context per stream）。
+- 首页补真实 C1–C6 紧凑表（C1 1210.6 / 38.50 / 33.55 起，C6 1197.2 / 14.68 / 63.84，tok/s），并写明 27B-D 真实 C1 Prefill 1090 tok/s、C1 单流 Decode 63.2 tok/s、C6 聚合 Decode 最高 173.6 tok/s。
+- 明确价值叙事：3080 以远端 KV 通信损耗换每流 1M 长上下文；旧 v1.0–v1.2 表与 395 自然文本审计保留为历史调度记录/历史对照，不代表最新 C/D 计算路径。
+
 ## v2.7
 
 - 将首页 27B-C 与 27B-D 重构为“Prefill 加速向”和“解码加速向”，标题直接呈现各自最佳实测。
