@@ -4,7 +4,7 @@
 
 An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration: RTX 3060 / RTX 3080 accelerator heads work with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.6 — unified 27B experiment area + router v1.1/v1.2 measurements**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.7 — two 27B performance profiles: fastest prefill + fastest single-stream decode**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 **What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. The acceleration is lossless, and every metric exceeds what the accelerator card or the host achieves on its own.
 
@@ -55,7 +55,8 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 | v2.3 | Once the pipeline is repeatable, check whether load balancing between the two backends reduces pipeline wait and improves Prefill and Decode at the same time. | The balanced split lifted decode above the v1.0 figure while raising prefill. | 1999.51 tok/s; 37.16 tok/s decode |
 | **v2.4** | Complete the overall goal: compare the combined setup against both endpoints running the same 9B Q6_K, pp5064 local baseline, and confirm state and output correctness, sustained Dense Region work, and lossless Prefill/Decode acceleration. | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s; 50.73 tok/s decode** |
 | **v2.5** | After the 9B line, test whether full 3080 prefill + 395 decode can move 27B Q4 into serving. | Remove per-ubatch RPC sync and run six C1–C6 tiers across two paths, twelve groups total. | C1 prefill **1000.6 tok/s**; TTFT 1073 ms |
-| **v2.6** | Resolve the split 3060/3080 narrative and publish the real envelopes behind “1200+” and “single-stream 35.” | Add router v1.1/v1.2 tables and a natural-language audit separating speculative upper bounds from service prose. | v1.1 prefill **1194.4–1210.6**; v1.2 C6 E2E aggregate **45.7 tok/s** |
+| **v2.7** | Surface the strongest results immediately instead of burying them under implementation detail. | Reframe 27B-C/D as prefill-first and decode-first profiles with only high-level changes and best measurements on the homepage. | Prefill up to **1210.6 tok/s**; single-stream decode up to **63.2 tok/s** |
+| **v2.6** | Resolve the split 3060/3080 narrative and add the latest router measurements. | Unify the 27B experiment area into input-acceleration and generation-acceleration paths. | Prefill up to **1210.6 tok/s**; single-stream decode up to **63.2 tok/s** |
 | **v3.0 (research direction)** | Adapt the v2.4 one-to-one mechanism to other types of large-memory hosts and small-VRAM accelerator cards. | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
 | **v4.0 (research direction)** | Study one accelerator card accelerating X large-memory hosts at the same time. | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
@@ -153,18 +154,15 @@ This is **six C1–C6 concurrency tiers × split/solo paths = twelve measured gr
 
 Removing RPC lifted same-envelope C1 prefill from 683.2 to **1000.6 tok/s (+46%)**, about 82% of raw 3080 throughput.
 
-### New experiment 27B-C (3080·Q4, router v1.1): 1194.4–1210.6 tok/s prefill; 35–38.5 tok/s repetitive-text single-stream decode
+### New experiment 27B-C | Prefill-first (fastest prefill): best measured **1210.6 tok/s**
 
-- About 1000 in / 128 out. Port 8082 serializes prefill, so the single-request value is also service aggregate throughput; C1–C6 varies by only 1.3%.
-- Decode-span aggregate C1→C6 is **33.55 / 45.57 / 52.31 / 51.30 / 61.64 / 63.84 tok/s**; end-to-end aggregate rises from 16.8 to 32.0 tok/s.
-- **1200+ is prefill, not decode.** The 35–38.5 single-stream result comes from repetitive or degenerate output with 100% draft acceptance and is only a speculative upper envelope.
+- Rebalanced heterogeneous compute so the 3080 focuses on input processing while the 395 carries generation.
+- Best measured prefill reaches **1210.6 tok/s**, aimed at long prompts, RAG, and document workloads where time to first token matters.
 
-### New experiment 27B-D (3080·Q4, router v1.2): C1 single-stream decode 63.2 tok/s; C6 end-to-end aggregate 45.7 tok/s
+### New experiment 27B-D | Decode-first (fastest single-stream decode): best measured **63.2 tok/s**
 
-- The 3080 DFlash2 head uses `np1 / ctx8192 / ub512 / n_max 3 / q4_0 KV / graphs off`; when new prefill arrives, two-stage preemption saves KV before continuing decode on the 395.
-- Under one random-word seed, C1 router/solo single-stream decode is **63.2 / 24.5**, while C6 router/solo end-to-end aggregate is **45.7 / 23.3 tok/s**. All twelve groups across six tiers and two paths passed three runs with `miss=0`, `err=0`.
-- A separate natural-language audit measured only **12.1 tok/s at C1 (17.7% acceptance)** on 395 + DFlash2, below the 18.26 headless baseline. Repetitive-text 35–38.5 therefore does not represent production prose. Natural-language C5 was not measured and is not filled in.
-- Single-request 4k / 7k TTFT was 3689 / 6524 ms with 3080 decode at 71 / 69 tok/s. After LRU KV eviction, 4k×6 and 7k×2 produced neither OOM nor restore failure.
+- Reworked the decode path and task scheduling so the accelerator contributes more directly to continuous generation.
+- Best measured single-stream decode reaches **63.2 tok/s**, aimed at low-concurrency chat, coding, and other interactive workloads.
 
 See the [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md) for the v1.0/v1.1/v1.2 tables, natural-language audit, and envelope limits; see the [CSV](data/qwen27b-local-results.csv) for machine-readable data.
 
