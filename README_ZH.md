@@ -115,7 +115,7 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 | 设备 | 社区工作负载 | Prompt 口径 | Prefill | 可直接比较？ | 来源 |
 | --- | --- | ---: | ---: | --- | --- |
 | NVIDIA DGX Spark / GB10 | Qwen3.5 9B，TQ3_4S，分支专属 FP4 cache-on 路径 | pp2048 | 2766.28 tok/s | **否** — 量化、prompt、分支与内核不同 | [llama.cpp-tq3 PR #53](https://github.com/turbo-tan/llama.cpp-tq3/pull/53) |
-| NVIDIA DGX Spark / GB10 | Nemotron-3-Nano-30B-A3B，UD-Q4_K_XL，depth 0，f16 KV | pp2048 | 809.55 tok/s | **否** — 模型架构/大小、量化、prompt 与分支不同 | [TurboQuant issue #44](https://github.com/TheTom/llama-cpp-turboquant/issues/44) |
+| NVIDIA DGX Spark / GB10 | Qwen3.8-27B，NVFP4，SGLang + DFlash2 | 10万 / 20万 / 30万 token 冷 prefill | 1170 / 800 / 615 tok/s | **否** — 量化、引擎、prompt 深度与测试方法不同 | [hasso5703 实测](https://github.com/hasso5703/dgx-spark-qwen38/blob/17e7e2280e632b0a3ab91839c8c7522b256937ac/BENCHMARKS.md#L232-L243) |
 
 详见 [来源说明](results/dgx-spark-community-control.zh-CN.md) 与 [机器可读外部对照](data/dgx-spark-community-controls.csv)。
 
