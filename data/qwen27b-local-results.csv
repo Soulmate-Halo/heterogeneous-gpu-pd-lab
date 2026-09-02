@@ -1,0 +1,10 @@
+version,architecture,configuration,accel_head,host,model,quantization,kv_type,concurrency,ttft_split_ms,ttft_solo_ms,prefill_split_tok_s,prefill_solo_tok_s,decode_split_tok_s,decode_solo_tok_s,kv_migration_ms,measurement,disclosure
+2.5,dual-machine-hetero-pd,3080-cuda-full-prefill,RTX 3080 20GB,AI Max+ 395 / Radeon 8060S,Qwen3.8-27B,Q4_K_M,q4_0,1,1073,4825,1000.6,207.2,38.75,36.33,71,serving-12-tier-ub1024,public
+2.5,dual-machine-hetero-pd,3080-cuda-full-prefill,RTX 3080 20GB,AI Max+ 395 / Radeon 8060S,Qwen3.8-27B,Q4_K_M,q4_0,2,1680,9649,1008.4,103.6,27.94,24.36,76,serving-12-tier-ub1024,public
+2.5,dual-machine-hetero-pd,3080-cuda-full-prefill,RTX 3080 20GB,AI Max+ 395 / Radeon 8060S,Qwen3.8-27B,Q4_K_M,q4_0,3,2680,15321,1014.5,65.3,21.45,21.17,68,serving-12-tier-ub1024,public
+2.5,dual-machine-hetero-pd,3080-cuda-full-prefill,RTX 3080 20GB,AI Max+ 395 / Radeon 8060S,Qwen3.8-27B,Q4_K_M,q4_0,4,3255,19763,1010.9,50.6,18.34,14.44,72,serving-12-tier-ub1024,public
+2.5,dual-machine-hetero-pd,3080-cuda-full-prefill,RTX 3080 20GB,AI Max+ 395 / Radeon 8060S,Qwen3.8-27B,Q4_K_M,q4_0,5,4457,22460,1015.5,44.5,13.10,11.48,72,serving-12-tier-ub1024,public
+2.5,dual-machine-hetero-pd,3080-cuda-full-prefill,RTX 3080 20GB,AI Max+ 395 / Radeon 8060S,Qwen3.8-27B,Q4_K_M,q4_0,6,5009,22303,1014.3,44.8,9.67,8.82,70,serving-12-tier-ub1024,public
+2.5,dual-machine-hetero-pd,raw-3080-baseline,RTX 3080 20GB,,Qwen3.8-27B,Q4_K_M,,,1024,,,,,,,llama-bench-pp,standalone-baseline
+2.5,dual-machine-hetero-pd,raw-3080-baseline,RTX 3080 20GB,,Qwen3.8-27B,Q4_K_M,,,4096,,,,,,,llama-bench-pp,standalone-baseline
+2.5,dual-machine-hetero-pd,raw-3080-decoder-baseline,RTX 3080 20GB,,Qwen3.8-27B,Q4_K_M,,,64,,,,,33.08,,llama-bench-tg,standalone-baseline
