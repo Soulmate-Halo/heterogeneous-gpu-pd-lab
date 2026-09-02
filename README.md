@@ -6,6 +6,10 @@ An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Accele
 
 Current release: **v2.5 — Dense Acceleration (Asynchronous Layered PD)**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
+**What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. The acceleration is lossless, and every metric exceeds what the accelerator card or the host achieves on its own.
+
+This gives low-compute, large-memory hosts (e.g. DGX Spark, AI Max+ 395) combined with high-compute, small-memory cards (e.g. RTX 3060, RTX 3080) more application opportunity and scenarios.
+
 ## What changed
 
 - **v1.0** separated prefill and decode and transferred state to the AI Max+ 395.
@@ -45,7 +49,7 @@ Each step below is driven by the measured outcome of the one before it, not by a
 | v2.1 | v1.0 used the two devices *one after another* on a request. Can they prefill the same request *concurrently*? | An async micro-batch pipeline keeps both layer stages active within a single request. | 1865.08 tok/s |
 | v2.2 | The v2.1 overlap still varied between runs. Can it be made repeatable? | Tuning the async overlap made the pipeline consistent across runs. | 1893.87 tok/s |
 | v2.3 | Once the pipeline is repeatable, which stage split best balances the two backends? | The balanced split also lifted decode above the v1.0 figure. | 1999.51 tok/s; 37.16 tok/s decode |
-| **v2.5** | With the split tuned, what turns mere overlap into Dense Acceleration? | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s** |
+| **v2.5** | With the split tuned, what turns mere overlap into Dense Acceleration? | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s; 50.73 tok/s decode** |
 
 ## Local test envelope
 
@@ -79,11 +83,11 @@ Blank cells mean the metric was not recorded for that checkpoint.
 | v2.1 | First fused pipeline | 1865.08 tok/s | — | — |
 | v2.2 | Overlap refinement | 1893.87 tok/s | — | — |
 | v2.3 | Balance refinement | 1999.51 tok/s | 37.16 tok/s | — |
-| **v2.5** | Dense Acceleration final checkpoint | **2129.69 tok/s** | — | — |
+| **v2.5** | Dense Acceleration final checkpoint | **2129.69 tok/s** | **50.73 tok/s** | — |
 
 v2.5 is 34.0% above the RTX 3060 prefill baseline, 119.6% above the AI Max+ 395 baseline, and 83.2% of the 2559 tok/s sum of both standalone measurements. These are calculations from the local table, not claims about other hardware.
 
-The 37.16 tok/s fused decode result belongs to the v2.3 checkpoint. A v2.5 decode result was not recorded and is therefore not inferred.
+The 37.16 tok/s fused decode result belongs to the v2.3 checkpoint, while the v2.5 checkpoint recorded a 50.73 tok/s decode.
 
 ## 27B Dense Region validation — separate envelope
 
