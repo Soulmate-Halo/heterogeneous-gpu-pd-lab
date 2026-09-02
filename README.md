@@ -2,9 +2,9 @@
 
 [简体中文](README_ZH.md)
 
-An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration on one host: an RTX 3060 12GB works with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
+An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration: RTX 3060 / RTX 3080 accelerator heads work with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.5 — Dense Acceleration (Asynchronous Layered PD) + Qwen3.8-27B dual-machine heterogeneous**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.6 — unified 27B experiment area + router v1.1/v1.2 measurements**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 **What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. The acceleration is lossless, and every metric exceeds what the accelerator card or the host achieves on its own.
 
@@ -14,12 +14,12 @@ This gives low-compute, large-memory hosts (e.g. DGX Spark, AI Max+ 395) combine
 
 *Structure: the overlapping memory cell splits into a **sparse region** that holds the model and a **dense region** that does the compute; a model falling into the dense region gets significant, lossless decode & prefill acceleration.*
 
-## What changed
+## Reading path and this release
 
-- **v1.0** separated prefill and decode and transferred state to the AI Max+ 395.
-- **v2.1–v2.4** evolved toward an asynchronous micro-batch pipeline in which both devices contribute to one prefill; the final form is named **Dense Acceleration**.
-- **v2.4 reached 2129.69 tok/s**, 34.0% above the RTX 3060 baseline and 119.6% above the AI Max+ 395 baseline in the local `9B Q6_K / pp5064` test.
-- A DGX Spark section now records community measurements as **external controls only**. Different models, quantizations, prompt lengths, forks, and kernels make them unsuitable for direct ranking.
+- Read **architecture and measurement envelopes** first, then follow **research evolution → 9B experiment chain → unified 27B experiment area → external references**. Every local experiment starts with a “New experiment + key result” heading.
+- The **9B main line** keeps the same-envelope v1.0–v2.4 evolution, ending at 2129.69 tok/s prefill and 50.73 tok/s decode.
+- The **27B experiment area** now places the 3060 / IQ3 and 3080 / Q4 records together without merging their measurement envelopes.
+- Router v1.1's **1194.4–1210.6 tok/s is prefill**. The 35–38.5 tok/s single-stream decode figure is limited to repetitive text with 100% draft acceptance; v1.2 two-stage preemption and the natural-language audit are reported separately.
 
 ## Dense Acceleration architecture
 
@@ -54,10 +54,12 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 | v2.2 | Resolve the run-to-run overlap variance in v2.1; make the speedup repeatable rather than coincidental. | Tune the async overlap until the pipeline becomes consistent across runs. | 1893.87 tok/s |
 | v2.3 | Once the pipeline is repeatable, check whether load balancing between the two backends reduces pipeline wait and improves Prefill and Decode at the same time. | The balanced split lifted decode above the v1.0 figure while raising prefill. | 1999.51 tok/s; 37.16 tok/s decode |
 | **v2.4** | Complete the overall goal: compare the combined setup against both endpoints running the same 9B Q6_K, pp5064 local baseline, and confirm state and output correctness, sustained Dense Region work, and lossless Prefill/Decode acceleration. | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s; 50.73 tok/s decode** |
+| **v2.5** | After the 9B line, test whether full 3080 prefill + 395 decode can move 27B Q4 into serving. | Remove per-ubatch RPC sync and run six C1–C6 tiers across two paths, twelve groups total. | C1 prefill **1000.6 tok/s**; TTFT 1073 ms |
+| **v2.6** | Resolve the split 3060/3080 narrative and publish the real envelopes behind “1200+” and “single-stream 35.” | Add router v1.1/v1.2 tables and a natural-language audit separating speculative upper bounds from service prose. | v1.1 prefill **1194.4–1210.6**; v1.2 C6 E2E aggregate **45.7 tok/s** |
 | **v3.0 (research direction)** | Adapt the v2.4 one-to-one mechanism to other types of large-memory hosts and small-VRAM accelerator cards. | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
 | **v4.0 (research direction)** | Study one accelerator card accelerating X large-memory hosts at the same time. | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
-## Local test envelope
+## 9B local test envelope
 
 | Item | Configuration |
 | --- | --- |
@@ -67,7 +69,9 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 | v1.0 measurement | Cache disabled; second server request retained |
 | v2 measurement | `pp5064`; `tg128` only where recorded |
 
-## v1.0 — Independent PD
+## 9B local experiment chain — one main envelope
+
+### New experiment 9B-v1.0 (Independent PD): 1452.29 tok/s prefill; 30.28 tok/s decode
 
 | Configuration | TTFT | Prefill | Decode |
 | --- | ---: | ---: | ---: |
@@ -78,7 +82,21 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 
 Full independent PD handed off 5063 tokens and 208.57 MiB of state. It preserved the architectural potential for cross-request prefill/decode duplexing, which this release did not benchmark under concurrency.
 
-## v2.1–v2.4 — Dense Acceleration evolution
+### New experiment 9B-v2.1 (first fused pipeline): 1865.08 tok/s prefill
+
+One request first enters the async micro-batch pipeline, ending whole-request alternating idle time.
+
+### New experiment 9B-v2.2 (overlap refinement): 1893.87 tok/s prefill
+
+Overlap becomes stable across runs, showing that the gain is repeatable.
+
+### New experiment 9B-v2.3 (balance refinement): 1999.51 tok/s prefill; 37.16 tok/s decode
+
+Balancing the two stages lifts both prefill and decode above the prior checkpoint.
+
+### New experiment 9B-v2.4 (Dense Acceleration final): 2129.69 tok/s prefill; 50.73 tok/s decode
+
+#### Same-envelope 9B summary
 
 Blank cells mean the metric was not recorded for that checkpoint.
 
@@ -95,7 +113,11 @@ v2.4 is 34.0% above the RTX 3060 prefill baseline, 119.6% above the AI Max+ 395 
 
 The 37.16 tok/s fused decode result belongs to the v2.3 checkpoint, while the v2.4 checkpoint recorded a 50.73 tok/s decode.
 
-## 27B Dense Region validation — separate envelope
+## Unified 27B experiment area — co-located narrative, separate envelopes
+
+These experiments share the 27B model scale, but hardware, quantization, prompts, and engine revisions differ. **Compare only inside each table.**
+
+### New experiment 27B-A (3060·IQ3): pp4096 658.52 tok/s (+110%)
 
 This exploratory line is deliberately separated from the `9B Q6_K / pp5064` table above. It used Qwen3.8-27B UD-IQ3_XXS (27.32B parameters, 10.17 GiB, 3.06 bpw), so its values are not included in the v2.4 percentages.
 
@@ -108,11 +130,11 @@ This exploratory line is deliberately separated from the `9B Q6_K / pp5064` tabl
 
 The full 27B model did not provide a valid standalone RTX 3060 baseline in this setup. Dense Acceleration succeeded because the external GPU only had to keep and compute its assigned layer stage; no internal allocation ratio is published. This result is an IQ3 validation, not a Q4 claim.
 
-## Qwen3.8-27B dual-machine heterogeneous experiment — separate envelope
+### New experiment 27B-B (3080·Q4, serving v1.0): C1 prefill 1000.6 tok/s; TTFT 1073 ms
 
-This line migrates the experiment to an **RTX 3080 20GB** accelerator head and records the full Qwen3.8-27B Q4 dual-machine heterogeneous PD results. It is deliberately separated from the `9B Q6_K / pp5064` main table and the `27B IQ3` validation line, and is not included in the v2.4 (now v2.5) percentages.
+This experiment replaces the accelerator head with an RTX 3080 and records 27B Q4 heterogeneous PD across two endpoints. It remains separate from the 9B main table and the 27B-A IQ3 long-prompt sweep.
 
-**Acceleration revision and head**
+#### Configuration
 
 - **Accelerator head**: **RTX 3080 20GB** (pure CUDA0 full prefill, no RPC, no draft speculation).
 - **Host being accelerated**: **AMD Ryzen AI Max+ 395 / Radeon 8060S** (Vulkan decode, full KV pool, DFlash2 speculative decoding).
@@ -120,20 +142,33 @@ This line migrates the experiment to an **RTX 3080 20GB** accelerator head and r
 - **Engine**: llama.cpp fork (HEAD `18c8dde`, with upstream [PR #18626](https://github.com/ggml-org/llama.cpp/pull/18626) async/RPC capability), running as two instances: 8082 pure CUDA0 full prefill, 8081 pure 395 decode holding the full KV pool (`/dev/shm/kvx`).
 - **Raw 3080 baseline**: pp1024 = 1228.53, pp4096 = 1203.06, tg64 = 33.08 tok/s.
 
-**Twelve-tier serving stress (split vs 395 solo, `bench_3080_cuda_full.log`, ub1024)**
+#### v1.0 representative rows
 
-| C | TTFT split/solo (ms) | prefill split/solo (tok/s) | decode split/solo (tok/s) | KV migration cost (save+rest) |
+This is **six C1–C6 concurrency tiers × split/solo paths = twelve measured groups**. The README keeps only the first and last row; all six tiers live in the detailed record and CSV.
+
+| C | TTFT split/solo | prefill split/solo | decode split/solo | KV migration |
 | --- | ---: | ---: | ---: | ---: |
-| 1 | **1073** / 4825 | **1000.6** / 207.2 | 38.75 / 36.33 | 71 ms |
-| 2 | 1680 / 9649 | 1008.4 / 103.6 | 27.94 / 24.36 | 76 ms |
-| 3 | 2680 / 15321 | 1014.5 / 65.3 | 21.45 / 21.17 | 68 ms |
-| 4 | 3255 / 19763 | 1010.9 / 50.6 | 18.34 / 14.44 | 72 ms |
-| 5 | 4457 / 22460 | 1015.5 / 44.5 | 13.10 / 11.48 | 72 ms |
-| 6 | 5009 / 22303 | 1014.3 / 44.8 | 9.67 / 8.82 | 70 ms |
+| 1 | **1073 / 4825 ms** | **1000.6 / 207.2 tok/s** | 38.75 / 36.33 tok/s | 71 ms |
+| 6 | 5009 / 22303 ms | 1014.3 / 44.8 tok/s | 9.67 / 8.82 tok/s | 70 ms |
 
-TTFT leads solo by about **4.5×** across all tiers, prefill stays at **1000–1015 tok/s** regardless of concurrency, decode is lossless, and KV migration cost is 71 ms. The former 45% per-ubatch RPC tax is gone: the same measurement rose from 683.2 to **1000.6 tok/s (+46%)**, about 82% of the 3080 raw 1228.
+Removing RPC lifted same-envelope C1 prefill from 683.2 to **1000.6 tok/s (+46%)**, about 82% of raw 3080 throughput.
 
-**Differences versus DGX Spark**
+### New experiment 27B-C (3080·Q4, router v1.1): 1194.4–1210.6 tok/s prefill; 35–38.5 tok/s repetitive-text single-stream decode
+
+- About 1000 in / 128 out. Port 8082 serializes prefill, so the single-request value is also service aggregate throughput; C1–C6 varies by only 1.3%.
+- Decode-span aggregate C1→C6 is **33.55 / 45.57 / 52.31 / 51.30 / 61.64 / 63.84 tok/s**; end-to-end aggregate rises from 16.8 to 32.0 tok/s.
+- **1200+ is prefill, not decode.** The 35–38.5 single-stream result comes from repetitive or degenerate output with 100% draft acceptance and is only a speculative upper envelope.
+
+### New experiment 27B-D (3080·Q4, router v1.2): C1 single-stream decode 63.2 tok/s; C6 end-to-end aggregate 45.7 tok/s
+
+- The 3080 DFlash2 head uses `np1 / ctx8192 / ub512 / n_max 3 / q4_0 KV / graphs off`; when new prefill arrives, two-stage preemption saves KV before continuing decode on the 395.
+- Under one random-word seed, C1 router/solo single-stream decode is **63.2 / 24.5**, while C6 router/solo end-to-end aggregate is **45.7 / 23.3 tok/s**. All twelve groups across six tiers and two paths passed three runs with `miss=0`, `err=0`.
+- A separate natural-language audit measured only **12.1 tok/s at C1 (17.7% acceptance)** on 395 + DFlash2, below the 18.26 headless baseline. Repetitive-text 35–38.5 therefore does not represent production prose. Natural-language C5 was not measured and is not filled in.
+- Single-request 4k / 7k TTFT was 3689 / 6524 ms with 3080 decode at 71 / 69 tok/s. After LRU KV eviction, 4k×6 and 7k×2 produced neither OOM nor restore failure.
+
+See the [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md) for the v1.0/v1.1/v1.2 tables, natural-language audit, and envelope limits; see the [CSV](data/qwen27b-local-results.csv) for machine-readable data.
+
+#### Differences versus DGX Spark
 
 | Metric | AI Max+ 395 + RTX 3080 (this experiment) | DGX Spark / GB10 |
 | --- | --- | --- |
@@ -149,9 +184,7 @@ TTFT leads solo by about **4.5×** across all tiers, prefill stays at **1000–1
 
 **Not directly comparable**: quantization (Q4_K_M vs NVFP4), engine (llama.cpp vs SGLang), KV precision (q4_0 vs fp8), prompt depth (short prompt vs 100K–300K tokens), and topology (dual-machine heterogeneous vs single machine) all differ.
 
-See the [full record](results/qwen3.8-27b-dual-machine-pd.md) and [machine-readable local data](data/qwen27b-local-results.csv).
-
-## DGX Spark community controls
+## External reference: DGX Spark community data (not a local new experiment)
 
 These externally reported measurements are preserved for context, not ranked against the local experiment.
 
@@ -167,7 +200,9 @@ See the [source notes](results/dgx-spark-community-control.md) and [machine-read
 - v1.0 demonstrates heterogeneous state handoff between CUDA prefill and Vulkan decode.
 - v2.4 Dense Acceleration demonstrates real asynchronous compute overlap in a heterogeneous layer pipeline, but occupying both endpoints removes v1.0's independent-PD duplex behavior.
 - v1.0 uses server-request measurements; v2 uses llama-bench pp/tg. Cross-release percentages are engineering references, not strict same-method research claims.
-- Evidence is limited to one host: a same-envelope 9B short single-concurrency benchmark plus a separate 27B IQ3 prompt-length sweep up to 98,304 tokens. 27B Q4, concurrent workloads, and multi-host operation remain untested.
+- 27B-A validates the 3060 / IQ3 long-prompt Dense Region, while 27B-B/C/D cover 3080 / Q4 C1–C6 serving, router aggregate throughput, and two-stage preemption. Their envelopes remain distinct and cannot be collapsed into one ranking.
+- **1200+ is explicitly 3080 prefill, not decode.** The 35–38.5 tok/s figure is a repetitive-text, 100%-acceptance speculative upper bound; direct natural-language C1 measured 12.1 tok/s. Both are retained to prevent selective reporting.
+- Current 27B Q4 evidence covers about 1000-token concurrent stress plus 4k/7k long-prompt points. It cannot be extrapolated to 100K+ prompts, arbitrary text distributions, or a permanently retained fast 3080 decode lane.
 - Community controls retain their original public methodology and are not normalized or extrapolated.
 
-Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.4 Dense Acceleration evolution](results/v2.4-fused-layer-pipeline.md), [local CSV](data/benchmark-results.csv), and [changelog](CHANGELOG.md).
+Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.4 Dense Acceleration evolution](results/v2.4-fused-layer-pipeline.md), [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md), [9B local CSV](data/benchmark-results.csv), [27B local CSV](data/qwen27b-local-results.csv), and [changelog](CHANGELOG.md).
