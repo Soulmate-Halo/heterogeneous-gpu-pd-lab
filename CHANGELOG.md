@@ -2,6 +2,11 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.7
+
+- Reframed homepage experiments 27B-C and 27B-D as prefill-first and decode-first profiles, with each headline leading on its best measured result.
+- Moved implementation parameters, full concurrency detail, and envelope data out of the homepage narrative; the detailed records and CSV remain the source of record.
+
 ## v2.6
 
 - Reorganized both READMEs into architecture and envelopes → research evolution → 9B experiment chain → unified 27B experiment area → external references → findings, and gave every local experiment a result-bearing “New experiment” heading.
