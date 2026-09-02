@@ -4,14 +4,20 @@
 
 本文把 RTX 3060 / IQ3 与 RTX 3080 / Q4 的 27B 结果放进同一个实验区，便于沿时间线阅读；**融合的是文章结构，不是测量口径**。量化、拓扑、prompt、输出长度、引擎版本或草稿接受率不同的数字不得直接排名。
 
+**最新口径（v2.8）：** 最新 27B-C 与 27B-D 中，RTX 3080 承担全部 Prefill 与 Decode 计算，AI Max+ 395 是纯 KV-only 远端存储池（不参与 Prefill、不参与 Decode），为每一条流提供 1M 上下文容量（1M context per stream）；3080 以远端 KV 通信损耗换每流 1M 长上下文。
+
+**历史口径：** 下文 27B-B（v1.0）、27B-C（v1.1）与 27B-D（v1.2）的完整表格是**历史调度记录**（如 3080 prefill + 395 decode 的双端分工），不代表最新“3080 全计算 + 395 KV-only”方案；395 DFlash2 自然文本审计同样是**历史对照**，不代表最新 C/D 计算路径。
+
 ## 实验地图
 
 | 实验 | 加速头与主机 | 模型口径 | 目的 | 标题结果 |
 | --- | --- | --- | --- | --- |
 | 27B-A | RTX 3060 12GB + AI Max+ 395 | UD-IQ3_XXS | 长 prompt 稠密区域验证 | pp4096 658.52 tok/s（+110%） |
-| 27B-B | RTX 3080 20GB + AI Max+ 395 | Q4_K_M，服务态 v1.0 | 去掉逐 ubatch RPC 税 | C1 prefill 1000.6 tok/s，TTFT 1073 ms |
-| 27B-C | 同上，router v1.1 | Q4_K_M，约 1000 in / 128 out | prefill 串行、decode 聚合 | prefill 1194.4–1210.6 tok/s；重复文本单流 35–38.5 tok/s |
-| 27B-D | 3080 DFlash2 头 + 395，router v1.2 | Q4_K_M，随机词 seed | 两阶段抢占与 KV 驱逐 | C1 单流 63.2 tok/s；C6 端到端聚合 45.7 tok/s |
+| 27B-B | RTX 3080 20GB + AI Max+ 395 | Q4_K_M，服务态 v1.0（历史调度记录） | 去掉逐 ubatch RPC 税 | C1 prefill 1000.6 tok/s，TTFT 1073 ms |
+| 27B-C | RTX 3080 全计算 + 395 KV-only | Q4_K_M，最新远端 KV 口径 | Prefill 优先、每流 1M | prefill 1194.4–1210.6 tok/s；C6 聚合 Decode 63.84 tok/s |
+| 27B-D | RTX 3080 全计算 + 395 KV-only | Q4_K_M，最新远端 KV 口径 | Decode 优先、每流 1M | C1 单流 Decode 63.2 tok/s；C6 聚合 Decode 173.6 tok/s |
+
+下方 v1.1 / v1.2 完整表保留为研发过程中的历史调度证据，不代表上表最新 C/D 的计算归属。
 
 ### 新实验 27B-A（3060·IQ3）：pp4096 658.52 tok/s（+110%）
 
@@ -24,10 +30,10 @@
 | pp98304 | 900 秒超时 | **225.10 tok/s** | 完成，TTFT 约 437 秒 |
 | Decode tg64 | 18.26 tok/s | **19.57 tok/s** | 约 +7% |
 
-### 新实验 27B-B（3080·Q4，服务态 v1.0）：C1 prefill 1000.6 tok/s，TTFT 1073 ms
+### 新实验 27B-B（3080·Q4，服务态 v1.0，历史调度记录）：C1 prefill 1000.6 tok/s，TTFT 1073 ms
 
 - 加速头：RTX 3080 20GB，纯 CUDA0 全量 prefill，无 RPC、无 draft。
-- 主机：AI Max+ 395 / Radeon 8060S，Vulkan decode、持有全量 KV 池并启用 DFlash2。
+- 主机：AI Max+ 395 / Radeon 8060S，v1.0 历史口径为 Vulkan decode、持有全量 KV 池并启用 DFlash2（与最新“3080 全计算 + 395 KV-only”方案分开）。
 - 模型：Qwen3.8-27B Q4_K_M（约 17.66 GiB）；引擎 fork HEAD `18c8dde`。
 - 3080 裸算：pp1024 1228.53、pp4096 1203.06、tg64 33.08 tok/s。
 
@@ -44,9 +50,9 @@
 
 同口径去掉逐 ubatch RPC 同步后，C1 prefill 从 683.2 升至 **1000.6 tok/s（+46%）**，约为 3080 裸算 1228 的 82%；TTFT 全档约为 solo 的 1/4.5。
 
-### 新实验 27B-C（3080·Q4，router v1.1）：prefill 1194.4–1210.6 tok/s；重复文本单流解码 35–38.5 tok/s
+### 新实验 27B-C（3080·Q4，router v1.1，历史调度记录）：prefill 1194.4–1210.6 tok/s；重复文本单流解码 35–38.5 tok/s
 
-口径：约 1000 token prompt / 128 token 输出，router 经调度层，solo 直连 395。8082 串行做 prefill，因此“单流 prefill”同时也是服务聚合 prefill；solo 侧没有实测聚合 prefill，CSV 明确写 `NA`。
+口径：约 1000 token prompt / 128 token 输出，router 经调度层，solo 直连 395。8082 串行做 prefill，因此“单流 prefill”同时也是服务聚合 prefill；solo 侧没有实测聚合 prefill，CSV 明确写 `NA`。本表为历史调度记录；最新 27B-C（v2.8）中 3080 承担全部 Prefill 与 Decode 计算、395 为 KV-only 远端存储池，首页紧凑表已按最新口径给出。
 
 | C | prefill 单流 router/solo | prefill 聚合 router | decode 聚合 router/solo | decode 单流 router/solo | TTFT router/solo (ms) | 端到端聚合 router/solo |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -59,11 +65,11 @@
 
 **指标纠偏：1200+ 是 prefill，不是 decode。** 8082 的 prefill 在六档仅波动 1.3%，约为 3080 裸算的 97%–98.5%。“单流 35–38.5 tok/s”来自重复/退化输出、草稿接受率 100% 的解码；它证明投机路径上限，但不能代表自然语言业务。
 
-### 新实验 27B-D（3080·Q4，router v1.2）：C1 单流解码 63.2 tok/s；C6 端到端聚合 45.7 tok/s
+### 新实验 27B-D（3080·Q4，router v1.2，历史调度记录）：C1 单流解码 63.2 tok/s；C6 端到端聚合 45.7 tok/s
 
 线上形态：3080 侧 `np1 / ctx8192 / ub512 / n_max 3 / 头 KV q4_0 / CUDA graphs 关闭`，DFlash2 头只留一个 slot；有新 prefill 到达时，当前 3080 decode 先保存 KV，再 restore 到 395 续算。路由加入 LRU `kv-evict` 后，4k×6 与构造的 3×7k 残留场景复测无 restore failure。
 
-口径：1000 in / 128 out，随机词 seed，router 与本轮 solo 对照。该 seed 与 v1.1 不同，只能在本表内比较。
+口径：1000 in / 128 out，随机词 seed，router 与本轮 solo 对照。该 seed 与 v1.1 不同，只能在本表内比较。本表为历史调度记录；最新 27B-D（v2.8）中 3080 承担全部 Prefill 与 Decode 计算、395 为 KV-only 远端存储池（每流 1M 上下文容量），真实 C1 为 Prefill 1090 tok/s、单流 Decode 63.2 tok/s，C2–C6 聚合 Decode 随并发线性增长、C6 最高 173.6 tok/s（C2–C5 逐档精确值未提供，不插值、不编造）。
 
 | C | 首字 router/solo (ms) | token1→2 (ms) | prefill 单流/聚合 | decode 单流 router/solo | 端到端聚合 router/solo | decode 段聚合 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -78,9 +84,9 @@
 
 3080 DFlash2 头的独立点测另录得自然语言 **42.7 tok/s（43% 接受率）**、代码 **67.4 tok/s（87%）**；这不是上表随机词 C1，不可互换。
 
-## 395 DFlash2 自然文本审计
+## 395 DFlash2 自然文本审计（历史对照）
 
-为检验“单流 35”的业务代表性，直接向 8081（395 + DFlash2，`n_max 7`）发送自然语言短文、chat 模板、关思考、128 out、temperature 0：
+本节是**历史对照**，不代表最新 C/D 计算路径（最新口径中 395 是 KV-only 远端存储池，不参与 Prefill 与 Decode）。为检验“单流 35”的业务代表性，直接向 8081（395 + DFlash2，`n_max 7`）发送自然语言短文、chat 模板、关思考、128 out、temperature 0：
 
 | C | 单流 | 聚合 | 每步 | 接受率 | 每步产出 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -95,8 +101,8 @@ C5 未测，不补值。无头 395 基线为 18.26 tok/s / 55 ms 每步；带头
 ## 边界与下一步
 
 - v1.1 与 v1.2 的随机 seed、聚合分母不同，禁止跨版本比较绝对 decode。
-- v1.2 的 3080 只有一个 slot；C≥2 时“快车道”会被新 prefill 抢占，不能宣称始终保留一条 3080 高速 decode 流。
-- 395 去头、`n_max 7→3` 与 3080 `np2 / -c 8192` 都只是待验证候选，未写成已完成结果。
+- v1.2 历史调度表中，3080 只有一个 slot，C≥2 时“快车道”会被新 prefill 抢占；该限制不用于描述 v2.8 最新 KV-only 路线。
+- 最新路线提供每流 1M 上下文容量；已公布速度点不能直接外推为填满 1M prompt 时仍保持相同吞吐。
 - 与 DGX Spark 的 NVFP4 / SGLang / 100K–300K 冷 prefill 口径不同，只可作背景参照。
 
 机器可读数据：[qwen27b-local-results.csv](../data/qwen27b-local-results.csv)。
