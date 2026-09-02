@@ -4,7 +4,7 @@
 
 An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration on one host: an RTX 3060 12GB works with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.5 — Dense Acceleration (Asynchronous Layered PD)**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.4 — Dense Acceleration (Asynchronous Layered PD)**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 **What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. The acceleration is lossless, and every metric exceeds what the accelerator card or the host achieves on its own.
 
@@ -17,8 +17,8 @@ This gives low-compute, large-memory hosts (e.g. DGX Spark, AI Max+ 395) combine
 ## What changed
 
 - **v1.0** separated prefill and decode and transferred state to the AI Max+ 395.
-- **v2.1–v2.5** evolved toward an asynchronous micro-batch pipeline in which both devices contribute to one prefill; the final form is named **Dense Acceleration**.
-- **v2.5 reached 2129.69 tok/s**, 34.0% above the RTX 3060 baseline and 119.6% above the AI Max+ 395 baseline in the local `9B Q6_K / pp5064` test.
+- **v2.1–v2.4** evolved toward an asynchronous micro-batch pipeline in which both devices contribute to one prefill; the final form is named **Dense Acceleration**.
+- **v2.4 reached 2129.69 tok/s**, 34.0% above the RTX 3060 baseline and 119.6% above the AI Max+ 395 baseline in the local `9B Q6_K / pp5064` test.
 - A DGX Spark section now records community measurements as **external controls only**. Different models, quantizations, prompt lengths, forks, and kernels make them unsuitable for direct ranking.
 
 ## Dense Acceleration architecture
@@ -45,15 +45,17 @@ The final design uses the RPC events/async capability from upstream llama.cpp [P
 
 ## Research evolution
 
-| Stage | Driven by | Key validation | Result |
-| --- | --- | --- | ---: |
-| v1.0 | The 395 alone prefills at ~970 tok/s while the 3060 sits idle. Can the 3060 carry part of the prefill? | CUDA prefill → Vulkan decode state handoff completes reliably. | 1452.29 tok/s; 30.28 tok/s decode |
-| v2.1 | v1.0 used the two devices *one after another* on a request. Can they prefill the same request *concurrently*? | An async micro-batch pipeline keeps both layer stages active within a single request. | 1865.08 tok/s |
-| v2.2 | The v2.1 overlap still varied between runs. Can it be made repeatable? | Tuning the async overlap made the pipeline consistent across runs. | 1893.87 tok/s |
-| v2.3 | Once the pipeline is repeatable, which stage split best balances the two backends? | The balanced split also lifted decode above the v1.0 figure. | 1999.51 tok/s; 37.16 tok/s decode |
-| **v2.5** | With the split tuned, what turns mere overlap into Dense Acceleration? | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s; 50.73 tok/s decode** |
-| **v3.0 (research direction)** | v2.5 validated one-to-one Dense Acceleration on AI Max+ 395 + RTX 3060. Can the same mechanism be adapted to other types of large-memory hosts and small-VRAM accelerator cards? | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
-| **v4.0 (research direction)** | The preceding research direction is planned to generalize one-to-one adaptation. Can one accelerator then accelerate X large-memory hosts concurrently? | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
+Overall experimental goal: verify that when a high-compute, small-VRAM accelerator card cannot fit an entire model by itself, it can jointly host and compute the same model together with a low-compute, large-VRAM host, while accelerating both Prefill and Decode without lowering output quality.
+
+| Stage | Experimental purpose | Validation method | Measured result |
+| --- | --- | --- | --- |
+| v1.0 | Establish basic feasibility: the RTX 3060 carries Prefill, then hands off the state to the AI Max+ 395 for Decode. | Complete the CUDA prefill → Vulkan decode state handoff reliably. | 1452.29 tok/s; 30.28 tok/s decode |
+| v2.1 | Resolve the serial idle time at both endpoints in v1.0; check whether an async micro-batch pipeline lets both endpoints contribute to one prefill. | Verify that the same-request micro-batch pipeline keeps both layer stages active within a single request. | 1865.08 tok/s |
+| v2.2 | Resolve the run-to-run overlap variance in v2.1; make the speedup repeatable rather than coincidental. | Tune the async overlap until the pipeline becomes consistent across runs. | 1893.87 tok/s |
+| v2.3 | Once the pipeline is repeatable, check whether load balancing between the two backends reduces pipeline wait and improves Prefill and Decode at the same time. | The balanced split lifted decode above the v1.0 figure while raising prefill. | 1999.51 tok/s; 37.16 tok/s decode |
+| **v2.4** | Complete the overall goal: compare the combined setup against both endpoints running the same 9B Q6_K, pp5064 local baseline, and confirm state and output correctness, sustained Dense Region work, and lossless Prefill/Decode acceleration. | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s; 50.73 tok/s decode** |
+| **v3.0 (research direction)** | Adapt the v2.4 one-to-one mechanism to other types of large-memory hosts and small-VRAM accelerator cards. | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
+| **v4.0 (research direction)** | Study one accelerator card accelerating X large-memory hosts at the same time. | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
 ## Local test envelope
 
@@ -76,7 +78,7 @@ The final design uses the RPC events/async capability from upstream llama.cpp [P
 
 Full independent PD handed off 5063 tokens and 208.57 MiB of state. It preserved the architectural potential for cross-request prefill/decode duplexing, which this release did not benchmark under concurrency.
 
-## v2.1–v2.5 — Dense Acceleration evolution
+## v2.1–v2.4 — Dense Acceleration evolution
 
 Blank cells mean the metric was not recorded for that checkpoint.
 
@@ -87,15 +89,15 @@ Blank cells mean the metric was not recorded for that checkpoint.
 | v2.1 | First fused pipeline | 1865.08 tok/s | — | — |
 | v2.2 | Overlap refinement | 1893.87 tok/s | — | — |
 | v2.3 | Balance refinement | 1999.51 tok/s | 37.16 tok/s | — |
-| **v2.5** | Dense Acceleration final checkpoint | **2129.69 tok/s** | **50.73 tok/s** | — |
+| **v2.4** | Dense Acceleration final checkpoint | **2129.69 tok/s** | **50.73 tok/s** | — |
 
-v2.5 is 34.0% above the RTX 3060 prefill baseline, 119.6% above the AI Max+ 395 baseline, and 83.2% of the 2559 tok/s sum of both standalone measurements. These are calculations from the local table, not claims about other hardware.
+v2.4 is 34.0% above the RTX 3060 prefill baseline, 119.6% above the AI Max+ 395 baseline, and 83.2% of the 2559 tok/s sum of both standalone measurements. These are calculations from the local table, not claims about other hardware.
 
-The 37.16 tok/s fused decode result belongs to the v2.3 checkpoint, while the v2.5 checkpoint recorded a 50.73 tok/s decode.
+The 37.16 tok/s fused decode result belongs to the v2.3 checkpoint, while the v2.4 checkpoint recorded a 50.73 tok/s decode.
 
 ## 27B Dense Region validation — separate envelope
 
-This exploratory line is deliberately separated from the `9B Q6_K / pp5064` table above. It used Qwen3.8-27B UD-IQ3_XXS (27.32B parameters, 10.17 GiB, 3.06 bpw), so its values are not included in the v2.5 percentages.
+This exploratory line is deliberately separated from the `9B Q6_K / pp5064` table above. It used Qwen3.8-27B UD-IQ3_XXS (27.32B parameters, 10.17 GiB, 3.06 bpw), so its values are not included in the v2.4 percentages.
 
 | Measurement | AI Max+ 395 only | Dense Acceleration | Observed change |
 | --- | ---: | ---: | --- |
@@ -120,9 +122,9 @@ See the [source notes](results/dgx-spark-community-control.md) and [machine-read
 ## Findings and limits
 
 - v1.0 demonstrates heterogeneous state handoff between CUDA prefill and Vulkan decode.
-- v2.5 Dense Acceleration demonstrates real asynchronous compute overlap in a heterogeneous layer pipeline, but occupying both endpoints removes v1.0's independent-PD duplex behavior.
+- v2.4 Dense Acceleration demonstrates real asynchronous compute overlap in a heterogeneous layer pipeline, but occupying both endpoints removes v1.0's independent-PD duplex behavior.
 - v1.0 uses server-request measurements; v2 uses llama-bench pp/tg. Cross-release percentages are engineering references, not strict same-method research claims.
 - Evidence is limited to one host: a same-envelope 9B short single-concurrency benchmark plus a separate 27B IQ3 prompt-length sweep up to 98,304 tokens. 27B Q4, concurrent workloads, and multi-host operation remain untested.
 - Community controls retain their original public methodology and are not normalized or extrapolated.
 
-Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.5 Dense Acceleration evolution](results/v2.5-fused-layer-pipeline.md), [local CSV](data/benchmark-results.csv), and [changelog](CHANGELOG.md).
+Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.4 Dense Acceleration evolution](results/v2.4-fused-layer-pipeline.md), [local CSV](data/benchmark-results.csv), and [changelog](CHANGELOG.md).
