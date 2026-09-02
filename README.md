@@ -1,4 +1,4 @@
-# <img src="assets/soulmate-spirit.png" alt="Soulmate spirit" width="44" align="absmiddle"> AI Max+ 395 Dense Acceleration — Heterogeneous GPU PD Lab
+# <img src="assets/soulmate-spirit.png" alt="Soulmate spirit" width="44" align="absmiddle"> Small-VRAM Accelerator + Large-VRAM, Low-Compute Host Dense Acceleration — Heterogeneous GPU PD Lab
 
 [简体中文](README_ZH.md)
 
