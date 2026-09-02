@@ -45,8 +45,6 @@ The final design uses the RPC events/async capability from upstream llama.cpp [P
 
 ## Research evolution
 
-Each step below is driven by the measured outcome of the one before it, not by a preset plan. The v2 labels are public revision names, not disclosures of the internal layer split.
-
 | Stage | Driven by | Key validation | Result |
 | --- | --- | --- | ---: |
 | v1.0 | The 395 alone prefills at ~970 tok/s while the 3060 sits idle. Can the 3060 carry part of the prefill? | CUDA prefill → Vulkan decode state handoff completes reliably. | 1452.29 tok/s; 30.28 tok/s decode |
@@ -54,6 +52,8 @@ Each step below is driven by the measured outcome of the one before it, not by a
 | v2.2 | The v2.1 overlap still varied between runs. Can it be made repeatable? | Tuning the async overlap made the pipeline consistent across runs. | 1893.87 tok/s |
 | v2.3 | Once the pipeline is repeatable, which stage split best balances the two backends? | The balanced split also lifted decode above the v1.0 figure. | 1999.51 tok/s; 37.16 tok/s decode |
 | **v2.5** | With the split tuned, what turns mere overlap into Dense Acceleration? | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s; 50.73 tok/s decode** |
+| **v3.0 (research direction)** | v2.5 validated one-to-one Dense Acceleration on AI Max+ 395 + RTX 3060. Can the same mechanism be adapted to other types of large-memory hosts and small-VRAM accelerator cards? | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
+| **v4.0 (research direction)** | The preceding research direction is planned to generalize one-to-one adaptation. Can one accelerator then accelerate X large-memory hosts concurrently? | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
 ## Local test envelope
 
