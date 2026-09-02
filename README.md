@@ -115,7 +115,7 @@ These externally reported measurements are preserved for context, not ranked aga
 | Device | Community workload | Prompt metric | Prefill | Directly comparable? | Source |
 | --- | --- | ---: | ---: | --- | --- |
 | NVIDIA DGX Spark / GB10 | Qwen3.5 9B, TQ3_4S, fork-specific FP4 cache-on path | pp2048 | 2766.28 tok/s | **No** — quantization, prompt length, fork, and kernel differ | [llama.cpp-tq3 PR #53](https://github.com/turbo-tan/llama.cpp-tq3/pull/53) |
-| NVIDIA DGX Spark / GB10 | Nemotron-3-Nano-30B-A3B, UD-Q4_K_XL, depth 0, f16 KV | pp2048 | 809.55 tok/s | **No** — model architecture/size, quantization, prompt length, and fork differ | [TurboQuant issue #44](https://github.com/TheTom/llama-cpp-turboquant/issues/44) |
+| NVIDIA DGX Spark / GB10 | Qwen3.8-27B, NVFP4, SGLang + DFlash2 | 100K / 200K / 300K-token cold prefill | 1170 / 800 / 615 tok/s | **No** — quantization, engine, prompt depths, and test method differ | [hasso5703 benchmark](https://github.com/hasso5703/dgx-spark-qwen38/blob/17e7e2280e632b0a3ab91839c8c7522b256937ac/BENCHMARKS.md#L232-L243) |
 
 See the [source notes](results/dgx-spark-community-control.md) and [machine-readable external controls](data/dgx-spark-community-controls.csv).
 
