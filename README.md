@@ -41,11 +41,11 @@ Each step below is driven by the measured outcome of the one before it, not by a
 
 | Stage | Driven by | Key validation | Result |
 | --- | --- | --- | ---: |
-| v1.0 | The 395 alone prefills near 970 tok/s — can the 3060 carry part of the work? | Heterogeneous prefill-to-decode state handoff (CUDA to Vulkan) completes reliably. | 1452.29 tok/s; 30.28 tok/s decode |
-| v2.1 | v1.0 runs the two devices *in sequence*. Can they feed one request's prefill *together*? | An async micro-batch pipeline keeps both layer stages active on a single request. | 1865.08 tok/s |
-| v2.2 | The v2.1 overlap still varies between runs. Can it be stabilised? | Refining the async overlap makes the pipeline more consistent. | 1893.87 tok/s |
-| v2.3 | Which stage split best balances the two backends? | The balanced split also lifts decode above the v1.0 figure. | 1999.51 tok/s; 37.16 tok/s decode |
-| **v2.5** | When does the overlapping window count as Dense Acceleration? | The calibrated checkpoint fills the Dense Region and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s** |
+| v1.0 | The 395 alone prefills at ~970 tok/s while the 3060 sits idle. Can the 3060 carry part of the prefill? | CUDA prefill → Vulkan decode state handoff completes reliably. | 1452.29 tok/s; 30.28 tok/s decode |
+| v2.1 | v1.0 used the two devices *one after another* on a request. Can they prefill the same request *concurrently*? | An async micro-batch pipeline keeps both layer stages active within a single request. | 1865.08 tok/s |
+| v2.2 | The v2.1 overlap still varied between runs. Can it be made repeatable? | Tuning the async overlap made the pipeline consistent across runs. | 1893.87 tok/s |
+| v2.3 | Once the pipeline is repeatable, which stage split best balances the two backends? | The balanced split also lifted decode above the v1.0 figure. | 1999.51 tok/s; 37.16 tok/s decode |
+| **v2.5** | With the split tuned, what turns mere overlap into Dense Acceleration? | The calibrated checkpoint keeps the Dense Region full and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s** |
 
 ## Local test envelope
 
