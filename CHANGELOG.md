@@ -4,7 +4,10 @@
 
 ## v2.5
 
-- Published the final calibrated fused-layer checkpoint at 2129.69 tok/s.
+- Named the final asynchronous layered-PD form **Dense Acceleration** and defined its concurrent compute window as the **Dense Region**.
+- Published the final Dense Acceleration checkpoint at 2129.69 tok/s, while keeping the v2.3-only 37.16 tok/s decode result explicitly separated.
+- Clarified that the Dense Region is micro-batch scheduling overlap, not duplicate same-layer compute, tensor parallelism, or duplicated weights.
+- Added the separate-envelope 27B IQ3 validation: 658.52 tok/s at pp4096, 319.10 tok/s at pp65536, 225.10 tok/s at pp98304, and 19.57 tok/s decode.
 - Made English the default repository language and added a complete Chinese mirror.
 - Added the Soulmate spirit mark and AI Max+ 395 acceleration to the project title.
 - Added two source-linked DGX Spark community controls with explicit non-comparability metadata.
