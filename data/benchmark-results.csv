@@ -8,4 +8,4 @@ v2-baseline,fused-layer,ai-max-395-only,AI Max+ 395 / Radeon 8060S,9B,Q6_K,5064,
 v2.1,fused-layer,first-fused-pipeline,RTX 3060 + AI Max+ 395,9B,Q6_K,5064,128,,1865.08,,,,llama-bench-pp,public-label-no-internal-allocation
 v2.2,fused-layer,overlap-refinement,RTX 3060 + AI Max+ 395,9B,Q6_K,5064,128,,1893.87,,,,llama-bench-pp,public-label-no-internal-allocation
 v2.3,fused-layer,balance-refinement,RTX 3060 + AI Max+ 395,9B,Q6_K,5064,128,,1999.51,37.16,,,llama-bench-pp-tg,public-label-no-internal-allocation
-v2.5,fused-layer,final-calibrated-pipeline,RTX 3060 + AI Max+ 395,9B,Q6_K,5064,128,,2129.69,,,,llama-bench-pp,public-label-no-internal-allocation
+v2.4,fused-layer,final-calibrated-pipeline,RTX 3060 + AI Max+ 395,9B,Q6_K,5064,128,,2129.69,,,,llama-bench-pp,public-label-no-internal-allocation
