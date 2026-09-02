@@ -1,42 +1,51 @@
-# <img src="assets/soulmate-spirit.png" alt="Soulmate spirit" width="44" align="absmiddle"> AI Max+ 395 Acceleration — Heterogeneous GPU PD Lab
+# <img src="assets/soulmate-spirit.png" alt="Soulmate spirit" width="44" align="absmiddle"> AI Max+ 395 Dense Acceleration — Heterogeneous GPU PD Lab
 
 [简体中文](README_ZH.md)
 
-An experimental record of heterogeneous GPU Prefill/Decode (PD) and fused-layer inference on one host: an RTX 3060 12GB works with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
+An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration on one host: an RTX 3060 12GB works with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.5 — Calibrated Fused-Layer Pipeline**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.5 — Dense Acceleration (Asynchronous Layered PD)**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 ## What changed
 
 - **v1.0** separated prefill and decode and transferred state to the AI Max+ 395.
-- **v2.1–v2.5** evolved toward an asynchronous micro-batch pipeline in which both devices contribute to one prefill.
+- **v2.1–v2.5** evolved toward an asynchronous micro-batch pipeline in which both devices contribute to one prefill; the final form is named **Dense Acceleration**.
 - **v2.5 reached 2129.69 tok/s**, 34.0% above the RTX 3060 baseline and 119.6% above the AI Max+ 395 baseline in the local `9B Q6_K / pp5064` test.
 - A DGX Spark section now records community measurements as **external controls only**. Different models, quantizations, prompt lengths, forks, and kernels make them unsuitable for direct ranking.
 
-## Architecture
+## Dense Acceleration architecture
 
 ```mermaid
 flowchart LR
     P[Prompt] --> Q[Async micro-batch queue]
-    Q --> N[RTX 3060 / CUDA<br/>front-stage layers]
-    N --> A[AI Max+ 395 / Vulkan<br/>rear-stage layers and state ownership]
+    subgraph D["Dense Region — concurrent active window"]
+        direction LR
+        N[RTX 3060 / CUDA<br/>front-stage layers] -->|current micro-batch| A[AI Max+ 395 / Vulkan<br/>rear-stage layers and state ownership]
+    end
+    Q --> N
     A --> O[Decode and result stream]
     N -. next micro-batch overlaps .-> A
 ```
 
-The fused design uses the RPC events/async capability from upstream llama.cpp [PR #18626](https://github.com/ggml-org/llama.cpp/pull/18626). Model layers stay on their assigned endpoint; micro-batches move through the stages so the two devices can work concurrently. The experiment does not claim a custom inference-engine patch.
+The final design uses the RPC events/async capability from upstream llama.cpp [PR #18626](https://github.com/ggml-org/llama.cpp/pull/18626). Model layers stay on their assigned endpoint; micro-batches move through the stages so the two devices can work concurrently. The experiment does not claim a custom inference-engine patch.
 
-## Design evolution
+### Terminology
 
-The v2 labels below are public revision names, not disclosures of the internal layer split.
+- **Dense Acceleration** is this project's name for the final asynchronous layered-PD form: layer ownership is split between the external GPU and AI Max+ 395, while RPC/events keeps adjacent micro-batches active across both stages.
+- The **Dense Region** is the overlapping compute window on the pipeline timeline in which the external GPU and AI Max+ 395 are both doing useful work on adjacent micro-batches and their own layer stages. Filling this window reduces pipeline bubbles and strongly accelerates the model-stage work it covers.
+- The Dense Region is scheduling overlap, **not** two devices recomputing the same layer, tensor parallelism, or duplicated weight residency.
 
-| Revision | Question | Measured answer | Prefill |
+## Research evolution
+
+Each step below is driven by the measured outcome of the one before it, not by a preset plan. The v2 labels are public revision names, not disclosures of the internal layer split.
+
+| Stage | Driven by | Key validation | Result |
 | --- | --- | --- | ---: |
-| v1.0 | Can CUDA prefill hand state to Vulkan decode? | Yes; full independent PD reduced TTFT while decode stayed near 30 tok/s. | 1452.29 tok/s |
-| v2.1 | Can one request keep both layer stages active? | The first fused pipeline exceeded either local standalone endpoint. | 1865.08 tok/s |
-| v2.2 | Can overlap be made more consistent? | An overlap refinement produced a modest additional gain. | 1893.87 tok/s |
-| v2.3 | Can stage balance improve without exposing policy? | The balanced revision crossed 1999 tok/s; decode was recorded at 37.16 tok/s. | 1999.51 tok/s |
-| **v2.5** | What is the best calibrated public checkpoint? | The final measured checkpoint reached 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s** |
+| v1.0 | The 395 alone prefills near 970 tok/s — can the 3060 carry part of the work? | Heterogeneous prefill-to-decode state handoff (CUDA to Vulkan) completes reliably. | 1452.29 tok/s; 30.28 tok/s decode |
+| v2.1 | v1.0 runs the two devices *in sequence*. Can they feed one request's prefill *together*? | An async micro-batch pipeline keeps both layer stages active on a single request. | 1865.08 tok/s |
+| v2.2 | The v2.1 overlap still varies between runs. Can it be stabilised? | Refining the async overlap makes the pipeline more consistent. | 1893.87 tok/s |
+| v2.3 | Which stage split best balances the two backends? | The balanced split also lifts decode above the v1.0 figure. | 1999.51 tok/s; 37.16 tok/s decode |
+| **v2.5** | When does the overlapping window count as Dense Acceleration? | The calibrated checkpoint fills the Dense Region and reaches 83.2% of the sum of both standalone prefill rates. | **2129.69 tok/s** |
 
 ## Local test envelope
 
@@ -59,7 +68,7 @@ The v2 labels below are public revision names, not disclosures of the internal l
 
 Full independent PD handed off 5063 tokens and 208.57 MiB of state. It preserved the architectural potential for cross-request prefill/decode duplexing, which this release did not benchmark under concurrency.
 
-## v2.1–v2.5 — Fused-layer pipeline
+## v2.1–v2.5 — Dense Acceleration evolution
 
 Blank cells mean the metric was not recorded for that checkpoint.
 
@@ -70,9 +79,24 @@ Blank cells mean the metric was not recorded for that checkpoint.
 | v2.1 | First fused pipeline | 1865.08 tok/s | — | — |
 | v2.2 | Overlap refinement | 1893.87 tok/s | — | — |
 | v2.3 | Balance refinement | 1999.51 tok/s | 37.16 tok/s | — |
-| **v2.5** | Final calibrated pipeline | **2129.69 tok/s** | — | — |
+| **v2.5** | Dense Acceleration final checkpoint | **2129.69 tok/s** | — | — |
 
 v2.5 is 34.0% above the RTX 3060 prefill baseline, 119.6% above the AI Max+ 395 baseline, and 83.2% of the 2559 tok/s sum of both standalone measurements. These are calculations from the local table, not claims about other hardware.
+
+The 37.16 tok/s fused decode result belongs to the v2.3 checkpoint. A v2.5 decode result was not recorded and is therefore not inferred.
+
+## 27B Dense Region validation — separate envelope
+
+This exploratory line is deliberately separated from the `9B Q6_K / pp5064` table above. It used Qwen3.8-27B UD-IQ3_XXS (27.32B parameters, 10.17 GiB, 3.06 bpw), so its values are not included in the v2.5 percentages.
+
+| Measurement | AI Max+ 395 only | Dense Acceleration | Observed change |
+| --- | ---: | ---: | --- |
+| pp4096 | 313.28 tok/s | **658.52 tok/s** | +110% |
+| pp65536 | 136.69 tok/s | **319.10 tok/s** | +133% (2.33×) |
+| pp98304 | Timed out after 900 s | **225.10 tok/s** | Completed; TTFT ≈ 437 s |
+| Decode tg64 | 18.26 tok/s | **19.57 tok/s** | About +7% |
+
+The full 27B model did not provide a valid standalone RTX 3060 baseline in this setup. Dense Acceleration succeeded because the external GPU only had to keep and compute its assigned layer stage; no internal allocation ratio is published. This result is an IQ3 validation, not a Q4 claim.
 
 ## DGX Spark community controls
 
@@ -88,9 +112,9 @@ See the [source notes](results/dgx-spark-community-control.md) and [machine-read
 ## Findings and limits
 
 - v1.0 demonstrates heterogeneous state handoff between CUDA prefill and Vulkan decode.
-- v2.5 demonstrates real asynchronous compute overlap in a heterogeneous layer pipeline, but occupying both endpoints removes v1.0's independent-PD duplex behavior.
+- v2.5 Dense Acceleration demonstrates real asynchronous compute overlap in a heterogeneous layer pipeline, but occupying both endpoints removes v1.0's independent-PD duplex behavior.
 - v1.0 uses server-request measurements; v2 uses llama-bench pp/tg. Cross-release percentages are engineering references, not strict same-method research claims.
-- Evidence is limited to one host, a 9B model, and short single-concurrency benchmarks. 27B, 100K context, concurrent workloads, and multi-host operation remain untested.
+- Evidence is limited to one host: a same-envelope 9B short single-concurrency benchmark plus a separate 27B IQ3 prompt-length sweep up to 98,304 tokens. 27B Q4, concurrent workloads, and multi-host operation remain untested.
 - Community controls retain their original public methodology and are not normalized or extrapolated.
 
-Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.5 fused-layer evolution](results/v2.5-fused-layer-pipeline.md), [local CSV](data/benchmark-results.csv), and [changelog](CHANGELOG.md).
+Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.5 Dense Acceleration evolution](results/v2.5-fused-layer-pipeline.md), [local CSV](data/benchmark-results.csv), and [changelog](CHANGELOG.md).
