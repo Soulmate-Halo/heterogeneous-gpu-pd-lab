@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.5
+
+- Migrated the experiment to an **RTX 3080 20GB** accelerator head and published the full Qwen3.8-27B Q4 dual-machine heterogeneous PD record.
+- Published the twelve-tier serving stress (split vs 395 solo): TTFT 4.5× over solo, prefill holding **1000–1015 tok/s** regardless of concurrency, lossless decode (C1 38.75 tok/s), KV migration cost 71 ms.
+- Confirmed removing RPC per-ubatch sync lifted the same measurement from 683.2 to **1000.6 tok/s (+46%)**, about 82% of the 3080 raw 1228.
+- Added english/chinese detail records and machine-readable local CSVs for this line, plus a differences-vs-DGX-Spark comparison table with explicit non-comparability metadata.
+
 ## v2.4
 
 - Named the final asynchronous layered-PD form **Dense Acceleration** and defined its concurrent compute window as the **Dense Region**.
