@@ -18,18 +18,18 @@
 
 它与本地实验的模型规模接近，但量化、prompt 长度、分支与分支专属原生 FP4 cache-on 内核路径均不同。
 
-## 对照 B — 独立 llama-bench 风格社区报告
+## 对照 B — Qwen3.8-27B 长 prompt 社区实测
 
 | 字段 | 数值 |
 | --- | --- |
 | 设备 | NVIDIA DGX Spark / GB10 |
-| 工作负载 | Nemotron-3-Nano-30B-A3B，UD-Q4_K_XL |
-| 口径 | pp2048、depth 0、f16 KV |
-| Prefill | 809.55 tok/s |
-| 引擎 | `TheTom/llama-cpp-turboquant`，commit `1766c9133`，build 8793 |
-| 来源日期 | issue 于 2026-04-01 创建 |
-| 来源 | [Issue #44](https://github.com/TheTom/llama-cpp-turboquant/issues/44) |
+| 工作负载 | Qwen3.8-27B，`RadixArk/Qwen3.8-27B-NVFP4` |
+| 口径 | 10万 / 20万 / 30万 token 冷 prefill；各深度之间清空缓存 |
+| Prefill | 1170 / 800 / 615 tok/s |
+| 引擎 | SGLang + DFlash2，100万上下文配置，FP8 KV，memory fraction 0.70 |
+| 来源日期 | 2026-08-29 实测 |
+| 来源 | [hasso5703 实测，commit `17e7e228`](https://github.com/hasso5703/dgx-spark-qwen38/blob/17e7e2280e632b0a3ab91839c8c7522b256937ac/BENCHMARKS.md#L232-L243) |
 
-它的模型架构与大小、量化、prompt 长度和分支均不同，因此只能作为背景证据。
+它与本地探索使用同一模型家族和稠密 27B 规模，但量化、引擎、prompt 深度与测量方法不同，因此只能作为背景证据。
 
 机器可读数据：[dgx-spark-community-controls.csv](../data/dgx-spark-community-controls.csv)。
