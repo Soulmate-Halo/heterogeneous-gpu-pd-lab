@@ -2,6 +2,12 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.13
+
+- Locked the Ornith section to the requested r337 dual-machine PD experiment: RTX 3080 is pure Prefill, while AI Max+ 395 performs all Decode work.
+- Kept the measured short-task Prefill envelope at 4017.46–3943.88 tok/s and the 100K 395 pure-Decode aggregate at 23.33–148.20 tok/s; no single-node ROCmFP4 result is mixed in.
+- Set the non-pure whole-stage wall-clock derivative to NA in all 12 CSV rows and renamed the public metric labels to 3080 pure Prefill / 395 pure Decode. The separately timed short-task 395 pure-Decode rate remains not recorded.
+
 ## v2.12
 
 - Removed the derived whole-stage aggregate Decode column and its C1–C6 display values from the Ornith bilingual README tables and detailed reports.
