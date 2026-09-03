@@ -4,7 +4,7 @@
 
 An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration: RTX 3060 / RTX 3080 accelerator heads work with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.8 — RTX 3080 full compute + 395 KV pool: up to 1210.6 tok/s Prefill, 173.6 tok/s aggregate Decode, and 1M context per stream**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.9 — RTX 3080 full compute + 395 KV pool: up to 1210.6 tok/s Prefill, 116.3 tok/s aggregate Decode, and 1M context per stream**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 **What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. Output quality is preserved; realized throughput reflects both compute and communication, and cross-device KV expansion trades some communication overhead for a larger context capacity.
 
@@ -58,7 +58,8 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 | **v2.5** | After the 9B line, test whether full 3080 prefill + 395 decode can move 27B Q4 into serving. | Remove per-ubatch RPC sync and run six C1–C6 tiers across two paths, twelve groups total. | C1 prefill **1000.6 tok/s**; TTFT 1073 ms |
 | **v2.6** | Resolve the split 3060/3080 narrative and add the latest router measurements. | Unify the 27B experiment area into input-acceleration and generation-acceleration paths. | Prefill up to **1210.6 tok/s**; single-stream decode up to **63.2 tok/s** |
 | **v2.7** | Surface the strongest results immediately instead of burying them under implementation detail. | Reframe 27B-C/D as prefill-first and decode-first profiles with only high-level changes and best measurements on the homepage. | Prefill up to **1210.6 tok/s**; single-stream decode up to **63.2 tok/s** |
-| **v2.8** | Correct compute attribution, add the real C1–C6 measurements, and clarify 1M context per stream and the communication cost. | State that the 3080 performs all Prefill and Decode compute while the 395 is a pure KV-only remote pool, and fill the homepage with the real C1–C6 compact table plus C1/C6 figures. | Prefill up to **1210.6 tok/s**; C1 single-stream Decode **63.2 tok/s**; C6 aggregate Decode **173.6 tok/s** |
+| **v2.8** | Correct compute attribution, add the real C1–C6 measurements, and clarify 1M context per stream and the communication cost. | State that the 3080 performs all Prefill and Decode compute while the 395 is a pure KV-only remote pool, and fill the homepage with the real C1–C6 compact table plus C1/C6 figures. | Prefill up to **1210.6 tok/s**; C1 single-stream Decode **63.2 tok/s**; C6 aggregate Decode **116.3 tok/s** |
+| **v2.9** | Correct the 27B-D C6 aggregate Decode peak and scope the communication-trade sentence to 27B-D only. | State the C6 aggregate Decode peak as 116.3 tok/s in every target file, and remove the standalone-speed trade sentence from the 27B-C section while keeping it on 27B-D. | C6 aggregate Decode **116.3 tok/s** |
 | **v3.0 (research direction)** | Adapt the v2.4 one-to-one mechanism to other types of large-memory hosts and small-VRAM accelerator cards. | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
 | **v4.0 (research direction)** | Study one accelerator card accelerating X large-memory hosts at the same time. | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
@@ -104,7 +105,7 @@ Balancing the two stages lifts both prefill and decode above the prior checkpoin
 Blank cells mean the metric was not recorded for that checkpoint.
 
 | Checkpoint | Public description | Prefill | Decode | TTFT |
-| --- | --- | ---: | ---: | ---: |
+| --- | --- | ---: | ---: | --- |
 | RTX 3060 baseline | CUDA endpoint only | 1589.00 tok/s | 43.87 tok/s | — |
 | AI Max+ 395 baseline | Vulkan endpoint only | 970.00 tok/s | 31.27 tok/s | — |
 | v2.1 | First fused pipeline | 1865.08 tok/s | — | — |
@@ -125,7 +126,7 @@ These experiments share the 27B model scale, but hardware, quantization, prompts
 This exploratory line is deliberately separated from the `9B Q6_K / pp5064` table above. It used Qwen3.8-27B UD-IQ3_XXS (27.32B parameters, 10.17 GiB, 3.06 bpw), so its values are not included in the v2.4 percentages.
 
 | Measurement | AI Max+ 395 only | Dense Acceleration | Observed change |
-| --- | ---: | ---: | --- |
+| --- | ---: | ---: | ---: |
 | pp4096 | 313.28 tok/s | **658.52 tok/s** | +110% |
 | pp65536 | 136.69 tok/s | **319.10 tok/s** | +133% (2.33×) |
 | pp98304 | Timed out after 900 s | **225.10 tok/s** | Completed; TTFT ≈ 437 s |
@@ -139,7 +140,7 @@ This experiment replaces the accelerator head with an RTX 3080 and records 27B Q
 
 #### Configuration
 
-- **Accelerator head**: **RTX 3080 20GB** (pure CUDA0 full prefill, no RPC, no draft speculation).
+- **Accelerator head**: **RTX 3080 20GB** (pure CUDA0 full prefill, no RPC and no draft speculation).
 - **Host being accelerated**: **AMD Ryzen AI Max+ 395 / Radeon 8060S** (v1.0 historical envelope: Vulkan decode, full KV pool, DFlash2 speculative decoding).
 - **Model**: Qwen3.8-27B, Q4_K_M (~17.66 GiB).
 - **Engine**: llama.cpp fork (HEAD `18c8dde`, with upstream [PR #18626](https://github.com/ggml-org/llama.cpp/pull/18626) async/RPC capability), running as two instances: 8082 pure CUDA0 full prefill, 8081 pure 395 decode holding the full KV pool (`/dev/shm/kvx`).
@@ -159,7 +160,6 @@ Removing RPC lifted same-envelope C1 prefill from 683.2 to **1000.6 tok/s (+46%)
 ### New experiment 27B-C | Prefill-first (fastest prefill): best measured **1210.6 tok/s**
 
 - Latest envelope: the RTX 3080 performs all Prefill and Decode compute; the AI Max+ 395 is a pure KV-only remote storage pool that takes part in neither Prefill nor Decode and provides 1M context capacity per stream (1M context per stream).
-- The 3080 trades part of its standalone Prefill / Decode speed for the remote-KV communication overhead, gaining the per-stream 1M long context that a low-VRAM card could not obtain on its own.
 - Best measured prefill reaches **1210.6 tok/s** (C1); the real C1–C6 compact table below is all in tok/s:
 
 | Concurrency | Prefill | Single-stream Decode | Aggregate Decode |
@@ -176,7 +176,7 @@ Removing RPC lifted same-envelope C1 prefill from 683.2 to **1000.6 tok/s (+46%)
 ### New experiment 27B-D | Decode-first (fastest single-stream decode): best measured **63.2 tok/s**
 
 - Same latest envelope as 27B-C: the RTX 3080 performs all Prefill and Decode compute while the AI Max+ 395 is a pure KV-only remote storage pool (in neither Prefill nor Decode) providing 1M context per stream; the 3080 trades remote-KV communication overhead for the per-stream 1M long context.
-- Real C1: Prefill **1090 tok/s**, single-stream Decode **63.2 tok/s**; aggregate Decode grows linearly with concurrency through C2–C6, peaking at **173.6 tok/s** at C6.
+- Real C1: Prefill **1090 tok/s**, single-stream Decode **63.2 tok/s**; aggregate Decode grows linearly with concurrency through C2–C6, peaking at **116.3 tok/s** at C6.
 - Aimed at low-concurrency chat, coding, and other interactive workloads.
 
 See the [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md) for the v1.0/v1.1/v1.2 tables, natural-language audit, and envelope limits; see the [CSV](data/qwen27b-local-results.csv) for machine-readable data.
@@ -191,7 +191,7 @@ See the [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md) for the v1
 | Prefill (Prefill-first) | **1194.4–1210.6 tok/s** | 1170 / 800 / 615 tok/s (100K / 200K / 300K cold) |
 | Prefill (Decode-first, C1) | **1090 tok/s** | Not disclosed |
 | Single-stream Decode (C1) | **63.2 tok/s** | Not disclosed |
-| Aggregate Decode (C6) | **173.6 tok/s** | Not disclosed |
+| Aggregate Decode (C6) | **116.3 tok/s** | Not disclosed |
 | Context capacity | **1M per stream** | 1M profile |
 | Concurrency | C1–C6 all tiers | Not disclosed |
 | Topology | dual-machine heterogeneous PD (3080 full compute + 395 KV-only remote storage) | single machine |
@@ -203,7 +203,7 @@ See the [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md) for the v1
 These externally reported measurements are preserved for context, not ranked against the local experiment.
 
 | Device | Community workload | Prompt metric | Prefill | Directly comparable? | Source |
-| --- | --- | ---: | ---: | --- | --- |
+| --- | --- | ---: | ---: | ---: | --- |
 | NVIDIA DGX Spark / GB10 | Qwen3.5 9B, TQ3_4S, fork-specific FP4 cache-on path | pp2048 | 2766.28 tok/s | **No** — quantization, prompt length, fork, and kernel differ | [llama.cpp-tq3 PR #53](https://github.com/turbo-tan/llama.cpp-tq3/pull/53) |
 | NVIDIA DGX Spark / GB10 | Qwen3.8-27B, NVFP4, SGLang + DFlash2 | 100K / 200K / 300K-token cold prefill | 1170 / 800 / 615 tok/s | **No** — quantization, engine, prompt depths, and test method differ | [hasso5703 benchmark](https://github.com/hasso5703/dgx-spark-qwen38/blob/17e7e2280e632b0a3ab91839c8c7522b256937ac/BENCHMARKS.md#L232-L243) |
 
@@ -216,7 +216,7 @@ See the [source notes](results/dgx-spark-community-control.md) and [machine-read
 - v1.0 uses server-request measurements; v2 uses llama-bench pp/tg. Cross-release percentages are engineering references, not strict same-method research claims.
 - 27B-A validates the 3060 / IQ3 long-prompt Dense Region, while 27B-B/C/D cover 3080 / Q4 C1–C6 serving, router aggregate throughput, and two-stage preemption. Their envelopes remain distinct and cannot be collapsed into one ranking.
 - From v2.8 on, all Prefill and Decode compute in the latest 27B-C/D is done by the 3080; the 395 is a pure KV-only remote storage pool (1M context per stream) that takes part in neither Prefill nor Decode. The old v1.0–v1.2 tables and the 395 natural-language audit are historical controls, as marked in the detailed record.
-- The **Prefill-first** route publishes C1–C6 Prefill, single-stream Decode, and aggregate Decode; the **Decode-first** route publishes 1090 / 63.2 tok/s at C1 and 173.6 tok/s aggregate Decode at C6.
+- The **Prefill-first** route publishes C1–C6 Prefill, single-stream Decode, and aggregate Decode; the **Decode-first** route publishes 1090 / 63.2 tok/s at C1 and 116.3 tok/s aggregate Decode at C6.
 - **1M per stream** is the context capacity exposed by the latest route. The published speed points come from the current benchmark workload and must not be extrapolated to claim the same throughput with a fully populated 1M-token prompt.
 - Community controls retain their original public methodology and are not normalized or extrapolated.
 
