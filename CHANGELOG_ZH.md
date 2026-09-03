@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md)
 
+## v2.10
+
+- 将 27B-C、27B-D 与 DGX Spark 整理为一张对比表，本地数据统一按 **C / D** 顺序展示。
+- DGX Spark 补齐 **约 1000 tok/s Prefill、25–30 tok/s 单流 Decode、107 tok/s 聚合 Decode、C1–C6 并发**。
+- 首页与详档均新增独立的 **DFlash2 加速头**类目，并完成中英文同步。
+
 ## v2.9
 
 - 更正最新 27B-D 的 C6 聚合 Decode 峰值为 **116.3 tok/s**，覆盖全部八个目标文件（首页、详档、更新记录与 CSV）。
