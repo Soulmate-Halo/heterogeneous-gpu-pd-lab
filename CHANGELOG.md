@@ -2,11 +2,16 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.12
+
+- Removed the derived whole-stage aggregate Decode column and its C1–C6 display values from the Ornith bilingual README tables and detailed reports.
+- Kept the raw CSV unchanged for traceability; the published tables retain the 3080 aggregate Prefill and 395 decode-segment measurements.
+
 ## v2.11
 
 - Added the Ornith-1.5-35B-A3B dual-machine PD experiment: the scored matrix used RTX 3080 CUDA full prefill (batch 4096 / ubatch 4096 / ctx 114688), KV migration via /dev/shm/kvxo, and 395 Vulkan1 full decode (ctx 655360) on the Ornith-1.5-35B-A3B-IQ4_XS main model with the Qwen3.6-35B-A3B-DFlash-Q4_K_M draft head (spec n_max 6); stress **42/42 passed, route=pd, n_reuse=0**. Online ctx was restored to 8192 / 32768 after the run.
-- Short task (1000 in / 128 out) C1–C6 aggregate Prefill: 4017.46 down to 3943.88 tok/s; aggregate Decode: 112.71 / 41.07 / 72.56 / 87.19 / 75.92 / 84.13 tok/s. 100K (100000 in / 128 out) aggregate Prefill: 2895.53 down to 2793.24 tok/s.
-- Kept the two 100K Decode calibers strictly separate: full-tier aggregate Decode C1–C6 3.15 to 3.46 tok/s (sum output tokens / full-tier wall clock, including prefill, KV restore and decode — **never the 395 pure decode**) and 395 decode-segment aggregate 23.33 to 148.20 tok/s.
+- Short task (1000 in / 128 out) C1–C6 aggregate Prefill: 4017.46 down to 3943.88 tok/s. 100K (100000 in / 128 out) aggregate Prefill: 2895.53 down to 2793.24 tok/s.
+- Published the independently attributable 395 decode-segment aggregate from 23.33 to 148.20 tok/s for the 100K tier.
 - Advanced all six dFlash draft slots to 100K before the scored long-context rows to maintain positional continuity; that warm-up is excluded from the measurements.
 - Marked Ornith-1.5-35B-A3B as a **MoE** (qwen35moe, 40 layers: 10 full attention + 30 Gated DeltaNet) that is not directly rankable against the existing 27B dense data.
 - Short-task 395-only decode-segment speed, 100K TTFT, 100K single-stream decode, KV migration milliseconds, and the dFlash acceptance rate are absent from the source record; the CSV and docs leave them empty or not recorded, with no extrapolation.
