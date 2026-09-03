@@ -4,7 +4,7 @@
 
 本仓库记录异构 GPU Prefill/Decode（PD）与稠密加速实验：RTX 3060 / RTX 3080 加速头与 AMD Ryzen AI Max+ 395 / Radeon 8060S 协同工作。
 
-当前版本：**v2.10 — 27B-C / 27B-D 与 DGX Spark 对比已统一；RTX 3080 全计算 + 395 KV 池仍提供每流 1M 上下文**。公开范围仅包含架构、实测数据、思维演进、结论与限制；不提供部署步骤、复现命令、补丁、端点或内部切层策略。
+当前版本：**v2.11 — 新增 Ornith-1.5-35B-A3B 双机热态 PD 矩阵；短上下文与 100K 的 C1–C6 共 42/42 全过（route=pd、n_reuse=0）**。v2.10 的 27B-C / 27B-D 与 DGX Spark 对比保留原位。公开范围仅包含架构、实测数据、思维演进、结论与限制；不提供部署步骤、复现命令、补丁、端点或内部切层策略。
 
 **什么是稠密加速。** 由一张加速卡 + 一台被加速机器组成。两者显存重叠的区域即为显存稠密区；落入该区域内的模型，其解码（decode）与预填充（prefill）都会得到显著加速。该加速不降低输出质量；具体吞吐由计算与通信共同决定，跨设备 KV 扩容会以一定通信成本换取更大的上下文容量。
 
@@ -61,6 +61,7 @@ flowchart LR
 | **v2.8** | 纠正计算归属、补 C1–C6 实测、明确 1M/流与通信代价。 | 明确 3080 承担全部 Prefill 与 Decode 计算、395 为纯 KV-only 远端存储池，首页补齐真实 C1–C6 紧凑表与 C1/C6 指标。 | Prefill 最高 **1210.6 tok/s**；C1 单流 Decode **63.2 tok/s**；C6 聚合 Decode **116.3 tok/s** |
 | **v2.9** | 更正 27B-D 的 C6 聚合 Decode 峰值，并把通信代价句限定到 27B-D。 | 全部目标文件将 C6 聚合 Decode 峰值写为 116.3 tok/s，并从 27B-C 小节移除独立速度换 1M 上下文的句子、保留在 27B-D 小节。 | C6 聚合 Decode **116.3 tok/s** |
 | **v2.10** | 把 27B-C、27B-D 与 DGX Spark 整理为同一组可读对照。 | 本地 C / D 数据按斜杠顺序展示，补齐 DGX Spark 的 Prefill、单流/聚合 Decode、C1–C6 并发，并单列 DFlash2 加速头。 | **C / D / DGX Spark 对照完整** |
+| **v2.11** | 首条 MoE 双机 PD 记录：Ornith-1.5-35B-A3B（qwen35moe，10 层全注意力 + 30 层 Gated DeltaNet），3080 全量 prefill / 395 全量 decode 分工。 | 发布短任务与 100K 的 C1–C6 表，保留整档聚合与 395 纯解码段的口径区别，并显著标注 MoE 行不与 27B dense 行直接排名。 | 短任务 C1 Prefill 聚合 **4017.46 tok/s** / 解码聚合 **112.71 tok/s**；100K Prefill **2895.53 tok/s**（C1）；395 解码段最高 **148.20 tok/s**（C6）；42/42 route=pd |
 | **v3.0（研究方向）** | 把 v2.4 的一对一机制适配到其他各类大显存主机与小显存加速卡。 | 建立跨平台适配矩阵，验证不同主机架构与加速卡型号下的显存稠密区映射、prefill/decode 无损加速和调度稳定性。 | **计划：其他各类大显存主机 + 小显存加速卡的适配加速研究** |
 | **v4.0（研究方向）** | 研究一张加速卡同时加速 X 台大显存主机。 | 研究一对多任务调度、资源隔离、公平性、故障恢复，以及并发主机数量扩大时的性能边界。 | **计划：1 张加速卡 → X 台大显存主机** |
 
@@ -201,6 +202,42 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 
 **不可直接排名**：DGX Spark 的约值用于概览；量化（Q4_K_M vs NVFP4）、引擎（llama.cpp vs SGLang）、KV 精度（q4_0 vs fp8）、prompt 深度与拓扑均不同，仅作同模型量级参照。
 
+## 新实验 35B-A3B（Ornith-1.5-35B-A3B，MoE）— 独立口径
+
+**MoE 警示：Ornith-1.5-35B-A3B（35B 总参数 / A3B 每 token 激活，qwen35moe，40 层：10 层全注意力 + 30 层 Gated DeltaNet）与上方 Qwen3.8-27B dense 行不可直接比较。**
+
+压测拓扑：RTX 3080（CUDA，batch 4096 / ubatch 4096 / ctx 114688）执行全量 prefill，KV 经 /dev/shm/kvxo 迁移，AMD Ryzen AI Max+ 395（Vulkan1，ctx 655360）执行全量 decode；主模型 Ornith-1.5-35B-A3B-IQ4_XS，挂 Qwen3.6-35B-A3B-DFlash-Q4_K_M 草稿头（spec n_max 6）。矩阵结束后，线上服务已恢复为 ctx 8192 / 32768。
+
+压测：**42/42 全部成功**，全部 route=pd，n_reuse=0。
+
+100K 正式计分前，6 个 dFlash 草稿槽分别预热到 100K 以保持位置连续；该预热不计入成绩。
+
+### 短任务 — 1000 输入 / 128 输出（tok/s）
+
+| C | 3080 Prefill 聚合 | 解码聚合（总输出 token / 整档墙钟） |
+| --- | ---: | ---: |
+| C1 | **4017.46** | **112.71** |
+| C2 | 3947.64 | 41.07 |
+| C3 | 3924.83 | 72.56 |
+| C4 | 3913.85 | 87.19 |
+| C5 | 3906.09 | 75.92 |
+| C6 | 3943.88 | 84.13 |
+
+### 100K — 100000 输入 / 128 输出（tok/s）
+
+| C | 3080 Prefill 聚合 | 解码聚合（总输出 token / 整档墙钟） | 395 解码段聚合 |
+| --- | ---: | ---: | ---: |
+| C1 | **2895.53** | 3.15 | **23.33** |
+| C2 | 2826.07 | 3.33 | 53.37 |
+| C3 | 2796.34 | 3.38 | 75.20 |
+| C4 | 2795.28 | 3.43 | 103.33 |
+| C5 | 2793.56 | 3.48 | 123.09 |
+| C6 | 2793.24 | 3.46 | 148.20 |
+
+两个工作负载的解码聚合均定义为总输出 token 除以整档墙钟，因此包含 prefill、KV restore 与 decode，**不是** 395 纯 decode；只有 100K 最右列单独统计 395 解码窗口。短任务 395 纯解码段、100K TTFT、100K 单流 Decode、KV 迁移毫秒与 dFlash 接受率均未记录，一律留空而非补值。
+
+完整记录：[Ornith-1.5-35B-A3B 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)（English: [EN](results/ornith-1.5-35b-a3b-dual-machine-pd.md)）；机器可读数据：[ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv)。
+
 ## 外部对照：DGX Spark 社区数据（非本地新实验）
 
 以下数据保留社区原始公开口径，仅提供背景，不与本地实验排名。
@@ -223,4 +260,4 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 - **每流 1M**是最新路线提供的上下文容量；已公布速度点来自当前压测负载，不能直接外推为填满 1M prompt 时仍保持相同吞吐。
 - 社区外部对照不做归一化或推算，完整保留原始公开口径。
 
-详细记录：[v1.0 独立 PD](results/v1.0-independent-pd.zh-CN.md)、[v2.4 稠密加速演进](results/v2.4-fused-layer-pipeline.zh-CN.md)、[27B 异构实验全集](results/qwen3.8-27b-dual-machine-pd.zh-CN.md)、[9B 本地 CSV](data/benchmark-results.csv)、[27B 本地 CSV](data/qwen27b-local-results.csv) 与 [更新记录](CHANGELOG_ZH.md)。
+详细记录：[v1.0 独立 PD](results/v1.0-independent-pd.zh-CN.md)、[v2.4 稠密加速演进](results/v2.4-fused-layer-pipeline.zh-CN.md)、[27B 异构实验全集](results/qwen3.8-27b-dual-machine-pd.zh-CN.md)、[9B 本地 CSV](data/benchmark-results.csv)、[27B 本地 CSV](data/qwen27b-local-results.csv) 、[Ornith-1.5-35B-A3B 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)（English: [EN](results/ornith-1.5-35b-a3b-dual-machine-pd.md)）、[35B-A3B 本地 CSV](data/ornith35a3b-local-results.csv) 与 [更新记录](CHANGELOG_ZH.md)。
