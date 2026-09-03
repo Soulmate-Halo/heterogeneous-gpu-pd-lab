@@ -2,6 +2,16 @@
 
 [English](CHANGELOG.md)
 
+## v2.11
+
+- 新增 Ornith-1.5-35B-A3B 双机 PD 实验：正式矩阵采用 3080 CUDA 全量 prefill（batch/ubatch 4096、ctx 114688），KV 经 /dev/shm/kvxo 迁移，395 Vulkan1 全量 decode（ctx 655360），主模型 Ornith-1.5-35B-A3B-IQ4_XS 挂 Qwen3.6-35B-A3B-DFlash-Q4_K_M 草稿头（spec n_max 6）；压测 **42/42 全过、route=pd、n_reuse=0**。运行结束后线上 ctx 恢复为 8192 / 32768。
+- 短任务（1000 in / 128 out）C1–C6 Prefill 聚合 4017.46 → 3943.88 tok/s；解码聚合 112.71 / 41.07 / 72.56 / 87.19 / 75.92 / 84.13 tok/s。100K（100000 in / 128 out）Prefill 聚合 2895.53 → 2793.24 tok/s。
+- 100K 档严格区分两个 Decode 口径：整档解码聚合 C1–C6 3.15 → 3.46 tok/s（总输出 token / 整档墙钟，含 prefill、KV restore 与 decode，**绝不是 395 纯 decode**）与 395 解码段聚合 23.33 → 148.20 tok/s。
+- 100K 正式计分前先把 6 个 dFlash 草稿槽分别推进到 100K，确保位置连续；该预热不计入成绩。
+- 显著标注 Ornith-1.5-35B-A3B 为 **MoE**（qwen35moe、40 层：10 层全注意力 + 30 层 Gated DeltaNet），与既有 27B dense 数据不可直接横向排名。
+- 短任务 395 纯解码段速率、100K TTFT、100K 单流 Decode、KV 迁移毫秒与 dFlash 接受率在源记录中缺失，CSV 与文档一律留空或标注未记录，不做推测。
+- 新增双语详档 [ornith-1.5-35b-a3b-dual-machine-pd.md](results/ornith-1.5-35b-a3b-dual-machine-pd.md) 与机器可读 [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv)；v2.10 既有 27B 内容与历史保留不变。
+
 ## v2.10
 
 - 将 27B-C、27B-D 与 DGX Spark 整理为一张对比表，本地数据统一按 **C / D** 顺序展示。
