@@ -2,10 +2,16 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.9
+
+- Corrected the latest 27B-D C6 aggregate Decode peak to **116.3 tok/s** across all eight target files (homepage, detailed record, changelog, and CSV).
+- Removed the sentence about the 3080 trading standalone Prefill/Decode speed for remote-KV communication overhead from the 27B-C homepage section; that statement belongs to 27B-D, where it is kept.
+- Fixed the wrong C6 figure in the v2.8 entry below.
+
 ## v2.8
 
 - Corrected compute attribution: in the latest 27B-C and 27B-D the RTX 3080 performs all Prefill and Decode compute, while the AI Max+ 395 becomes a pure KV-only remote storage pool (in neither Prefill nor Decode) providing 1M context capacity per stream (1M context per stream).
-- Added the real C1–C6 compact table to the homepage (from C1 1210.6 / 38.50 / 33.55 to C6 1197.2 / 14.68 / 63.84, tok/s), and stated the real 27B-D C1 Prefill 1090 tok/s, C1 single-stream Decode 63.2 tok/s, and C6 aggregate Decode up to 173.6 tok/s.
+- Added the real C1–C6 compact table to the homepage (from C1 1210.6 / 38.50 / 33.55 to C6 1197.2 / 14.68 / 63.84, tok/s), and stated the real 27B-D C1 Prefill 1090 tok/s, C1 single-stream Decode 63.2 tok/s, and C6 aggregate Decode up to 116.3 tok/s.
 - Clarified the value narrative: the 3080 trades remote-KV communication overhead for the per-stream 1M long context; the old v1.0–v1.2 tables and the 395 natural-language audit are retained as historical scheduling records/controls and do not represent the latest C/D compute path.
 
 ## v2.7
