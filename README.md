@@ -4,7 +4,7 @@
 
 An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration: RTX 3060 / RTX 3080 accelerator heads work with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.9 — RTX 3080 full compute + 395 KV pool: up to 1210.6 tok/s Prefill, 116.3 tok/s aggregate Decode, and 1M context per stream**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.10 — the 27B-C / 27B-D comparison with DGX Spark is now unified; RTX 3080 full compute + the 395 KV pool still provides 1M context per stream**. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 **What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. Output quality is preserved; realized throughput reflects both compute and communication, and cross-device KV expansion trades some communication overhead for a larger context capacity.
 
@@ -60,6 +60,7 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 | **v2.7** | Surface the strongest results immediately instead of burying them under implementation detail. | Reframe 27B-C/D as prefill-first and decode-first profiles with only high-level changes and best measurements on the homepage. | Prefill up to **1210.6 tok/s**; single-stream decode up to **63.2 tok/s** |
 | **v2.8** | Correct compute attribution, add the real C1–C6 measurements, and clarify 1M context per stream and the communication cost. | State that the 3080 performs all Prefill and Decode compute while the 395 is a pure KV-only remote pool, and fill the homepage with the real C1–C6 compact table plus C1/C6 figures. | Prefill up to **1210.6 tok/s**; C1 single-stream Decode **63.2 tok/s**; C6 aggregate Decode **116.3 tok/s** |
 | **v2.9** | Correct the 27B-D C6 aggregate Decode peak and scope the communication-trade sentence to 27B-D only. | State the C6 aggregate Decode peak as 116.3 tok/s in every target file, and remove the standalone-speed trade sentence from the 27B-C section while keeping it on 27B-D. | C6 aggregate Decode **116.3 tok/s** |
+| **v2.10** | Make 27B-C, 27B-D, and DGX Spark readable in one comparison. | Present local C / D values in slash order, fill DGX Spark Prefill, single/aggregate Decode and C1–C6 concurrency, and add a dedicated DFlash2-head row. | **Complete C / D / DGX Spark comparison** |
 | **v3.0 (research direction)** | Adapt the v2.4 one-to-one mechanism to other types of large-memory hosts and small-VRAM accelerator cards. | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
 | **v4.0 (research direction)** | Study one accelerator card accelerating X large-memory hosts at the same time. | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
@@ -181,22 +182,24 @@ Removing RPC lifted same-envelope C1 prefill from 683.2 to **1000.6 tok/s (+46%)
 
 See the [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md) for the v1.0/v1.1/v1.2 tables, natural-language audit, and envelope limits; see the [CSV](data/qwen27b-local-results.csv) for machine-readable data.
 
-#### Differences versus DGX Spark
+#### 27B-C / 27B-D versus DGX Spark
 
-| Metric | AI Max+ 395 + RTX 3080 (this experiment) | DGX Spark / GB10 |
+The value left of each slash is **27B-C**; the value on the right is **27B-D**. DGX Spark uses the summary presentation envelope.
+
+| Metric | 27B-C / 27B-D (AI Max+ 395 + RTX 3080) | DGX Spark / GB10 |
 | --- | --- | --- |
 | Model/quantization | Qwen3.8-27B, Q4_K_M | Qwen3.8-27B, NVFP4 |
-| Engine | llama.cpp (CUDA + Vulkan, fork `18c8dde`) | SGLang + DFlash2 (1M context) |
-| KV precision | q4_0 | fp8_e4m3 |
-| Prefill (Prefill-first) | **1194.4–1210.6 tok/s** | 1170 / 800 / 615 tok/s (100K / 200K / 300K cold) |
-| Prefill (Decode-first, C1) | **1090 tok/s** | Not disclosed |
-| Single-stream Decode (C1) | **63.2 tok/s** | Not disclosed |
-| Aggregate Decode (C6) | **116.3 tok/s** | Not disclosed |
-| Context capacity | **1M per stream** | 1M profile |
-| Concurrency | C1–C6 all tiers | Not disclosed |
-| Topology | dual-machine heterogeneous PD (3080 full compute + 395 KV-only remote storage) | single machine |
+| Engine | llama.cpp (CUDA + Vulkan, fork `18c8dde`) | SGLang |
+| DFlash2 acceleration head | **enabled / enabled** | **enabled** |
+| KV precision | q4_0 / q4_0 | fp8_e4m3 |
+| Prefill | **1210.6 / 1090 tok/s** | **about 1000 tok/s** |
+| Single-stream Decode (C1) | **38.5 / 63.2 tok/s** | **25–30 tok/s** |
+| Aggregate Decode (C6) | **63.84 / 116.3 tok/s** | **107 tok/s** |
+| Context capacity | **1M per stream / 1M per stream** | 1M profile |
+| Concurrency | **C1–C6 / C1–C6** | **C1–C6** |
+| Topology | dual-machine heterogeneous / dual-machine heterogeneous (3080 full compute + 395 KV-only remote storage) | single machine |
 
-**Not directly comparable**: quantization (Q4_K_M vs NVFP4), engine (llama.cpp vs SGLang), KV precision (q4_0 vs fp8), prompt depth (short prompt vs 100K–300K tokens), and topology (dual-machine heterogeneous vs single machine) all differ.
+**Not directly comparable**: the DGX Spark summary values are approximate; quantization (Q4_K_M vs NVFP4), engine (llama.cpp vs SGLang), KV precision (q4_0 vs fp8), prompt depth, and topology all differ.
 
 ## External reference: DGX Spark community data (not a local new experiment)
 
