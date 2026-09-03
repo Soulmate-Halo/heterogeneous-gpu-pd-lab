@@ -21,40 +21,37 @@ This record documents the Ornith-1.5-35B-A3B dual-machine Prefill/Decode (PD) ex
 
 ## Two Decode calibers — read before the tables
 
-The 100K stage publishes **two different Decode metrics**, and they must not be mixed:
+The published 100K table keeps the **395 decode-segment aggregate** (C1–C6: 23.33–148.20 tok/s), measured only over the 395 decode window. The derived whole-stage wall-clock Decode series is not presented; its raw source fields remain in the CSV for traceability.
 
-1. **Whole-stage wall-clock Decode** (C1–C6: 3.15–3.48 tok/s). This is the end-to-end wall-clock rate **including prefill, KV restore and decode**. It is **not the 395 pure decode rate** — at 100K input the prefill alone dominates the wall time.
-2. **395 decode-segment aggregate** (C1–C6: 23.33–148.20 tok/s). This is the aggregate rate measured **only over the 395 decode window**.
-
-The short-task stage (1000 in / 128 out) publishes aggregate Prefill and aggregate Decode. Its Decode series is also defined as total output tokens divided by the full concurrency-tier wall clock; it is not a separately measured 395-only backend rate.
+The short-task stage (1000 in / 128 out) publishes aggregate Prefill only because a separately measured 395-only backend decode rate was not recorded.
 
 ## Short task — 1000 input / 128 output
 
 All values in tok/s, measured over six concurrency tiers in the same PD service.
 
-| C | 3080 aggregate Prefill | Aggregate Decode (sum output tokens / full-tier wall clock) |
-| --- | ---: | ---: |
-| C1 | **4017.46** | **112.71** |
-| C2 | 3947.64 | 41.07 |
-| C3 | 3924.83 | 72.56 |
-| C4 | 3913.85 | 87.19 |
-| C5 | 3906.09 | 75.92 |
-| C6 | 3943.88 | 84.13 |
+| C | 3080 aggregate Prefill |
+| --- | ---: |
+| C1 | **4017.46** |
+| C2 | 3947.64 |
+| C3 | 3924.83 |
+| C4 | 3913.85 |
+| C5 | 3906.09 |
+| C6 | 3943.88 |
 
 ## 100K stage — 100000 input / 128 output
 
-All values in tok/s. The middle column is the whole-stage wall caliber and must never be presented as the 395 pure decode.
+All values in tok/s. The rightmost column measures only the 395 decode window.
 
-| C | 3080 aggregate Prefill | Aggregate Decode (sum output tokens / full-tier wall clock) | 395 decode-segment aggregate |
-| --- | ---: | ---: | ---: |
-| C1 | **2895.53** | 3.15 | **23.33** |
-| C2 | 2826.07 | 3.33 | 53.37 |
-| C3 | 2796.34 | 3.38 | 75.20 |
-| C4 | 2795.28 | 3.43 | 103.33 |
-| C5 | 2793.56 | 3.48 | 123.09 |
-| C6 | 2793.24 | 3.46 | 148.20 |
+| C | 3080 aggregate Prefill | 395 decode-segment aggregate |
+| --- | ---: | ---: |
+| C1 | **2895.53** | **23.33** |
+| C2 | 2826.07 | 53.37 |
+| C3 | 2796.34 | 75.20 |
+| C4 | 2795.28 | 103.33 |
+| C5 | 2793.56 | 123.09 |
+| C6 | 2793.24 | 148.20 |
 
-The 100K prefill holds within about 3.6% across C1–C6 (2895.53 down to 2793.24 tok/s). The whole-stage wall-clock rate stays in the low single digits because the 100K-token prefill and the KV restore dominate the wall time; the 395 decode-segment aggregate grows roughly linearly with concurrency from 23.33 to 148.20 tok/s.
+The 100K prefill holds within about 3.6% across C1–C6 (2895.53 down to 2793.24 tok/s), while the 395 decode-segment aggregate grows roughly linearly with concurrency from 23.33 to 148.20 tok/s.
 
 ## Stress outcome
 
@@ -75,7 +72,6 @@ The source record does not contain the following for this experiment; the CSV an
 ## Boundaries
 
 - **MoE vs dense**: Ornith-1.5-35B-A3B activates a far smaller per-token compute than the Qwen3.8-27B dense model; every figure above is an independent MoE envelope and cannot be collapsed into a ranking with the 27B rows.
-- Both short-task and 100K aggregate Decode numbers use total output tokens / full-tier wall clock and are never 395 backend pure-decode figures.
 - The 395 decode-segment aggregate covers the decode window only; it excludes prefill and KV restore time.
 - The draft head (Qwen3.6-35B-A3B-DFlash-Q4_K_M) runs alongside the IQ4_XS main model; no acceptance-rate figure is published, so the draft's realized contribution cannot be quantified.
 - The short-task and 100K calibers differ in input length and must be read within their own tables only.
