@@ -2,6 +2,12 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.10
+
+- Consolidated 27B-C, 27B-D, and DGX Spark into one comparison table, with local results consistently shown in **C / D** order.
+- Filled the DGX Spark summary with **about 1000 tok/s Prefill, 25–30 tok/s single-stream Decode, 107 tok/s aggregate Decode, and C1–C6 concurrency**.
+- Added a dedicated **DFlash2 acceleration-head** category to both the homepage and detailed record, mirrored in English and Chinese.
+
 ## v2.9
 
 - Corrected the latest 27B-D C6 aggregate Decode peak to **116.3 tok/s** across all eight target files (homepage, detailed record, changelog, and CSV).
