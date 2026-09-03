@@ -4,7 +4,7 @@
 
 本仓库记录异构 GPU Prefill/Decode（PD）与稠密加速实验：RTX 3060 / RTX 3080 加速头与 AMD Ryzen AI Max+ 395 / Radeon 8060S 协同工作。
 
-当前版本：**v2.12 — 已从 Ornith-1.5-35B-A3B 展示中删除整档墙钟派生的聚合 Decode 列；表格只保留可直接归属的 Prefill 与 395 解码段实测**。v2.10 的 27B-C / 27B-D 与 DGX Spark 对比保留原位。公开范围仅包含架构、实测数据、思维演进、结论与限制；不提供部署步骤、复现命令、补丁、端点或内部切层策略。
+当前版本：**v2.13 — Ornith-1.5-35B-A3B 只采用 r337 双机 PD 数据：RTX 3080 纯 Prefill、AI Max+ 395 纯 Decode；非纯 Decode 的整档墙钟派生值已同时从展示和 CSV 清除**。v2.10 的 27B-C / 27B-D 与 DGX Spark 对比保留原位。公开范围仅包含架构、实测数据、思维演进、结论与限制；不提供部署步骤、复现命令、补丁、端点或内部切层策略。
 
 **什么是稠密加速。** 由一张加速卡 + 一台被加速机器组成。两者显存重叠的区域即为显存稠密区；落入该区域内的模型，其解码（decode）与预填充（prefill）都会得到显著加速。该加速不降低输出质量；具体吞吐由计算与通信共同决定，跨设备 KV 扩容会以一定通信成本换取更大的上下文容量。
 
@@ -63,6 +63,7 @@ flowchart LR
 | **v2.10** | 把 27B-C、27B-D 与 DGX Spark 整理为同一组可读对照。 | 本地 C / D 数据按斜杠顺序展示，补齐 DGX Spark 的 Prefill、单流/聚合 Decode、C1–C6 并发，并单列 DFlash2 加速头。 | **C / D / DGX Spark 对照完整** |
 | **v2.11** | 首条 MoE 双机 PD 记录：Ornith-1.5-35B-A3B（qwen35moe，10 层全注意力 + 30 层 Gated DeltaNet），3080 全量 prefill / 395 全量 decode 分工。 | 发布短任务与 100K 的 C1–C6 表，保持 395 解码段指标可独立归属，并显著标注 MoE 行不与 27B dense 行直接排名。 | 短任务 C1 Prefill 聚合 **4017.46 tok/s**；100K Prefill **2895.53 tok/s**（C1）；395 解码段最高 **148.20 tok/s**（C6）；42/42 route=pd |
 | **v2.12** | 从 Ornith 展示中删除整档墙钟派生的聚合 Decode 序列。 | 在中英文首页与中英文详档中删除该列及其 C1–C6 展示值，原始 CSV 保留。 | **当前展示指标均可直接归属到 3080 Prefill 或 395 解码段** |
+| **v2.13** | 锁定用户指定的 r337 Ornith 双机 PD 实验，并清理机器可读数据中的剩余歧义。 | 明确 3080 只做 Prefill、395 只做全部 Decode；CSV 12 行的整档墙钟派生值全部清空。 | 短任务 Prefill **4017.46 tok/s**；100K 的 395 纯 Decode 最高 **148.20 tok/s** |
 | **v3.0（研究方向）** | 把 v2.4 的一对一机制适配到其他各类大显存主机与小显存加速卡。 | 建立跨平台适配矩阵，验证不同主机架构与加速卡型号下的显存稠密区映射、prefill/decode 无损加速和调度稳定性。 | **计划：其他各类大显存主机 + 小显存加速卡的适配加速研究** |
 | **v4.0（研究方向）** | 研究一张加速卡同时加速 X 台大显存主机。 | 研究一对多任务调度、资源隔离、公平性、故障恢复，以及并发主机数量扩大时的性能边界。 | **计划：1 张加速卡 → X 台大显存主机** |
 
@@ -203,11 +204,11 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 
 **不可直接排名**：DGX Spark 的约值用于概览；量化（Q4_K_M vs NVFP4）、引擎（llama.cpp vs SGLang）、KV 精度（q4_0 vs fp8）、prompt 深度与拓扑均不同，仅作同模型量级参照。
 
-## 新实验 35B-A3B（Ornith-1.5-35B-A3B，MoE）— 独立口径
+## 新实验 35B-A3B（Ornith-1.5-35B-A3B，MoE）— 3080 纯 Prefill / 395 纯 Decode
 
 **MoE 警示：Ornith-1.5-35B-A3B（35B 总参数 / A3B 每 token 激活，qwen35moe，40 层：10 层全注意力 + 30 层 Gated DeltaNet）与上方 Qwen3.8-27B dense 行不可直接比较。**
 
-压测拓扑：RTX 3080（CUDA，batch 4096 / ubatch 4096 / ctx 114688）执行全量 prefill，KV 经 /dev/shm/kvxo 迁移，AMD Ryzen AI Max+ 395（Vulkan1，ctx 655360）执行全量 decode；主模型 Ornith-1.5-35B-A3B-IQ4_XS，挂 Qwen3.6-35B-A3B-DFlash-Q4_K_M 草稿头（spec n_max 6）。矩阵结束后，线上服务已恢复为 ctx 8192 / 32768。
+本节只采用 r337 双机 PD 实验。RTX 3080（CUDA，batch 4096 / ubatch 4096 / ctx 114688）只做纯 Prefill；KV 经 /dev/shm/kvxo 迁移后，AMD Ryzen AI Max+ 395（Vulkan1，ctx 655360）是纯 Decode 节点，承担全部 Decode。主模型为 Ornith-1.5-35B-A3B-IQ4_XS，Qwen3.6-35B-A3B-DFlash-Q4_K_M 草稿头（spec n_max 6）也驻留在 395 Decode 节点；表内不混入单机 ROCmFP4 实验。矩阵结束后，线上服务已恢复为 ctx 8192 / 32768。
 
 压测：**42/42 全部成功**，全部 route=pd，n_reuse=0。
 
@@ -215,7 +216,7 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 
 ### 短任务 — 1000 输入 / 128 输出（tok/s）
 
-| C | 3080 Prefill 聚合 |
+| C | 3080 纯 Prefill 聚合 |
 | --- | ---: |
 | C1 | **4017.46** |
 | C2 | 3947.64 |
@@ -226,7 +227,7 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 
 ### 100K — 100000 输入 / 128 输出（tok/s）
 
-| C | 3080 Prefill 聚合 | 395 解码段聚合 |
+| C | 3080 纯 Prefill 聚合 | 395 纯 Decode 聚合 |
 | --- | ---: | ---: |
 | C1 | **2895.53** | **23.33** |
 | C2 | 2826.07 | 53.37 |
@@ -235,7 +236,7 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 | C5 | 2793.56 | 123.09 |
 | C6 | 2793.24 | 148.20 |
 
-短任务表只展示 3080 Prefill 聚合，因为没有单独记录 395 解码段速率；100K 表最右列仅统计 395 解码窗口。整档墙钟派生的聚合 Decode 序列不再展示；100K TTFT、100K 单流 Decode、KV 迁移毫秒与 dFlash 接受率也未记录，一律留空而非补值。
+短任务表只展示 3080 纯 Prefill，因为该口径没有单独计时的 395 纯 Decode 速率；100K 表最右列只统计 395 Decode 窗口，3080 不参与任何 Decode。整档墙钟派生值已从展示和 CSV 一并清除；100K TTFT、100K 单流 Decode、KV 迁移毫秒与 dFlash 接受率也未记录，一律留空而非推算。
 
 完整记录：[Ornith-1.5-35B-A3B 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)（English: [EN](results/ornith-1.5-35b-a3b-dual-machine-pd.md)）；机器可读数据：[ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv)。
 
