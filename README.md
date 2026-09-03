@@ -4,7 +4,7 @@
 
 An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration: RTX 3060 / RTX 3080 accelerator heads work with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.11 — the Ornith-1.5-35B-A3B dual-machine hot-PD matrix is added; short and 100K C1–C6 complete 42/42 at route=pd, n_reuse=0**. The v2.10 27B-C / 27B-D versus DGX Spark comparison remains in place. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.12 — the derived whole-stage aggregate Decode column has been removed from the Ornith-1.5-35B-A3B presentation; the displayed tables retain only directly attributable Prefill and 395 decode-segment measurements**. The v2.10 27B-C / 27B-D versus DGX Spark comparison remains in place. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 **What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. Output quality is preserved; realized throughput reflects both compute and communication, and cross-device KV expansion trades some communication overhead for a larger context capacity.
 
@@ -61,7 +61,8 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 | **v2.8** | Correct compute attribution, add the real C1–C6 measurements, and clarify 1M context per stream and the communication cost. | State that the 3080 performs all Prefill and Decode compute while the 395 is a pure KV-only remote pool, and fill the homepage with the real C1–C6 compact table plus C1/C6 figures. | Prefill up to **1210.6 tok/s**; C1 single-stream Decode **63.2 tok/s**; C6 aggregate Decode **116.3 tok/s** |
 | **v2.9** | Correct the 27B-D C6 aggregate Decode peak and scope the communication-trade sentence to 27B-D only. | State the C6 aggregate Decode peak as 116.3 tok/s in every target file, and remove the standalone-speed trade sentence from the 27B-C section while keeping it on 27B-D. | C6 aggregate Decode **116.3 tok/s** |
 | **v2.10** | Make 27B-C, 27B-D, and DGX Spark readable in one comparison. | Present local C / D values in slash order, fill DGX Spark Prefill, single/aggregate Decode and C1–C6 concurrency, and add a dedicated DFlash2-head row. | **Complete C / D / DGX Spark comparison** |
-| **v2.11** | Add the first MoE dual-machine PD record: Ornith-1.5-35B-A3B (qwen35moe, 10 full-attention + 30 Gated DeltaNet layers) on the 3080 full-prefill / 395 full-decode split. | Publish the short-task and 100K C1–C6 envelopes, preserve the full-tier versus 395-only Decode distinction, and mark the MoE rows as not rankable against the 27B dense rows. | Short-task C1 aggregate Prefill **4017.46 tok/s** / aggregate Decode **112.71 tok/s**; 100K Prefill **2895.53 tok/s** (C1); 395 decode-segment up to **148.20 tok/s** (C6); 42/42 at route=pd |
+| **v2.11** | Add the first MoE dual-machine PD record: Ornith-1.5-35B-A3B (qwen35moe, 10 full-attention + 30 Gated DeltaNet layers) on the 3080 full-prefill / 395 full-decode split. | Publish the short-task and 100K C1–C6 envelopes, keep the 395 decode-segment measurement independently attributable, and mark the MoE rows as not rankable against the 27B dense rows. | Short-task C1 aggregate Prefill **4017.46 tok/s**; 100K Prefill **2895.53 tok/s** (C1); 395 decode-segment up to **148.20 tok/s** (C6); 42/42 at route=pd |
+| **v2.12** | Remove the derived whole-stage aggregate Decode series from the Ornith presentation. | Delete that column and its C1–C6 display values from both README files and both detailed reports while preserving the raw CSV. | **Displayed metrics now remain directly attributable to 3080 Prefill or the 395 decode segment** |
 | **v3.0 (research direction)** | Adapt the v2.4 one-to-one mechanism to other types of large-memory hosts and small-VRAM accelerator cards. | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
 | **v4.0 (research direction)** | Study one accelerator card accelerating X large-memory hosts at the same time. | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
@@ -214,27 +215,27 @@ Before the scored 100K rows, all six dFlash draft slots were advanced to 100K on
 
 ### Short task — 1000 input / 128 output (tok/s)
 
-| C | 3080 aggregate Prefill | Aggregate Decode (sum output tokens / full-tier wall clock) |
-| --- | ---: | ---: |
-| C1 | **4017.46** | **112.71** |
-| C2 | 3947.64 | 41.07 |
-| C3 | 3924.83 | 72.56 |
-| C4 | 3913.85 | 87.19 |
-| C5 | 3906.09 | 75.92 |
-| C6 | 3943.88 | 84.13 |
+| C | 3080 aggregate Prefill |
+| --- | ---: |
+| C1 | **4017.46** |
+| C2 | 3947.64 |
+| C3 | 3924.83 |
+| C4 | 3913.85 |
+| C5 | 3906.09 |
+| C6 | 3943.88 |
 
 ### 100K — 100000 input / 128 output (tok/s)
 
-| C | 3080 aggregate Prefill | Aggregate Decode (sum output tokens / full-tier wall clock) | 395 decode-segment aggregate |
-| --- | ---: | ---: | ---: |
-| C1 | **2895.53** | 3.15 | **23.33** |
-| C2 | 2826.07 | 3.33 | 53.37 |
-| C3 | 2796.34 | 3.38 | 75.20 |
-| C4 | 2795.28 | 3.43 | 103.33 |
-| C5 | 2793.56 | 3.48 | 123.09 |
-| C6 | 2793.24 | 3.46 | 148.20 |
+| C | 3080 aggregate Prefill | 395 decode-segment aggregate |
+| --- | ---: | ---: |
+| C1 | **2895.53** | **23.33** |
+| C2 | 2826.07 | 53.37 |
+| C3 | 2796.34 | 75.20 |
+| C4 | 2795.28 | 103.33 |
+| C5 | 2793.56 | 123.09 |
+| C6 | 2793.24 | 148.20 |
 
-For both workloads, aggregate Decode is defined as total output tokens divided by the full concurrency-tier wall clock, so it includes prefill, KV restore and decode and is **not** the 395 pure decode. Only the rightmost 100K column isolates the 395 decode window. Short-task 395-only decode, 100K TTFT, 100K single-stream decode, KV migration milliseconds, and the dFlash acceptance rate are not recorded and are left empty rather than filled in.
+The short-task table reports only 3080 aggregate Prefill because a separate 395-only decode-segment rate was not recorded. In the 100K table, the rightmost column isolates the 395 decode window. The derived whole-stage aggregate Decode series is intentionally omitted from the presentation; 100K TTFT, 100K single-stream Decode, KV migration milliseconds, and the dFlash acceptance rate are also not recorded and are left empty rather than filled in.
 
 Full record: [Ornith-1.5-35B-A3B dual-machine PD](results/ornith-1.5-35b-a3b-dual-machine-pd.md) (Chinese: [zh-CN](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)); machine-readable data: [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv).
 
