@@ -15,7 +15,7 @@
 | 27B-A | RTX 3060 12GB + AI Max+ 395 | UD-IQ3_XXS | 长 prompt 稠密区域验证 | pp4096 658.52 tok/s（+110%） |
 | 27B-B | RTX 3080 20GB + AI Max+ 395 | Q4_K_M，服务态 v1.0（历史调度记录） | 去掉逐 ubatch RPC 税 | C1 prefill 1000.6 tok/s，TTFT 1073 ms |
 | 27B-C | RTX 3080 全计算 + 395 KV-only | Q4_K_M，最新远端 KV 口径 | Prefill 优先、每流 1M | prefill 1194.4–1210.6 tok/s；C6 聚合 Decode 63.84 tok/s |
-| 27B-D | RTX 3080 全计算 + 395 KV-only | Q4_K_M，最新远端 KV 口径 | Decode 优先、每流 1M | C1 单流 Decode 63.2 tok/s；C6 聚合 Decode 173.6 tok/s |
+| 27B-D | RTX 3080 全计算 + 395 KV-only | Q4_K_M，最新远端 KV 口径 | Decode 优先、每流 1M | C1 单流 Decode 63.2 tok/s；C6 聚合 Decode 116.3 tok/s |
 
 下方 v1.1 / v1.2 完整表保留为研发过程中的历史调度证据，不代表上表最新 C/D 的计算归属。
 
@@ -69,7 +69,7 @@
 
 线上形态：3080 侧 `np1 / ctx8192 / ub512 / n_max 3 / 头 KV q4_0 / CUDA graphs 关闭`，DFlash2 头只留一个 slot；有新 prefill 到达时，当前 3080 decode 先保存 KV，再 restore 到 395 续算。路由加入 LRU `kv-evict` 后，4k×6 与构造的 3×7k 残留场景复测无 restore failure。
 
-口径：1000 in / 128 out，随机词 seed，router 与本轮 solo 对照。该 seed 与 v1.1 不同，只能在本表内比较。本表为历史调度记录；最新 27B-D（v2.8）中 3080 承担全部 Prefill 与 Decode 计算、395 为 KV-only 远端存储池（每流 1M 上下文容量），真实 C1 为 Prefill 1090 tok/s、单流 Decode 63.2 tok/s，C2–C6 聚合 Decode 随并发线性增长、C6 最高 173.6 tok/s（C2–C5 逐档精确值未提供，不插值、不编造）。
+口径：1000 in / 128 out，随机词 seed，router 与本轮 solo 对照。该 seed 与 v1.1 不同，只能在本表内比较。本表为历史调度记录；最新 27B-D（v2.8）中 3080 承担全部 Prefill 与 Decode 计算、395 为 KV-only 远端存储池（每流 1M 上下文容量），真实 C1 为 Prefill 1090 tok/s、单流 Decode 63.2 tok/s，C2–C6 聚合 Decode 随并发线性增长、C6 最高 116.3 tok/s（C2–C5 逐档精确值未提供，不插值、不编造）。
 
 | C | 首字 router/solo (ms) | token1→2 (ms) | prefill 单流/聚合 | decode 单流 router/solo | 端到端聚合 router/solo | decode 段聚合 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
