@@ -1,8 +1,8 @@
-# Ornith-1.5-35B-A3B Dual-Machine PD — one MoE envelope, not rankable against the 27B dense rows
+# Ornith-1.5-35B-A3B Dual-Machine PD — 3080 pure Prefill / 395 pure Decode
 
 [简体中文](ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)
 
-This record documents the Ornith-1.5-35B-A3B dual-machine Prefill/Decode (PD) experiment added in v2.11. **Ornith-1.5-35B-A3B is a MoE (35B total, A3B active-per-token naming). It must not be ranked directly against the Qwen3.8-27B dense rows in [qwen3.8-27b-dual-machine-pd.md](qwen3.8-27b-dual-machine-pd.md):** different model family, different architecture, different per-token active compute, and different quantization.
+This record is limited to the r337 Ornith-1.5-35B-A3B dual-machine Prefill/Decode (PD) experiment added in v2.11: the RTX 3080 is Prefill-only and the AI Max+ 395 is Decode-only. **Ornith-1.5-35B-A3B is a MoE (35B total, A3B active-per-token naming). It must not be ranked directly against the Qwen3.8-27B dense rows in [qwen3.8-27b-dual-machine-pd.md](qwen3.8-27b-dual-machine-pd.md):** different model family, different architecture, different per-token active compute, and different quantization.
 
 ## Model and topology
 
@@ -12,18 +12,18 @@ This record documents the Ornith-1.5-35B-A3B dual-machine Prefill/Decode (PD) ex
 | GGUF | Ornith-1.5-35B-A3B-IQ4_XS |
 | Architecture | qwen35moe, 40 layers, full_attention_interval=4 |
 | Layer mix | 10 full-attention layers + 30 Gated DeltaNet layers |
-| Prefill endpoint during the scored matrix | RTX 3080, CUDA: full prefill, batch 4096, ubatch 4096, ctx 114688 |
+| Pure Prefill node during the scored matrix | RTX 3080, CUDA: all Prefill, no Decode; batch 4096, ubatch 4096, ctx 114688 |
 | KV migration | /dev/shm/kvxo |
-| Decode endpoint during the scored matrix | AMD Ryzen AI Max+ 395, Vulkan1: full decode, ctx 655360 |
+| Pure Decode node during the scored matrix | AMD Ryzen AI Max+ 395, Vulkan1: all Decode, no Prefill; ctx 655360 |
 | Draft head | Qwen3.6-35B-A3B-DFlash-Q4_K_M, speculative draft n_max 6 |
 | Stress result | 42/42 passed, route=pd, n_reuse=0 |
 | Post-benchmark online state | Services restored to ctx 8192 / 32768; batch/ubatch 4096 and draft n_max 6 retained |
 
-## Two Decode calibers — read before the tables
+## Metric boundary — read before the tables
 
-The published 100K table keeps the **395 decode-segment aggregate** (C1–C6: 23.33–148.20 tok/s), measured only over the 395 decode window. The derived whole-stage wall-clock Decode series is not presented; its raw source fields remain in the CSV for traceability.
+The published 100K table keeps the **395 pure-Decode aggregate** (C1–C6: 23.33–148.20 tok/s), measured only over the 395 Decode window. The 3080 performs no Decode work. The derived whole-stage wall-clock series is excluded from the presentation and its CSV field is set to NA.
 
-The short-task stage (1000 in / 128 out) publishes aggregate Prefill only because a separately measured 395-only backend decode rate was not recorded.
+The short-task stage (1000 in / 128 out) publishes 3080 pure Prefill only because a separately timed 395 pure-Decode rate was not recorded.
 
 ## Short task — 1000 input / 128 output
 
@@ -42,7 +42,7 @@ All values in tok/s, measured over six concurrency tiers in the same PD service.
 
 All values in tok/s. The rightmost column measures only the 395 decode window.
 
-| C | 3080 aggregate Prefill | 395 decode-segment aggregate |
+| C | 3080 pure Prefill aggregate | 395 pure Decode aggregate |
 | --- | ---: | ---: |
 | C1 | **2895.53** | **23.33** |
 | C2 | 2826.07 | 53.37 |
@@ -51,7 +51,7 @@ All values in tok/s. The rightmost column measures only the 395 decode window.
 | C5 | 2793.56 | 123.09 |
 | C6 | 2793.24 | 148.20 |
 
-The 100K prefill holds within about 3.6% across C1–C6 (2895.53 down to 2793.24 tok/s), while the 395 decode-segment aggregate grows roughly linearly with concurrency from 23.33 to 148.20 tok/s.
+The 100K pure Prefill holds within about 3.6% across C1–C6 (2895.53 down to 2793.24 tok/s), while the 395 pure-Decode aggregate grows roughly linearly with concurrency from 23.33 to 148.20 tok/s.
 
 ## Stress outcome
 
@@ -65,14 +65,14 @@ The source record does not contain the following for this experiment; the CSV an
 
 - 100K TTFT — not recorded
 - 100K single-stream Decode — not recorded
-- short-task 395-only decode-segment speed — not recorded
+- short-task 395 pure-Decode speed — not recorded
 - KV migration milliseconds — not recorded
 - dFlash draft acceptance rate — not recorded
 
 ## Boundaries
 
 - **MoE vs dense**: Ornith-1.5-35B-A3B activates a far smaller per-token compute than the Qwen3.8-27B dense model; every figure above is an independent MoE envelope and cannot be collapsed into a ranking with the 27B rows.
-- The 395 decode-segment aggregate covers the decode window only; it excludes prefill and KV restore time.
+- The 395 pure-Decode aggregate covers the Decode window only; all Decode runs on the 395, and the metric excludes Prefill and KV restore time.
 - The draft head (Qwen3.6-35B-A3B-DFlash-Q4_K_M) runs alongside the IQ4_XS main model; no acceptance-rate figure is published, so the draft's realized contribution cannot be quantified.
 - The short-task and 100K calibers differ in input length and must be read within their own tables only.
 
