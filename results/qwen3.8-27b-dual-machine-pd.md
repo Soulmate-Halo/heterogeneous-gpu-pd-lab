@@ -19,6 +19,23 @@ This record places the RTX 3060 / IQ3 and RTX 3080 / Q4 27B results in one chron
 
 The full v1.1 / v1.2 tables below remain historical scheduling evidence from the development path; they do not describe compute ownership in the latest C/D rows above.
 
+## Latest C / D comparison with DGX Spark
+
+The value left of each slash is **27B-C**; the value on the right is **27B-D**. DGX Spark uses the summary presentation envelope.
+
+| Metric | 27B-C / 27B-D (this experiment) | DGX Spark / GB10 |
+| --- | --- | --- |
+| Model/quantization | Qwen3.8-27B, Q4_K_M | Qwen3.8-27B, NVFP4 |
+| Engine | llama.cpp (CUDA + Vulkan) | SGLang |
+| DFlash2 acceleration head | **enabled / enabled** | **enabled** |
+| Prefill | **1210.6 / 1090 tok/s** | **about 1000 tok/s** |
+| Single-stream Decode (C1) | **38.5 / 63.2 tok/s** | **25–30 tok/s** |
+| Aggregate Decode (C6) | **63.84 / 116.3 tok/s** | **107 tok/s** |
+| Concurrency | **C1–C6 / C1–C6** | **C1–C6** |
+| Context capacity | **1M per stream / 1M per stream** | 1M profile |
+
+The DGX Spark figures are an approximate overview. Quantization, engine, KV precision, prompt depth, and topology still differ, so the platforms must not be ranked directly.
+
 ### New experiment 27B-A (3060·IQ3): pp4096 658.52 tok/s (+110%)
 
 The model is Qwen3.8-27B UD-IQ3_XXS (27.32B parameters, 10.17 GiB, 3.06 bpw). The RTX 3060 holds and computes only its assigned layers; internal layer ratios remain undisclosed.
