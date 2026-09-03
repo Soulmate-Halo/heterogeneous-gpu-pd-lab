@@ -15,7 +15,7 @@ This record places the RTX 3060 / IQ3 and RTX 3080 / Q4 27B results in one chron
 | 27B-A | RTX 3060 12GB + AI Max+ 395 | UD-IQ3_XXS | Long-prompt Dense Region validation | pp4096 658.52 tok/s (+110%) |
 | 27B-B | RTX 3080 20GB + AI Max+ 395 | Q4_K_M, serving v1.0 (historical scheduling record) | Remove per-ubatch RPC tax | C1 prefill 1000.6 tok/s; TTFT 1073 ms |
 | 27B-C | RTX 3080 full compute + 395 KV-only | Q4_K_M, latest remote-KV envelope | Prefill-first, 1M per stream | 1194.4–1210.6 tok/s prefill; 63.84 tok/s C6 aggregate Decode |
-| 27B-D | RTX 3080 full compute + 395 KV-only | Q4_K_M, latest remote-KV envelope | Decode-first, 1M per stream | 63.2 tok/s C1 single-stream Decode; 173.6 tok/s C6 aggregate Decode |
+| 27B-D | RTX 3080 full compute + 395 KV-only | Q4_K_M, latest remote-KV envelope | Decode-first, 1M per stream | 63.2 tok/s C1 single-stream Decode; 116.3 tok/s C6 aggregate Decode |
 
 The full v1.1 / v1.2 tables below remain historical scheduling evidence from the development path; they do not describe compute ownership in the latest C/D rows above.
 
@@ -69,7 +69,7 @@ Envelope: about 1000 prompt tokens / 128 output tokens; router traffic goes thro
 
 Live shape: the 3080 runs `np1 / ctx8192 / ub512 / n_max 3 / q4_0 head KV / CUDA graphs off` with a one-slot DFlash2 head. When a new prefill arrives, current 3080 decode saves KV and is restored on the 395. After adding LRU `kv-evict`, repeated 4k×6 and constructed 3×7k residual-KV tests produced no restore failure.
 
-Envelope: 1000 in / 128 out with a random-word seed. Router and solo are comparable within this table only; the seed differs from v1.1. This table is a historical scheduling record; in the latest 27B-D (v2.8) the 3080 performs all Prefill and Decode compute while the 395 is a KV-only remote pool (1M context per stream). The real C1 is Prefill 1090 tok/s and single-stream Decode 63.2 tok/s; aggregate Decode grows linearly with concurrency through C2–C6, peaking at 173.6 tok/s at C6 (exact C2–C5 values were not provided and are not interpolated or fabricated).
+Envelope: 1000 in / 128 out with a random-word seed. Router and solo are comparable within this table only; the seed differs from v1.1. This table is a historical scheduling record; in the latest 27B-D (v2.8) the 3080 performs all Prefill and Decode compute while the 395 is a KV-only remote pool (1M context per stream). The real C1 is Prefill 1090 tok/s and single-stream Decode 63.2 tok/s; aggregate Decode grows linearly with concurrency through C2–C6, peaking at 116.3 tok/s at C6 (exact C2–C5 values were not provided and are not interpolated or fabricated).
 
 | C | TTFT router/solo (ms) | token1→2 (ms) | prefill single/aggregate | single decode router/solo | end-to-end aggregate router/solo | decode-span aggregate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
