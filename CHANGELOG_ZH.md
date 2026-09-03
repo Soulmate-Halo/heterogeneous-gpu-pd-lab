@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md)
 
+## v2.13
+
+- Ornith 章节只采用用户指定的 r337 双机 PD 实验：RTX 3080 是纯 Prefill 节点，AI Max+ 395 承担全部 Decode。
+- 保留短任务 Prefill 4017.46–3943.88 tok/s 与 100K 的 395 纯 Decode 聚合 23.33–148.20 tok/s，不混入单机 ROCmFP4 实验。
+- CSV 12 行中非纯 Decode 的整档墙钟派生值全部改为 NA，公开指标统一命名为 3080 纯 Prefill / 395 纯 Decode；短任务 395 纯 Decode 独立速率仍标注未记录。
+
 ## v2.12
 
 - 从 Ornith 中英文首页表格与中英文详档中删除整档墙钟派生的聚合 Decode 列及其 C1–C6 展示值。
