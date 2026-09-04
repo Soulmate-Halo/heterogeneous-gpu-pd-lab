@@ -4,7 +4,7 @@
 
 An experimental record of heterogeneous GPU Prefill/Decode (PD) and Dense Acceleration: RTX 3060 / RTX 3080 accelerator heads work with an AMD Ryzen AI Max+ 395 / Radeon 8060S.
 
-Current release: **v2.13 — the Ornith-1.5-35B-A3B record is locked to the r337 dual-machine path: RTX 3080 pure Prefill and AI Max+ 395 pure Decode; non-pure whole-stage Decode derivatives are removed from the CSV as well as the presentation**. The v2.10 27B-C / 27B-D versus DGX Spark comparison remains in place. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
+Current release: **v2.14 — the Qwen3.8-Flash Q4 dual-device layer-split record (r374) is published with its final C1–C6 envelope: aggregate Prefill up to 633.685 tok/s and aggregate Decode up to 71.185 tok/s, both at C4**. The Ornith-1.5-35B-A3B record remains locked to the r337 dual-machine path (RTX 3080 pure Prefill and AI Max+ 395 pure Decode), and the v2.10 27B-C / 27B-D versus DGX Spark comparison remains in place. This repository publishes architecture, measured data, design evolution, conclusions, and limitations. It intentionally excludes deployment instructions, reproduction commands, patches, endpoints, and internal layer-allocation policy.
 
 **What Dense Acceleration is.** An accelerator card plus a host being accelerated. Where the two devices' memory overlaps is the memory-dense region; any model falling inside it is strongly accelerated for both decode and prefill. Output quality is preserved; realized throughput reflects both compute and communication, and cross-device KV expansion trades some communication overhead for a larger context capacity.
 
@@ -64,6 +64,7 @@ Overall experimental goal: verify that when a high-compute, small-VRAM accelerat
 | **v2.11** | Add the first MoE dual-machine PD record: Ornith-1.5-35B-A3B (qwen35moe, 10 full-attention + 30 Gated DeltaNet layers) on the 3080 full-prefill / 395 full-decode split. | Publish the short-task and 100K C1–C6 envelopes, keep the 395 decode-segment measurement independently attributable, and mark the MoE rows as not rankable against the 27B dense rows. | Short-task C1 aggregate Prefill **4017.46 tok/s**; 100K Prefill **2895.53 tok/s** (C1); 395 decode-segment up to **148.20 tok/s** (C6); 42/42 at route=pd |
 | **v2.12** | Remove the derived whole-stage aggregate Decode series from the Ornith presentation. | Delete that column and its C1–C6 display values from both README files and both detailed reports while preserving the raw CSV. | **Displayed metrics now remain directly attributable to 3080 Prefill or the 395 decode segment** |
 | **v2.13** | Lock the Ornith record to the requested r337 PD experiment and remove the remaining ambiguous machine-readable values. | State explicitly that the 3080 is Prefill-only and the 395 is Decode-only; clear the whole-stage wall-clock derivative from all 12 CSV rows. | Short-task Prefill **4017.46 tok/s**; 100K 395 pure Decode up to **148.20 tok/s** |
+| **v2.14** | Publish the Qwen3.8-Flash Q4 dual-device layer-split record (r374) as a new independent envelope. | Run one llama-server on the RTX 3080 (CUDA0) and AI Max+ 395 (Vulkan1) with a 0.38 / 0.62 tensor split, and measure the final C1–C6 short-context tiers. | C4 aggregate Prefill **633.685 tok/s**; C4 aggregate Decode **71.185 tok/s**; C4 total throughput **338.270 tok/s** |
 | **v3.0 (research direction)** | Adapt the v2.4 one-to-one mechanism to other types of large-memory hosts and small-VRAM accelerator cards. | Build a cross-platform adaptation matrix and validate memory-dense-region mapping, lossless prefill/decode acceleration, and scheduling stability across host architectures and accelerator models. | **Planned: adaptation research for other large-memory hosts + small-VRAM accelerator cards** |
 | **v4.0 (research direction)** | Study one accelerator card accelerating X large-memory hosts at the same time. | Study one-to-many scheduling, resource isolation, fairness, fault recovery, and the scaling boundary as the number of concurrent hosts increases. | **Planned: 1 accelerator → X large-memory hosts** |
 
@@ -240,6 +241,27 @@ The short-task table reports only 3080 pure Prefill because a separately timed 3
 
 Full record: [Ornith-1.5-35B-A3B dual-machine PD](results/ornith-1.5-35b-a3b-dual-machine-pd.md) (Chinese: [zh-CN](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)); machine-readable data: [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv).
 
+## New experiment Flash-Q4 (Qwen3.8-Flash Q4, dual-device layer split) — C4 aggregate Prefill 633.685 tok/s
+
+**Envelope warning: Qwen3.8-Flash Q4 on the 3080 + 395 dual-device layer split is a different model, hardware role, and caliber from the 27B and Ornith rows above; compare only within this table.**
+
+This section uses only the r374 run: one llama-server hosts both devices at once, with the RTX 3080 (CUDA0) and the AI Max+ 395 (Vulkan1) each owning their layer stage (tensor split 0.38 / 0.62), ubatch 1024 / batch 4096, flash attention on, q4_0 KV cache, and 6 slots at 131072 context. The 3080 VRAM peaked at 19129 MiB. Workload: ~2077 input / 256 output per lane, temperature 0, six concurrency tiers, warm-up excluded; 21/21 scored requests succeeded with complete timings.
+
+### C1–C6 — ~2077 input / 256 output (tok/s)
+
+| C | Prefill aggregate | Single-stream Decode | Aggregate Decode | Total throughput |
+| --- | ---: | ---: | ---: | ---: |
+| C1 | 569.892 | 35.204 | 35.204 | 213.581 |
+| C2 | 579.215 | 26.055 | 51.877 | 273.089 |
+| C3 | 625.250 | 21.714 | 65.143 | 320.267 |
+| C4 | **633.685** | 17.829 | **71.185** | **338.270** |
+| C5 | 552.070 | 14.578 | 69.595 | 327.366 |
+| C6 | 554.873 | 12.317 | 67.286 | 332.790 |
+
+Prefill aggregate holds above 550 tok/s at every tier and peaks at C4; aggregate Decode grows with concurrency to 71.185 tok/s at C4 and eases slightly under the six-lane load. Per-tier TTFT is not recorded and is left empty rather than inferred.
+
+Full record: [Qwen3.8-Flash Q4 dual-device layer split](results/qwen3.8-flash-q4-layer-split.md) (Chinese: [zh-CN](results/qwen3.8-flash-q4-layer-split.zh-CN.md)); machine-readable data: [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv).
+
 ## External reference: DGX Spark community data (not a local new experiment)
 
 These externally reported measurements are preserved for context, not ranked against the local experiment.
@@ -262,4 +284,4 @@ See the [source notes](results/dgx-spark-community-control.md) and [machine-read
 - **1M per stream** is the context capacity exposed by the latest route. The published speed points come from the current benchmark workload and must not be extrapolated to claim the same throughput with a fully populated 1M-token prompt.
 - Community controls retain their original public methodology and are not normalized or extrapolated.
 
-Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.4 Dense Acceleration evolution](results/v2.4-fused-layer-pipeline.md), [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md), [9B local CSV](data/benchmark-results.csv), [27B local CSV](data/qwen27b-local-results.csv), [Ornith-1.5-35B-A3B dual-machine PD](results/ornith-1.5-35b-a3b-dual-machine-pd.md) (Chinese: [zh-CN](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)), [35B-A3B local CSV](data/ornith35a3b-local-results.csv), and [changelog](CHANGELOG.md).
+Detailed records: [v1.0 independent PD](results/v1.0-independent-pd.md), [v2.4 Dense Acceleration evolution](results/v2.4-fused-layer-pipeline.md), [complete 27B record](results/qwen3.8-27b-dual-machine-pd.md), [9B local CSV](data/benchmark-results.csv), [27B local CSV](data/qwen27b-local-results.csv), [Ornith-1.5-35B-A3B dual-machine PD](results/ornith-1.5-35b-a3b-dual-machine-pd.md) (Chinese: [zh-CN](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)), [35B-A3B local CSV](data/ornith35a3b-local-results.csv), [Qwen3.8-Flash Q4 dual-device layer split](results/qwen3.8-flash-q4-layer-split.md) (Chinese: [zh-CN](results/qwen3.8-flash-q4-layer-split.zh-CN.md)), [Flash-Q4 local CSV](data/qwen38flash-q4-local-results.csv), and [changelog](CHANGELOG.md).
