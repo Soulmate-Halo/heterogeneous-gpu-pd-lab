@@ -4,7 +4,7 @@
 
 本仓库记录异构 GPU Prefill/Decode（PD）与稠密加速实验：RTX 3060 / RTX 3080 加速头与 AMD Ryzen AI Max+ 395 / Radeon 8060S 协同工作。
 
-当前版本：**v2.13 — Ornith-1.5-35B-A3B 只采用 r337 双机 PD 数据：RTX 3080 纯 Prefill、AI Max+ 395 纯 Decode；非纯 Decode 的整档墙钟派生值已同时从展示和 CSV 清除**。v2.10 的 27B-C / 27B-D 与 DGX Spark 对比保留原位。公开范围仅包含架构、实测数据、思维演进、结论与限制；不提供部署步骤、复现命令、补丁、端点或内部切层策略。
+当前版本：**v2.14 — 新增 Qwen3.8-Flash Q4 双设备切层记录（r374），发布其最终 C1–C6 口径：Prefill 聚合最高 633.685 tok/s、聚合 Decode 最高 71.185 tok/s，均在 C4**。Ornith-1.5-35B-A3B 仍只采用 r337 双机 PD 数据（RTX 3080 纯 Prefill、AI Max+ 395 纯 Decode）；v2.10 的 27B-C / 27B-D 与 DGX Spark 对比保留原位。公开范围仅包含架构、实测数据、思维演进、结论与限制；不提供部署步骤、复现命令、补丁、端点或内部切层策略。
 
 **什么是稠密加速。** 由一张加速卡 + 一台被加速机器组成。两者显存重叠的区域即为显存稠密区；落入该区域内的模型，其解码（decode）与预填充（prefill）都会得到显著加速。该加速不降低输出质量；具体吞吐由计算与通信共同决定，跨设备 KV 扩容会以一定通信成本换取更大的上下文容量。
 
@@ -64,6 +64,7 @@ flowchart LR
 | **v2.11** | 首条 MoE 双机 PD 记录：Ornith-1.5-35B-A3B（qwen35moe，10 层全注意力 + 30 层 Gated DeltaNet），3080 全量 prefill / 395 全量 decode 分工。 | 发布短任务与 100K 的 C1–C6 表，保持 395 解码段指标可独立归属，并显著标注 MoE 行不与 27B dense 行直接排名。 | 短任务 C1 Prefill 聚合 **4017.46 tok/s**；100K Prefill **2895.53 tok/s**（C1）；395 解码段最高 **148.20 tok/s**（C6）；42/42 route=pd |
 | **v2.12** | 从 Ornith 展示中删除整档墙钟派生的聚合 Decode 序列。 | 在中英文首页与中英文详档中删除该列及其 C1–C6 展示值，原始 CSV 保留。 | **当前展示指标均可直接归属到 3080 Prefill 或 395 解码段** |
 | **v2.13** | 锁定用户指定的 r337 Ornith 双机 PD 实验，并清理机器可读数据中的剩余歧义。 | 明确 3080 只做 Prefill、395 只做全部 Decode；CSV 12 行的整档墙钟派生值全部清空。 | 短任务 Prefill **4017.46 tok/s**；100K 的 395 纯 Decode 最高 **148.20 tok/s** |
+| **v2.14** | 发布 Qwen3.8-Flash Q4 双设备切层记录（r374），作为独立新口径。 | 单个 llama-server 同时运行 RTX 3080（CUDA0）与 AI Max+ 395（Vulkan1），张量切分 0.38 / 0.62，完成最终 C1–C6 短上下文六档。 | C4 Prefill 聚合 **633.685 tok/s**；C4 聚合 Decode **71.185 tok/s**；C4 总吞吐 **338.270 tok/s** |
 | **v3.0（研究方向）** | 把 v2.4 的一对一机制适配到其他各类大显存主机与小显存加速卡。 | 建立跨平台适配矩阵，验证不同主机架构与加速卡型号下的显存稠密区映射、prefill/decode 无损加速和调度稳定性。 | **计划：其他各类大显存主机 + 小显存加速卡的适配加速研究** |
 | **v4.0（研究方向）** | 研究一张加速卡同时加速 X 台大显存主机。 | 研究一对多任务调度、资源隔离、公平性、故障恢复，以及并发主机数量扩大时的性能边界。 | **计划：1 张加速卡 → X 台大显存主机** |
 
@@ -240,6 +241,27 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 
 完整记录：[Ornith-1.5-35B-A3B 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)（English: [EN](results/ornith-1.5-35b-a3b-dual-machine-pd.md)）；机器可读数据：[ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv)。
 
+## 新实验 Flash-Q4（Qwen3.8-Flash Q4，双设备切层）— C4 Prefill 聚合 633.685 tok/s
+
+**口径警示：Qwen3.8-Flash Q4 在 3080 + 395 双设备切层下的结果，与上方 27B、Ornith 行属于不同模型、不同硬件角色、不同口径，只在表内比较。**
+
+本节只采用 r374 运行：单个 llama-server 同时承载两个设备，RTX 3080（CUDA0）与 AI Max+ 395（Vulkan1）各自持有层段（张量切分 0.38 / 0.62），ubatch 1024 / batch 4096，flash attention 开启，KV 缓存 q4_0，6 槽、每槽 131072 上下文；3080 显存峰值 19129 MiB。负载：每路约 2077 输入 / 256 输出，temperature 0，六个并发档，预热不计入成绩；21/21 计分请求全部成功且 timings 齐全。
+
+### C1–C6 — 约 2077 输入 / 256 输出（tok/s）
+
+| C | Prefill 聚合 | 单流 Decode | 聚合 Decode | 总吞吐 |
+| --- | ---: | ---: | ---: | ---: |
+| C1 | 569.892 | 35.204 | 35.204 | 213.581 |
+| C2 | 579.215 | 26.055 | 51.877 | 273.089 |
+| C3 | 625.250 | 21.714 | 65.143 | 320.267 |
+| C4 | **633.685** | 17.829 | **71.185** | **338.270** |
+| C5 | 552.070 | 14.578 | 69.595 | 327.366 |
+| C6 | 554.873 | 12.317 | 67.286 | 332.790 |
+
+Prefill 聚合六档全部保持在 550 tok/s 以上，C4 达峰；聚合 Decode 随并发增长至 C4 的 71.185 tok/s，六路负载下略有回落。各档 TTFT 未记录，一律留空而非推算。
+
+完整记录：[Qwen3.8-Flash Q4 双设备切层](results/qwen3.8-flash-q4-layer-split.zh-CN.md)（English: [EN](results/qwen3.8-flash-q4-layer-split.md)）；机器可读数据：[qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv)。
+
 ## 外部对照：DGX Spark 社区数据（非本地新实验）
 
 以下数据保留社区原始公开口径，仅提供背景，不与本地实验排名。
@@ -262,4 +284,4 @@ v2.4 比 RTX 3060 prefill 基线高 34.0%，比 AI Max+ 395 基线高 119.6%，�
 - **每流 1M**是最新路线提供的上下文容量；已公布速度点来自当前压测负载，不能直接外推为填满 1M prompt 时仍保持相同吞吐。
 - 社区外部对照不做归一化或推算，完整保留原始公开口径。
 
-详细记录：[v1.0 独立 PD](results/v1.0-independent-pd.zh-CN.md)、[v2.4 稠密加速演进](results/v2.4-fused-layer-pipeline.zh-CN.md)、[27B 异构实验全集](results/qwen3.8-27b-dual-machine-pd.zh-CN.md)、[9B 本地 CSV](data/benchmark-results.csv)、[27B 本地 CSV](data/qwen27b-local-results.csv) 、[Ornith-1.5-35B-A3B 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)（English: [EN](results/ornith-1.5-35b-a3b-dual-machine-pd.md)）、[35B-A3B 本地 CSV](data/ornith35a3b-local-results.csv) 与 [更新记录](CHANGELOG_ZH.md)。
+详细记录：[v1.0 独立 PD](results/v1.0-independent-pd.zh-CN.md)、[v2.4 稠密加速演进](results/v2.4-fused-layer-pipeline.zh-CN.md)、[27B 异构实验全集](results/qwen3.8-27b-dual-machine-pd.zh-CN.md)、[9B 本地 CSV](data/benchmark-results.csv)、[27B 本地 CSV](data/qwen27b-local-results.csv) 、[Ornith-1.5-35B-A3B 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)（English: [EN](results/ornith-1.5-35b-a3b-dual-machine-pd.md)）、[35B-A3B 本地 CSV](data/ornith35a3b-local-results.csv)、[Qwen3.8-Flash Q4 双设备切层](results/qwen3.8-flash-q4-layer-split.zh-CN.md)（English: [EN](results/qwen3.8-flash-q4-layer-split.md)）、[Flash-Q4 本地 CSV](data/qwen38flash-q4-local-results.csv) 与 [更新记录](CHANGELOG_ZH.md)。
