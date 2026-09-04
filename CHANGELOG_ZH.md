@@ -2,6 +2,13 @@
 
 [English](CHANGELOG.md)
 
+## v2.14
+
+- 新增 Qwen3.8-Flash Q4 双设备切层记录（r374）：单个 llama-server 同时运行 RTX 3080（CUDA0）与 AI Max+ 395（Vulkan1），张量切分 0.38 / 0.62，ubatch 1024 / batch 4096，flash attention 开启，KV 缓存 q4_0，6 槽、每槽 131072 上下文；3080 显存峰值 19129 MiB。
+- 发布最终 C1–C6 口径（约 2077 输入 / 256 输出，temperature 0）：Prefill 聚合 569.892–633.685 tok/s（C4 峰值）、聚合 Decode 35.204–71.185 tok/s（C4 峰值）、总吞吐 C4 最高 338.270 tok/s。
+- 21/21 计分请求全部 HTTP 200 且 timings 齐全；C1 预热不计入成绩。
+- 新增双语详档 [qwen3.8-flash-q4-layer-split.md](results/qwen3.8-flash-q4-layer-split.md) 与机器可读 [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv)；Flash-Q4 口径独立于 27B 与 Ornith 表格。
+
 ## v2.13
 
 - Ornith 章节只采用用户指定的 r337 双机 PD 实验：RTX 3080 是纯 Prefill 节点，AI Max+ 395 承担全部 Decode。
