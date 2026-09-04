@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.14
+
+- Added the Qwen3.8-Flash Q4 dual-device layer-split record (r374): one llama-server on the RTX 3080 (CUDA0) and AI Max+ 395 (Vulkan1) with a 0.38 / 0.62 tensor split, ubatch 1024 / batch 4096, flash attention on, q4_0 KV cache, and 6 slots at 131072 context; 3080 VRAM peaked at 19129 MiB.
+- Published the final C1–C6 envelope (~2077 in / 256 out, temperature 0): aggregate Prefill 569.892–633.685 tok/s (peak at C4), aggregate Decode 35.204–71.185 tok/s (peak at C4), and total throughput up to 338.270 tok/s at C4.
+- All 21 scored requests returned HTTP 200 with complete timings; the warm-up C1 is excluded.
+- Added the bilingual detailed record [qwen3.8-flash-q4-layer-split.md](results/qwen3.8-flash-q4-layer-split.md) and the machine-readable [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv); the Flash-Q4 envelope is independent of the 27B and Ornith tables.
+
 ## v2.13
 
 - Locked the Ornith section to the requested r337 dual-machine PD experiment: RTX 3080 is pure Prefill, while AI Max+ 395 performs all Decode work.
