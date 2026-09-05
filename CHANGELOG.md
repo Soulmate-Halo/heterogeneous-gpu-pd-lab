@@ -2,6 +2,14 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.16
+
+- Restored decision-level measurements to both homepages without copying the complete result matrices: each stable experiment now exposes one baseline or starting point, one selected result, the measured delta, and the conclusion it supports.
+- Split the overview into matched-baseline results and no-baseline service envelopes, so true acceleration percentages cannot be confused with concurrency scaling.
+- Added a route selector for controlled Dense Acceleration, independent PD, layered residency, remote-KV capacity, MoE PD stress, and fixed single-server layer split.
+- Promoted the central choices to the top of the page: 9B controlled Dense Acceleration reaches +34.0% Prefill / +15.6% Decode versus the faster standalone endpoint; 27B layered long-prompt Prefill reaches +133.4% at 64K versus the matched 395 path.
+- Kept full rows, metric definitions, and missing-field authority in the existing detailed records and CSV files; no benchmark source value was changed.
+
 ## v2.15
 
 - Rebuilt the homepage as an experiment registry: every stable experiment now names one primary question, its control, changed factor, decision gate, allowed claim, and canonical data entry.
