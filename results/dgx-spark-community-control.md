@@ -1,6 +1,15 @@
-# DGX Spark Community Controls
+# EXT-DGX-01 — DGX Spark External Community Context
 
 [简体中文](dgx-spark-community-control.zh-CN.md)
+
+## Evidence contract
+
+| Item | Definition |
+| --- | --- |
+| Role | External context only; this is not a local experiment or a matched control. |
+| Question | What publicly reported measurements help bound the surrounding hardware landscape? |
+| Inclusion rule | Preserve the source workload, engine, quantization, date, and URL without normalization. |
+| Prohibited use | Do not calculate a local speedup ratio or rank it against a local row with a different envelope. |
 
 These rows are externally reported community measurements. They are recorded without normalization or extrapolation and are **not directly comparable** with the local `9B Q6_K / pp5064` experiment.
 
