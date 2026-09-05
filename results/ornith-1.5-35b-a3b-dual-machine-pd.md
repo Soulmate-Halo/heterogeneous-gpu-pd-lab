@@ -1,6 +1,18 @@
-# Ornith-1.5-35B-A3B Dual-Machine PD — 3080 pure Prefill / 395 pure Decode
+# ORNITH-PD-01 — Ornith-1.5-35B-A3B Role-Attributed PD Stress Envelope
 
 [简体中文](ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)
+
+## Experimental contract
+
+| Item | Definition |
+| --- | --- |
+| Primary question | Can a MoE model keep Prefill and Decode ownership independently attributable while completing short and 100K C1–C6 PD stress? |
+| Topology under test | RTX 3080 performs all Prefill; AI Max+ 395 performs all Decode after KV migration. |
+| Matched speed control | Not recorded. There is no same-run single-node baseline for the scored workloads. |
+| Changed factors | Prompt depth (1000 versus 100000 input tokens) and concurrency C1–C6. |
+| Decision metrics | Route success, `n_reuse`, 3080 Prefill in its own window, and 395 Decode in its own window. |
+| Pass boundary | All scored requests complete on the PD route with phase metrics attributable and missing fields left unfilled. |
+| Does not prove | End-to-end acceleration, a standalone comparison, or superiority over dense 27B. |
 
 This record is limited to the r337 Ornith-1.5-35B-A3B dual-machine Prefill/Decode (PD) experiment added in v2.11: the RTX 3080 is Prefill-only and the AI Max+ 395 is Decode-only. **Ornith-1.5-35B-A3B is a MoE (35B total, A3B active-per-token naming). It must not be ranked directly against the Qwen3.8-27B dense rows in [qwen3.8-27b-dual-machine-pd.md](qwen3.8-27b-dual-machine-pd.md):** different model family, different architecture, different per-token active compute, and different quantization.
 
@@ -71,6 +83,7 @@ The source record does not contain the following for this experiment; the CSV an
 
 ## Boundaries
 
+- With no matched standalone run, the tables characterize role attribution and stability; they are not a causal speedup claim.
 - **MoE vs dense**: Ornith-1.5-35B-A3B activates a far smaller per-token compute than the Qwen3.8-27B dense model; every figure above is an independent MoE envelope and cannot be collapsed into a ranking with the 27B rows.
 - The 395 pure-Decode aggregate covers the Decode window only; all Decode runs on the 395, and the metric excludes Prefill and KV restore time.
 - The draft head (Qwen3.6-35B-A3B-DFlash-Q4_K_M) runs alongside the IQ4_XS main model; no acceptance-rate figure is published, so the draft's realized contribution cannot be quantified.
