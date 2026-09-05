@@ -2,6 +2,14 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.17
+
+- Moved the base architecture to the top of both homepages, explaining the Prompt → async micro-batch → small-VRAM front stage → large-memory rear stage and state → Decode path before presenting results, together with Dense Region / Sparse Region boundaries.
+- Restored the six-experiment matrix under common RTX 3080 and RTX 3060 controls: Dense / MoE × fits easily / fills the card / does not fit; defined the working set, shared metrics, and a non-fit result as a valid capacity boundary.
+- Marked strict dual-control progress as 0/6 fully closed, four partial, and two planned. Existing values only reference canonical records and CSV files; unfinished measurements were not invented.
+- Restored the stepwise v2.1→v2.1X evolution (current v2.17) and preserved the v3.0 cross-platform six-cell plan plus the v4.0 one-accelerator-to-many-hosts plan.
+- This release restructures only the bilingual homepages and changelogs; no result record or CSV source value changed.
+
 ## v2.16
 
 - Restored decision-level measurements to both homepages without copying the complete result matrices: each stable experiment now exposes one baseline or starting point, one selected result, the measured delta, and the conclusion it supports.
