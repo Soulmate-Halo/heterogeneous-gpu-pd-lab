@@ -1,6 +1,18 @@
-# Ornith-1.5-35B-A3B 双机 PD — 3080 纯 Prefill / 395 纯 Decode
+# ORNITH-PD-01 — Ornith-1.5-35B-A3B 分阶段归属 PD 压测包络
 
 [English](ornith-1.5-35b-a3b-dual-machine-pd.md)
+
+## 实验契约
+
+| 项目 | 定义 |
+| --- | --- |
+| 主要问题 | MoE 模型能否保持 Prefill 与 Decode 归属可独立计量，并完成短任务与 100K 的 C1–C6 PD 压测？ |
+| 被测拓扑 | RTX 3080 承担全部 Prefill；KV 迁移后由 AI Max+ 395 承担全部 Decode。 |
+| 匹配速度对照 | 未记录；正式负载没有同轮单机基线。 |
+| 变化因素 | prompt 深度（1000 与 100000 输入 token）和 C1–C6 并发。 |
+| 判定指标 | 路由成功、`n_reuse`、独立窗口内的 3080 Prefill 与 395 Decode。 |
+| 通过边界 | 全部计分请求走 PD 路径完成，阶段指标可归属，缺失字段保持缺失。 |
+| 不能证明 | 端到端加速、相对单机优势或优于 dense 27B。 |
 
 本档只记录 v2.11 新增的 r337 Ornith-1.5-35B-A3B 双机 Prefill/Decode（PD）实验：RTX 3080 只做 Prefill，AI Max+ 395 只做 Decode。**Ornith-1.5-35B-A3B 是 MoE（35B 总参数、A3B 命名即每 token 激活 3B）。它与 [qwen3.8-27b-dual-machine-pd.md](qwen3.8-27b-dual-machine-pd.zh-CN.md) 中的 Qwen3.8-27B dense 行不可直接排名**：不同模型家族、不同架构、不同每 token 激活算力、不同量化。
 
@@ -71,6 +83,7 @@ PD restore 只恢复主模型 KV，不恢复 dFlash 草稿槽位置；从短任�
 
 ## 边界
 
+- 没有匹配单机对照，因此表格只刻画角色归属与稳定性，不能作因果加速结论。
 - **MoE vs dense**：Ornith-1.5-35B-A3B 每 token 激活的算力远小于 Qwen3.8-27B dense 模型；上述每个数字都是独立的 MoE 口径，不能并入 27B 行的任何排名。
 - 395 纯 Decode 聚合只覆盖 Decode 窗口；全部 Decode 均在 395 上完成，且指标不含 Prefill 与 KV restore 时间。
 - 草稿头（Qwen3.6-35B-A3B-DFlash-Q4_K_M）与 IQ4_XS 主模型并行运行；未公布接受率，草稿的实际贡献无法量化。
