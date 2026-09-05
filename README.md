@@ -2,9 +2,44 @@
 
 [简体中文](README_ZH.md)
 
-Current release: **v2.16 — decision-level measurements, measured gains, and route selection are visible on the homepage**. Complete matrices remain in the canonical result records and machine-readable CSV files; the homepage exposes the small set of numbers needed to make a decision.
+Current release: **v2.17 — architecture first, with the six-experiment matrix and the full v2.1→v2.1X evolution restored**. Measurements, unfinished work, and future routes are separated on the homepage; canonical result records and machine-readable CSV files remain the numerical sources of truth.
 
 This repository studies how a high-compute, small-VRAM accelerator can cooperate with a low-compute, large-memory host for LLM inference. It publishes architecture, measured evidence, design evolution, conclusions, and limitations. Deployment commands, patches, endpoints, and private layer-allocation policy remain out of scope.
+
+## Base architecture: how the system works
+
+```mermaid
+flowchart LR
+    P[Prompt] --> Q[Async micro-batch queue]
+    subgraph D["Dense Region — concurrent active window"]
+        direction LR
+        N[Small-VRAM accelerator<br/>front-stage layers] -->|current micro-batch| A[Large-memory host<br/>rear-stage layers and state]
+    end
+    Q --> N
+    A --> O[Decode and result stream]
+    N -. next micro-batch overlaps .-> A
+```
+
+**Dense Acceleration** means that two devices share useful work from the same model stage: the small-VRAM accelerator and large-memory host own and compute their respective layer stages, while adjacent micro-batches overlap inside a **Dense Region**. The **Sparse Region** retains full-model residency and capacity duties that cannot enter that overlap window. This is not ordinary serial layer execution, tensor parallelism, duplicate same-layer compute, or independent PD with the 395 acting only as remote KV storage.
+
+![Dense Acceleration structure](assets/dense-region-structure.png)
+
+## Six-experiment matrix: RTX 3080 / RTX 3060 controls
+
+The six cells are defined by the **complete working set at the target context relative to accelerator VRAM**, not by a model name or parameter count. The working set includes weights, KV, compute buffers, and safety margin: **fits easily** leaves stable headroom, **fills the card** approaches usable VRAM, and **does not fit** cannot complete the target workload on that card alone.
+
+Common control contract: each cell should record **RTX 3060 only, RTX 3080 only, AI Max+ 395 only, 3060 + 395, and 3080 + 395** wherever feasible, with the same model, quantization, prompt, context, concurrency, and metrics. If a card cannot hold the workload, “cannot load/complete” is the boundary result; changing model or quantization is not a substitute baseline. Core metrics are Prefill, Decode, TTFT, aggregate throughput, VRAM headroom, and success rate.
+
+**Strict completion today: 0/6 cells fully closed.** Four cells have pilot or partial evidence and two remain untested; any cell missing a matched 3060 / 3080 control is explicitly incomplete.
+
+| Experiment cell | Question to answer | 3080 / 3060 control role | 395 / heterogeneous route and gates | Current status and evidence |
+| --- | --- | --- | --- | --- |
+| **D1 Dense · fits easily** | When the complete working set fits with headroom, can a dense pipeline still beat the faster card rather than merely add capacity? | The matched 3060 standalone run exists; the same-contract 3080 repeat is pending. | Compare card-only, 395-only, and async layered pipeline on Prefill / Decode / TTFT. | **Partial**: 9B-PIPE-01 is **+34.0% Prefill** and **+15.6% Decode** versus the 3060; 3080 control missing. [Record](results/v2.4-fused-layer-pipeline.md) |
+| **D2 Dense · fills the card** | Near the VRAM ceiling, should the route stay card-only, use phase-separated PD, or use a layered Dense Region? | The 20GB 3080 is the primary full-card control for 27B Q4; the 3060 records the non-fit or degraded boundary. | Compare VRAM headroom, TTFT, Prefill, Decode, and handoff cost. | **Partial**: 27B-PD-01 has 3080-Prefill / 395-Decode serving evidence; matched dual-card Dense Acceleration control is missing. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
+| **D3 Dense · does not fit** | If one card cannot complete the target working set, can layered residency make it finish and outperform the 395? | The 3060 is the current capacity floor; the 3080 needs the same prompt-depth sweep to determine whether it falls into “full” or “non-fit.” | Gate on completion, long-prompt Prefill, Decode, and TTFT. | **Partial**: 27B-LONG-01 reaches **+133.4% Prefill** at 64K versus the 395 and completes at 98K where the control times out; matched 3080 record missing. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
+| **M1 MoE · fits easily** | With a small active set and ample residency headroom, does MoE routing overhead erase heterogeneous overlap gains? | Both 3060 and 3080 need same-model, same-quantization standalone controls. | Compare post-routing Prefill / Decode, acceptance, TTFT, and balance. | **Planned**: no local run satisfies the dual-control contract; no gain is reported. |
+| **M2 MoE · fills the card** | Near the 3080 ceiling, is phase separation stable, and does a later Dense Region add speed? | The 3080 is the full-card Prefill control; the 3060 records a non-fit boundary or a smaller same-family case. | Establish route attribution and long-context stability before matched speed comparisons. | **Partial**: ORNITH-PD-01 has **42/42** routed successes and a 100K envelope; matched 3080 / 3060 standalone speed controls are missing, so no acceleration claim is allowed. [Record](results/ornith-1.5-35b-a3b-dual-machine-pd.md) |
+| **M3 MoE · does not fit** | When the total working set exceeds both control cards, can layer/expert residency preserve completion, throughput, and output correctness? | Both 3060 and 3080 must first record their standalone capacity boundary. | Gate on completion, routing correctness, Prefill / Decode, memory, and cross-device wait. | **Planned**: FLASH-SPLIT-01 is only an adjacent split-serving envelope; without both standalone controls it cannot close this cell. [Pilot record](results/qwen3.8-flash-q4-layer-split.md) |
 
 ## Decision summary
 
@@ -51,24 +86,6 @@ Full rows, metric definitions, and missing fields remain in each linked [result 
 | Validate a MoE PD service at deep context | **Role-separated PD stress route** | ORNITH-PD-01: **42/42 passed**; 100K Decode aggregate reaches **148.20 tok/s at C6** | Choose for route attribution and stability. A matched standalone run is still required before claiming speedup. |
 | Prefer one service and need a measured concurrency setting | **Fixed dual-device layer split** | FLASH-SPLIT-01: C4 total **338.270 tok/s**, **+58.4%** versus its own C1 | Choose **C4** for the recorded ~2077/256 workload. Re-benchmark for another prompt mix; this is an operating point, not an acceleration factor. |
 
-## Architecture under study
-
-```mermaid
-flowchart LR
-    P[Prompt] --> Q[Async micro-batch queue]
-    subgraph D["Dense Region — concurrent active window"]
-        direction LR
-        N[Small-VRAM accelerator<br/>front-stage layers] -->|current micro-batch| A[Large-memory host<br/>rear-stage layers and state]
-    end
-    Q --> N
-    A --> O[Decode and result stream]
-    N -. next micro-batch overlaps .-> A
-```
-
-**Dense Acceleration** means that both devices own part of the same model-stage work and contribute useful compute inside an asynchronous layered pipeline. The **Dense Region** is the scheduling-overlap window in which adjacent micro-batches keep both stages active. It is not tensor parallelism, duplicated same-layer computation, or a generic name for remote KV storage.
-
-![Dense Acceleration structure](assets/dense-region-structure.png)
-
 ## Evidence rules
 
 | Claim type | Minimum evidence | Wording allowed in this repository |
@@ -99,13 +116,39 @@ flowchart LR
 
 Machine-readable experiment semantics and legacy-label aliases are listed in [data/experiment-index.csv](data/experiment-index.csv).
 
-## What is a checkpoint, profile, or release—not a separate experiment
+## Research and experiment evolution: v2.1 → v2.1X (current v2.17)
 
-- **v2.1–v2.4** are refinement checkpoints inside **9B-PIPE-01**, not four independent experiments.
-- **27B-C and 27B-D** are Prefill-first and Decode-first profiles inside **27B-KV-01**. Re-publication or corrected compute attribution does not create a new measurement.
-- **v2.5–v2.14** mostly describe publication, presentation, or attribution changes around existing records. See the [changelog](CHANGELOG.md); do not count those rows as additional experiments.
-- The 395 natural-language run is a **validation audit**, not a competing architecture.
-- DGX Spark figures are an [external community reference](results/dgx-spark-community-control.md), not a local experiment or a matched baseline.
+Here, **v2.1X** denotes the continuous v2.10–v2.19 family; the current release is **v2.17**. v2.1–v2.4 are real scheduling checkpoints inside 9B-PIPE-01. Later releases mix new experiments with attribution and presentation corrections, so the table labels their type instead of counting every release as a new experiment.
+
+| Stage | Type | New question driven by the previous result | Validation / result |
+| --- | --- | --- | --- |
+| v1.0 | Feasibility experiment | First prove that CUDA Prefill state can hand off to Vulkan Decode. | Full PD: **1452.29 Prefill**, **30.28 tok/s Decode**; the phases remain serial. |
+| v2.1 | Pipeline experiment | v1.0 alternates endpoint idle time; can micro-batches from one request overlap? | First fused pipeline: **1865.08 tok/s Prefill**. |
+| v2.2 | Repeatability experiment | v2.1 overlap varies by run; is the gain reproducible? | Refined overlap: **1893.87 tok/s Prefill**. |
+| v2.3 | Balance experiment | Once overlap repeats, can load balance improve both Prefill and Decode? | **1999.51 Prefill**, **37.16 tok/s Decode**. |
+| **v2.4** | Dense Acceleration final | With both endpoints active, can the route beat the faster card and preserve output boundaries? | **2129.69 Prefill**, **50.73 tok/s Decode**; **+34.0% / +15.6%** versus the 3060. |
+| v2.5 | New scale experiment | After the 9B mechanism works, can full 3080 Prefill + 395 Decode bring 27B Q4 into serving? | C1 **1000.6 tok/s Prefill**, **1073 ms TTFT**, with C1–C6 completed. |
+| v2.6 | Experiment consolidation | The 3060 and 3080 27B records are fragmented; how do input- and generation-first routes fit together? | Unified 27B area; up to **1210.6 Prefill** and **63.2 tok/s single-stream Decode**. |
+| v2.7 | Result presentation | The strongest results are buried under implementation detail. | Added Prefill-first / Decode-first profiles; no new measurement. |
+| v2.8 | Attribution correction | Compute ownership and capacity value are conflated in C / D. | Clarified 3080 full compute and 395 KV-only with **1M context per stream**; no new measurement. |
+| v2.9 | Data correction | The 27B-D C6 peak and its scope need correction. | Corrected C6 aggregate Decode to **116.3 tok/s**; no new experiment. |
+| v2.10 | External comparison | C / D and DGX Spark evidence is scattered. | Co-located them with explicit non-comparability; no new local measurement. |
+| v2.11 | New MoE experiment | After dense models, do phase attribution and 100K stability hold for MoE? | Ornith: **42/42** success; 395 pure-Decode aggregate up to **148.20 tok/s**. |
+| v2.12 | Metric governance | Ornith whole-stage wall-clock derivatives are not independently attributable. | Removed derived Decode presentation and kept directly attributable metrics; no new measurement. |
+| v2.13 | Evidence lock | Multiple runs could contaminate the requested record. | Locked r337: 3080 pure Prefill, 395 pure Decode; no new measurement. |
+| v2.14 | New split envelope | A single-server dual-device concurrency operating point is still missing. | Flash C4: **633.685 Prefill**, **71.185 aggregate Decode**, **338.270 total tok/s**. |
+| v2.15 | Experiment governance | One dataset is repeated in many places and experiment purposes are mixed. | Added stable IDs, one canonical entry, and claim boundaries; no new measurement. |
+| v2.16 | Decision dashboard | The simplified homepage hides measured gains and route choices. | Restored key measurements, deltas, and route selection; no new measurement. |
+| **v2.17** | Planning restoration | Once data is visible, the base architecture, six-cell plan, and 2.x evolution are still underemphasized. | Moved architecture first; added Dense / MoE × fits easily / fills / does not fit; explicitly records **0/6 fully closed, 4 partial, 2 planned**. |
+
+Additional boundary: **27B-C / 27B-D** are two serving profiles inside 27B-KV-01; the 395 natural-language run is a validation audit; [DGX Spark](results/dgx-spark-community-control.md) is an external reference. None is another local experiment.
+
+## Preserved future plan
+
+| Route | Question driven by current results | Plan and completion gate |
+| --- | --- | --- |
+| **v3.0** | v2.4 closes only one 9B / 3060 envelope, while the six-experiment matrix remains incomplete. | Fill the 3080 / 3060 controls under one workload contract and adapt one-to-one Dense Acceleration to more large-memory hosts and small-VRAM accelerators; validate Dense Region mapping, lossless Prefill / Decode gains, and scheduling stability. |
+| **v4.0** | Once one-to-one is stable, can one accelerator serve X large-memory hosts at the same time? | Study one-to-many scheduling, isolation, fairness, failure recovery, and scaling limits; completion requires reproducible gain as host count rises with bounded per-tenant regression. |
 
 ## Reading path
 
@@ -113,8 +156,3 @@ Machine-readable experiment semantics and legacy-label aliases are listed in [da
 2. Read that experiment’s contract and boundaries in `results/` before reading its table.
 3. Use the linked CSV for calculations; do not combine rows from different stable IDs unless the record explicitly defines a matched control.
 4. Use the [changelog](CHANGELOG.md) only to understand when wording, attribution, or files changed.
-
-## Research directions
-
-- **v3.0 direction**: repeat controlled Dense Acceleration experiments across other large-memory hosts and small-VRAM accelerators using a common workload matrix.
-- **v4.0 direction**: study one accelerator serving multiple large-memory hosts, with explicit fairness, isolation, recovery, and scaling gates.
