@@ -2,6 +2,15 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.15
+
+- Rebuilt the homepage as an experiment registry: every stable experiment now names one primary question, its control, changed factor, decision gate, allowed claim, and canonical data entry.
+- Removed repeated benchmark tables from both README files. Human-readable numbers now live in one detailed record per experiment, with CSV files kept as machine-readable mirrors.
+- Separated experimental work from publication history: v2.1–v2.4 are checkpoints inside one 9B pipeline experiment; 27B-C/D are profiles inside one remote-KV experiment; release and attribution edits are not counted as new experiments.
+- Corrected claim boundaries: 27B KV-only is a capacity/serving experiment, Ornith is a role-attribution and stability experiment, and the Flash layer-split run is a concurrency-envelope experiment because the latter two lack matched standalone speed controls.
+- Added `data/experiment-index.csv` to map stable IDs to legacy labels, evidence type, canonical record, machine data, and comparability limits.
+- Restored the already-published v2.4 Decode value and measurement label in `benchmark-results.csv`, so the machine-readable 9B final checkpoint matches its detailed record.
+
 ## v2.14
 
 - Added the Qwen3.8-Flash Q4 dual-device layer-split record (r374): one llama-server on the RTX 3080 (CUDA0) and AI Max+ 395 (Vulkan1) with a 0.38 / 0.62 tensor split, ubatch 1024 / batch 4096, flash attention on, q4_0 KV cache, and 6 slots at 131072 context; 3080 VRAM peaked at 19129 MiB.
