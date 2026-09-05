@@ -1,6 +1,18 @@
-# Qwen3.8-Flash Q4 Dual-Device Layer Split — 3080 + 395 Dense Acceleration
+# FLASH-SPLIT-01 — Qwen3.8-Flash Q4 Dual-Device Layer-Split Concurrency Envelope
 
 [简体中文](qwen3.8-flash-q4-layer-split.zh-CN.md)
+
+## Experimental contract
+
+| Item | Definition |
+| --- | --- |
+| Primary question | Can one CUDA+Vulkan layer-split server sustain C1–C6, and at which concurrency does its throughput saturate? |
+| Configuration under test | One fixed RTX 3080 + AI Max+ 395 layer split, with fixed model, batching, context, and KV precision. |
+| Matched standalone control | Not recorded. No 3080-only or 395-only run exists in this workload envelope. |
+| Changed factor | Concurrency only: C1 through C6. |
+| Decision metrics | HTTP success, aggregate Prefill, single/aggregate Decode, total throughput, and 3080 VRAM headroom. |
+| Pass boundary | Complete timings for every scored request and a stable operating envelope without OOM. |
+| Does not prove | Speedup over either device, causal Dense Acceleration, or long-context performance. |
 
 This record covers the r374 Qwen3.8-Flash Q4 dual-device layer-split experiment added in v2.14. A single llama-server runs both devices at once: the RTX 3080 (CUDA0) and the AI Max+ 395 (Vulkan1) each own their layer stage, and micro-batches overlap across the stages.
 
@@ -65,6 +77,7 @@ Prefill peaks at C4 (633.685 tok/s) and stays above 550 tok/s at every tier; agg
 
 ## Boundaries
 
+- This is a concurrency-envelope experiment. Without a matched standalone run, its absolute rates cannot establish an acceleration factor.
 - The ~2077-input / 256-output envelope is a short-context workload; it must not be ranked against the 27B or Ornith tables, which use different models, hardware roles, and calibers.
 - The 3080 VRAM peak of 19129 MiB fits inside the 20 GB card with headroom for the working set.
 - Numbers are taken verbatim from the completed r374 run; nothing is interpolated.
