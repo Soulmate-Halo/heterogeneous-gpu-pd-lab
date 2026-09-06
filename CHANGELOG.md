@@ -2,6 +2,15 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.20
+
+- This release is a prose rewrite: both homepages were rewritten sentence by sentence, with no new measurement, no changed value, and zero changes to the results, data, and assets directories.
+- Stacked jargon was removed. Phrases such as "route split", "baseline front-loaded", "numerical sources of truth", "decision-level slice", "serving envelope", "same envelope", and "canonical entry" were replaced with plain wording, and long sentences were broken into short ones with a clear subject and verb.
+- The opening release note is now three plain sentences: this release only changes wording, the two accelerators get separate chapters, and single-device numbers come before two-device results, with the exact figures pointed to `results/` and `data/`.
+- Section headings were reworded: "Decision summary" became "The conclusions in a few lines", "Results at a glance" became "The measurements", "Single-device baselines first" became "Start with what each device does alone", "Six-experiment matrix" became "Six experiment cells, with the 3060 and 3080 as the controls", "Matched-baseline results" became "Experiments with a control — gains can be calculated", "Serving envelopes and audits" became "Experiments without a control — how well they serve, not how much faster", "Evidence rules" became "What kind of data supports what kind of claim", "Route selector" became "Choosing a route", "Preserved future plan" became "The plan from here", and "Reading path" became "How to read this repository".
+- Every table header and every explanatory cell was rewritten as a natural sentence while numeric cells were kept verbatim. Timeline phase 4 now covers v2.15 → v2.20 and gained a v2.20 row.
+- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION.
+
 ## v2.19
 
 - This release splits the accelerator tracks apart and puts single-device baselines first: no new measurement, no changed value, and zero changes to the results, data, and assets directories.
