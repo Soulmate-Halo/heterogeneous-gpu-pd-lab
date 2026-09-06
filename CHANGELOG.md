@@ -2,6 +2,16 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.19
+
+- This release splits the accelerator tracks apart and puts single-device baselines first: no new measurement, no changed value, and zero changes to the results, data, and assets directories.
+- A new top-level chapter, "Two accelerator tracks: RTX 3060 12GB and RTX 3080 20GB", now sits after the base architecture and before the experiment timeline. It compares the tracks across seven rows: releases covered, VRAM and what fits, model sizes, experiment IDs, best result on this track, what this track proves, and the main gap. Track 1 is the RTX 3060 12GB across v1.0 → v2.4 (9B-PD-01, 9B-PIPE-01, 27B-LONG-01); track 2 is the RTX 3080 20GB across v2.5 → v2.14 (27B-PD-01, 27B-KV-01, ORNITH-PD-01, FLASH-SPLIT-01). The two tracks are explicitly never merged into one ranking.
+- Both homepages now state that the repository holds no RTX 3090 measurement of any kind; that card was ruled out during selection, so no published figure involves it.
+- Results at a glance gained a "Single-device baselines first" section ahead of every heterogeneous table, split into two tiers. The 9B Q6_K tier lists the RTX 3060 card at 1589.00 / 43.87 tok/s, the 395 host serving method at 861.55 / 30.24 tok/s, and the 395 host `llama-bench` method at 970.00 / 31.27 tok/s, with a note that the two 395 figures differ by method rather than conflicting. The 27B tier lists the 3080 raw compute at pp1024 1228.53 / pp4096 1203.06 / tg64 33.08 tok/s, the 395 host on IQ3 at pp4096 313.28 / pp65536 136.69 / pp98304 timeout at 900 s / tg64 18.26 tok/s, and the 395 host on Q4 serving at C1 TTFT 4825 ms / Prefill 207.2 / Decode 36.33 tok/s, noting that the 3060 cannot hold a full 27B model and therefore has no baseline in that tier.
+- The matched-baseline table now has six columns: experiment, accelerator, matched baseline measured, this route measured, measured change, and direct conclusion, so baseline and route values are shown separately. The serving-envelope table gained an accelerator column and a "baseline that is missing" column. Every cell of the six-experiment matrix names the card it measured, and both the route selector and the local experiment registry gained an accelerator column.
+- Each timeline phase heading now names its accelerator, phase 4 was extended to v2.15 → v2.19, and rows for v2.18 and v2.19 were added. The reading path now starts with the two tracks, then the single-device baselines, then the experiments.
+- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION.
+
 ## v2.18
 
 - This release is a narrative-structure and readability revision: no new measurement, no changed value, and zero changes to the results, data, and assets directories.
