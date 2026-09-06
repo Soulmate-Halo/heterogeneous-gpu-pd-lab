@@ -2,6 +2,14 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.18
+
+- This release is a narrative-structure and readability revision: no new measurement, no changed value, and zero changes to the results, data, and assets directories.
+- Both homepages were reordered into: title and current version, base architecture, experiment timeline, six-experiment matrix, decision summary, results at a glance, route selector, evidence rules, local experiment registry, preserved future plan, and reading path. The timeline chapter moved from its old fourth-from-the-end position to directly after the architecture, was grouped into four phases, and now uses one row per version with the columns version, question at this step, what was measured, what the data shows, and how the conclusion advanced.
+- Five missing facts were added to the timeline: the v2.4 27B IQ3 validation with DGX Spark external context and the Chinese mirror; the v2.5 Prefill rise from 683.2 to 1000.6 tok/s after removing RPC sync, about 82% of the 3080 raw compute at 1228.53 tok/s; the dedicated DFlash2 acceleration-head category in v2.10; the v2.15 addition of data/experiment-index.csv and the restoration of the v2.4 Decode 50.73 into data/benchmark-results.csv; and explicit attributed rows for 27B-DRAFT-AUDIT-01 and EXT-DGX-01.
+- The prose was rewritten in short sentences and stiff wording was removed; the English and Chinese versions match in section structure, table row counts, and every value.
+- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION.
+
 ## v2.17
 
 - Moved the base architecture to the top of both homepages, explaining the Prompt → async micro-batch → small-VRAM front stage → large-memory rear stage and state → Decode path before presenting results, together with Dense Region / Sparse Region boundaries.
