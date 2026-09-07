@@ -2,7 +2,7 @@
 
 [简体中文](README_ZH.md)
 
-This is **v2.20**. It only rewrites the wording so the page reads in one pass: the two accelerators now get separate chapters, single-device numbers come before every two-device result, and the stiff phrasing is gone. Nothing new was measured and no number changed. The exact figures live in the result records under `results/` and the CSV files under `data/`.
+This is **v2.21**. The architecture diagram at the top is now a static image, with its source folded underneath. That diagram used to be drawn by GitHub itself, which breaks as soon as the browser translates the whole page: the translation rewrites the keywords in the source, so all that is left in place of the diagram is an error line. As an image it shows up in any browser, translated or not. Nothing new was measured and no number changed. The exact figures live in the result records under `results/` and the CSV files under `data/`.
 
 This repository studies one thing: how a card with plenty of compute but little VRAM can team up with a host that has weak compute but lots of memory, so that together they run large-model inference.
 
@@ -10,17 +10,24 @@ What is published here: the architecture, the measured numbers, how the design g
 
 ## Base architecture: how the system works
 
-```mermaid
+![Base architecture: a prompt enters the async micro-batch queue, the small-VRAM card computes the front-stage layers, the large-memory host computes the rear-stage layers and state, and inside the Dense Region both devices work on neighbouring micro-batches at the same time](assets/base-architecture.png)
+
+<details>
+<summary>The mermaid source for this diagram (paste it into mermaid.live to view)</summary>
+
+```text
 flowchart LR
-    P[Prompt] --> Q[Async micro-batch queue]
+    P["Prompt"] --> Q["Async micro-batch queue"]
     subgraph D["Dense Region — concurrent active window"]
         direction LR
-        N[Small-VRAM accelerator<br/>front-stage layers] -->|current micro-batch| A[Large-memory host<br/>rear-stage layers and state]
+        N["Small-VRAM accelerator<br/>front-stage layers"] -->|"current micro-batch"| A["Large-memory host<br/>rear-stage layers and state"]
     end
     Q --> N
-    A --> O[Decode and result stream]
-    N -. next micro-batch overlaps .-> A
+    A --> O["Decode and result stream"]
+    N -.->|"next micro-batch overlaps"| A
 ```
+
+</details>
 
 We call this approach **Dense Acceleration**: two devices compute the same stage of the same model.
 
@@ -48,7 +55,7 @@ This project has used exactly two NVIDIA cards so far. They hold different model
 
 The two tracks never go into one ranking. A percentage measured on the 3060 track does not carry over to a model on the 3080 track, and the higher raw throughput of the 3080 track is not progress on the 3060 track. One more note: this repository holds no RTX 3090 measurement of any kind. That card was ruled out during selection, so none of these numbers involve a 3090.
 
-## Experiment timeline: v1.0 → v2.20
+## Experiment timeline: v1.0 → v2.21
 
 A release number is a publication order, not a count of experiments. v2.1 through v2.4, for instance, are four checkpoints inside one 9B pipeline experiment. Later releases mix real new experiments with work that only files data correctly or rewrites text. The table below spells out the difference, and each phase heading names the card it used.
 
@@ -88,7 +95,7 @@ This phase asks two questions. First, with an MoE model, can we still tell which
 | v2.13 | Other runs may have contaminated the record. | Locked the evidence to r337. | No new measurement. Locked to 3080 pure Prefill and 395 pure Decode. | The Ornith numbers now have exactly one source. |
 | v2.14 | With one server driving both devices, at which tier does throughput stop growing? | r374 Qwen3.8-Flash Q4: a single llama-server uses the 3080 and the 395 together across C1–C6 (**FLASH-SPLIT-01**). | All **21/21** scored requests passed. C4 is best: Prefill **633.685**, aggregate Decode **71.185**, total **338.270 tok/s**. Peak 3080 VRAM **19129 MiB**. | For this configuration the tier that works best is C4. There is no single-device comparison, so this is not proof of a speedup. |
 
-### Phase 4: v2.15 → v2.20 · no hardware change and no new tests, only filing the data properly and rewriting the text
+### Phase 4: v2.15 → v2.21 · no hardware change and no new tests, only filing the data properly and rewriting the text
 
 This phase produced **no new tests and no new numbers**. Only two kinds of work happened: putting each result where it belongs, and making the text readable. By the end, every experiment has a fixed ID and one record to go to, the two cards are described separately, and the homepage keeps only the figures you need to make a call.
 
@@ -99,7 +106,8 @@ This phase produced **no new tests and no new numbers**. Only two kinds of work 
 | v2.17 | The data was visible again, but the architecture and the six-cell plan still did not stand out. | Restructured the page. | No new measurement. | The architecture moved to the top and the six-cell matrix was created, with progress marked as **0/6 finished, 4 cells partly measured, 2 cells untested**. |
 | v2.18 | You could not read the progress from one release to the next, and the sentences were clumsy. | Rewrote the narrative. | No new measurement. | The timeline moved to the front in four phases, one row per release, saying what it asked and what it got. |
 | v2.19 | The 3060 and 3080 tracks were told as one story, and two-device results came before single-device numbers. | Split the tracks and moved single-device data up. | No new measurement. | Each card got its own chapter, every cell and row names the card it used, and single-device figures now come before all two-device results. |
-| **v2.20** | Many sentences on the homepage were stacked-up jargon, awkward in both languages. | Rewrote the prose throughout. | No new measurement. | Jargon replaced with plain wording and long sentences broken up. Structure, numbers, and conclusions are untouched. |
+| v2.20 | Many sentences on the homepage were stacked-up jargon, awkward in both languages. | Rewrote the prose throughout. | No new measurement. | Jargon replaced with plain wording and long sentences broken up. Structure, numbers, and conclusions are untouched. |
+| **v2.21** | The architecture diagram at the top would not display in some browsers, leaving only an error line in its place. | Traced the cause, then replaced the diagram with a static image and folded the source underneath it. | No new measurement. | The source is valid: mermaid 11.16 both parses and renders it. The breakage comes from whole-page browser translation rewriting the keywords in the code block. An image is immune to that. |
 
 A few things that are easy to double-count: **27B-C and 27B-D** are two configurations of the single experiment 27B-KV-01, not two experiments; the natural-language run on the 395 belongs to 27B-DRAFT-AUDIT-01; and [DGX Spark](results/dgx-spark-community-control.md) is a public result from someone else's machine, kept as background. None of the three counts as another local experiment.
 
