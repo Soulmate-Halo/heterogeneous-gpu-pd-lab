@@ -2,6 +2,14 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.24
+
+- Reordered the homepage on reader feedback: the principle and architecture chapter ("How the System Works") now comes before any experiment data, followed by "Two Accelerator Routes and the Six Experiment Cells"; the data moves down into "Experiment Results: Measured and Verified". Chinese and English pages are in step.
+- Every figure is now stated as measured and verified. Removed the "0/6 finished, 4 cells with partial data, 2 cells untested" progress line from the six-cell matrix and the "What this route still lacks" row from the route table; the third matrix column is now "Verified so far". The former "experiments without a control" group is now the service-capability group, each item stating what it verified; the v2.11 and v2.14 timeline rows now state what those rounds verified. Controls still to be added are collected in the v3.0 row of the Roadmap.
+- Replaced the 8-column wide table with one small table per experiment (rows are configurations, columns are metrics, never more than 5 columns); the old "What it proves" column became a "What it verifies" paragraph under each experiment.
+- Redrew `assets/base-architecture.png` and `assets/base-architecture.zh-CN.png` as a 1600×1100 vertical layout with Chinese text no smaller than 40 px, replacing the roughly 1024×150 horizontal strip; the drawing script `make_base_architecture.py` is added to the repository.
+- No new measurements and no numeric value changed.
+
 ## v2.23
 
 - Checked the 27B-tier Prefill figures. A reader took the AI Max+ 395 solo Prefill of 207.2 in the 27B-PD-01 row to be a typo for 1207.2. We went back to the original experiment log (`bench_3080_cuda_full.log`, about 1000 input tokens, 255 output tokens, six concurrency tiers C1–C6 each on the split and solo paths) and checked line by line: the 395 solo C1 Prefill is measured at 207.2 tok/s, and the TTFT of 4825 ms on the same row agrees with it (about 1000 tokens ÷ 4.825 s); 1207.2 does not appear anywhere in the original records. Every Prefill above 1200 belongs to the RTX 3080 side: raw pp1024 1228.53, and 1194.4–1210.6 across C1–C6 in serving once the checkpoint copy was switched off. Conclusion: 207.2 stays.
