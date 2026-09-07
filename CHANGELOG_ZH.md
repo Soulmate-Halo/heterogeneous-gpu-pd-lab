@@ -2,6 +2,13 @@
 
 [English](CHANGELOG.md)
 
+## v2.21
+
+- 首页开头的架构图改为静态图片：中文页用 `assets/base-architecture.zh-CN.png`，英文页用 `assets/base-architecture.png`。图的 mermaid 源码折叠在图下面，用普通代码块保存，随时可以复制出去重画。
+- 换图的原因：这张图原先由 GitHub 自己渲染。浏览器一开整页翻译，代码块里的 `flowchart`、`subgraph`、`direction`、`end` 会被一起翻成中文，GitHub 拿到的就不是合法源码，图的位置只显示一行 Unable to render rich display。改成图片后不受翻译影响。
+- 已核实图源码本身没有问题：用 mermaid 11.16 解析和渲染都通过；在关闭翻译的干净浏览器里，GitHub 页面上的原图也能正常显示。
+- 本次改动文件：README_ZH.md、README.md、CHANGELOG_ZH.md、CHANGELOG.md、VERSION；新增 assets/base-architecture.zh-CN.png 与 assets/base-architecture.png。无新测量，无任何数值改动，results 与 data 目录零改动。
+
 ## v2.20
 
 - 本次为行文改写：中英文首页逐句重写，无新测量、无任何数值改动，results、data 与 assets 目录零改动。
