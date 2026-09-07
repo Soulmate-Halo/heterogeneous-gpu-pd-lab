@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.22
+
+- The homepage is trimmed and restructured. The same figures used to appear in "Two accelerator tracks", the timeline, the six cells, "The conclusions in a few lines", "The measurements", "Choosing a route", and the experiment registry. Complete data now appears once, in "Conclusions and Core Data": the controlled experiments (9B-PIPE-01, 9B-PD-01, 27B-LONG-01, 27B-PD-01) are laid out as card alone / 395 alone / pair / gain, so the lead over the card alone and the host alone is visible at a glance; the uncontrolled ones (27B-KV-01, 27B-DRAFT-AUDIT-01, ORNITH-PD-01, FLASH-SPLIT-01, EXT-DGX-01) only record how far they got.
+- Every other section keeps only intent, routes, and conclusions: base architecture, the two accelerator routes with the six-cell matrix and its progress, choosing a route by goal, the one-row-per-release timeline v1.0 → v2.22, what the data can prove, the v3.0 / v4.0 roadmap, and the record and data index. The timeline keeps just two sets of figures as evidence of progression: the Phase 1 Prefill climb and the Phase 2 683.2 → 1000.6 step.
+- Section order is now: Conclusions and Core Data → Base Architecture → Two Accelerator Routes and the Six Experiment Cells → Experiment Timeline → What the Data Can and Cannot Prove → Roadmap → Detailed Reports and Data.
+- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION. No new measurement, no changed value, and zero changes to the results, data, and assets directories.
+
 ## v2.21
 
 - The architecture diagram at the top of the homepage is now a static image: `assets/base-architecture.zh-CN.png` on the Chinese page and `assets/base-architecture.png` on the English one. The mermaid source is folded underneath the image in a plain code block, so it can still be copied out and redrawn.
