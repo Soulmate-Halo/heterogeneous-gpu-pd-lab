@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-当前版本 **v2.24**。这一版按读者意见改了三处：把原理和架构放到实验数据前面；每一处数据都按「已实测并验证」来写，去掉原来标在数据旁边、让人以为数据不可信的那些说法；把 8 列的宽表拆成每个实验一个不超过 5 列的小表，GitHub 上能正常阅读。没有新测量，没有改动任何一个数值。准确数值都在 `results/` 的实验详档和 `data/` 的 CSV 里。
+当前版本 **v2.25**。这一版把「模型 + 权重量化」直接写进每个实验标题，读者不用先钻进表格，就能知道数据对应哪个模型、哪种量化。KV 缓存量化仍在标题下单独标明，避免和权重量化混为一谈。没有新测量，没有改动任何实验数值。准确数值都在 `results/` 的实验详档和 `data/` 的 CSV 里。
 
 这个仓库研究一件事：一张算力强但显存小的显卡，怎么和一台算力弱但内存大的主机配合，一起跑大模型推理。这里公开架构、实测数据、方案怎么一步步演进，以及每个结论能用在什么地方。部署命令、代码补丁、服务地址和切层的具体策略不公开。
 
@@ -43,7 +43,7 @@ flowchart LR
 | --- | --- | --- |
 | 覆盖版本 | v1.0 → v2.4 | v2.5 → v2.14 |
 | 显存与能装什么 | 12GB，只装得下 9B 这一档稠密模型；27B 只能靠 IQ3 分层装 | 20GB，27B Q4 装得下，MoE 切层也因此成立 |
-| 跑过的模型 | 9B 稠密 Q6_K；27B IQ3 | 27B 稠密 Q4；Ornith-1.5-35B-A3B 和 Qwen3.8-Flash 两个 MoE |
+| 跑过的模型 | Ornith 9B 稠密 Q6_K；Qwen3.8-27B IQ3 | Qwen3.8-27B 稠密 Q4；Ornith-1.5-35B-A3B 和 Qwen3.8-Flash 两个 MoE |
 | 实验编号 | 9B-PD-01、9B-PIPE-01、27B-LONG-01 | 27B-PD-01、27B-KV-01、27B-DRAFT-AUDIT-01、ORNITH-PD-01、FLASH-SPLIT-01 |
 | 这条线验证了什么 | 两台设备能一起做同一个模型的预填充，并且比在场最快的单卡还快；小卡装不下的模型，分层装能跑完而且更快 | 显存大一档以后，能跑的模型、能吃的上下文、能扛的并发一起上了台阶；服务状态下的阶段分离和远端 KV 都走通了 |
 
@@ -51,12 +51,12 @@ flowchart LR
 
 | 实验格 | 要回答什么 | 已验证到哪一步 |
 | --- | --- | --- |
-| **D1 稠密 · 轻松装**（RTX 3060） | 模型装得下还有余量时，稠密流水能不能真比更快的那张卡还快，而不只是多装点东西？ | **已验证**：9B-PIPE-01 有 3060 单卡和 395 单机两组对照，组合比两者都快。[详档](results/v2.4-fused-layer-pipeline.zh-CN.md) |
-| **D2 稠密 · 装满**（RTX 3080） | 显存快用满时，整模塞一张卡、阶段分离、分层稠密这三条路哪条更好？ | **已验证**：27B-PD-01 用 3080 做 Prefill、395 做 Decode，服务状态下首字时间比 395 单机降了四分之三以上，C1–C6 六档全部跑通。[详档](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) |
-| **D3 稠密 · 装不下**（RTX 3060） | 一张卡干不完这个活时，分层装能不能跑完，而且比 395 快？ | **已验证**：27B-LONG-01 比 395 单机快一倍以上，98K 长 prompt 从超时变成跑完。[详档](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) |
-| **M1 MoE · 轻松装** | 激活参数不大、显存也有余量时，MoE 的路由开销会不会把重叠省下来的时间吃回去？ | 列入 v3.0 计划（见后续规划）。 |
-| **M2 MoE · 装满**（RTX 3080） | MoE 快把 3080 装满时，阶段分离稳不稳；再往上做稠密重叠还有没有收益？ | **已验证**：ORNITH-PD-01 全部请求走通，100K 上下文、六档并发下稳定，Prefill 与 Decode 归属分得清。[详档](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md) |
-| **M3 MoE · 装不下**（RTX 3080 先导） | 模型总占用超过两张基准卡时，按层或按专家分开装，能不能同时保住能跑、吞吐和输出正确？ | FLASH-SPLIT-01 是这一格的先导记录，已验证单服务切层能跑并找到最好用的并发档；完整实验列入 v3.0 计划。[先导记录](results/qwen3.8-flash-q4-layer-split.zh-CN.md) |
+| **D1 稠密 · 轻松装**<br>Ornith 9B · Q6_K · RTX 3060 | 模型装得下还有余量时，稠密流水能不能真比更快的那张卡还快，而不只是多装点东西？ | **已验证**：9B-PIPE-01 有 3060 单卡和 395 单机两组对照，组合比两者都快。[详档](results/v2.4-fused-layer-pipeline.zh-CN.md) |
+| **D2 稠密 · 装满**<br>Qwen3.8-27B · Q4_K_M · RTX 3080 | 显存快用满时，整模塞一张卡、阶段分离、分层稠密这三条路哪条更好？ | **已验证**：27B-PD-01 用 3080 做 Prefill、395 做 Decode，服务状态下首字时间比 395 单机降了四分之三以上，C1–C6 六档全部跑通。[详档](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) |
+| **D3 稠密 · 装不下**<br>Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 | 一张卡干不完这个活时，分层装能不能跑完，而且比 395 快？ | **已验证**：27B-LONG-01 比 395 单机快一倍以上，98K 长 prompt 从超时变成跑完。[详档](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) |
+| **M1 MoE · 轻松装**<br>模型与量化待定（v3.0 计划） | 激活参数不大、显存也有余量时，MoE 的路由开销会不会把重叠省下来的时间吃回去？ | 列入 v3.0 计划（见后续规划）。 |
+| **M2 MoE · 装满**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | MoE 快把 3080 装满时，阶段分离稳不稳；再往上做稠密重叠还有没有收益？ | **已验证**：ORNITH-PD-01 全部请求走通，100K 上下文、六档并发下稳定，Prefill 与 Decode 归属分得清。[详档](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md) |
+| **M3 MoE · 装不下**<br>Qwen3.8-Flash · Q4 · RTX 3080 先导 | 模型总占用超过两张基准卡时，按层或按专家分开装，能不能同时保住能跑、吞吐和输出正确？ | FLASH-SPLIT-01 是这一格的先导记录，已验证单服务切层能跑并找到最好用的并发档；完整实验列入 v3.0 计划。[先导记录](results/qwen3.8-flash-q4-layer-split.zh-CN.md) |
 
 **按目标选路线。**
 
@@ -71,13 +71,13 @@ flowchart LR
 
 **先说结论。** 把一张小显存的稠密加速卡（RTX 3060 12GB 或 RTX 3080 20GB）接到 AI Max+ 395 上，同一个模型的 Prefill、Decode 和首字时间都明显好于这张卡单独跑，也明显好于 395 单机跑。9B 这一档，3060 + 395 的异步流水比在场最快的单卡还快；27B 这一档，3060 分层装能把 395 单机跑不完的长 prompt 跑完，3080 做阶段分离能把 395 单机的首字时间压掉四分之三以上。加速卡的显存决定装得下多大的模型，395 决定能撑多大的上下文。
 
-下面每个实验一个小表，这是首页唯一放完整数据的地方。所有数字都来自 `results/` 与 `data/` 里的实测记录，每一组都经过验证：9B 流水做了多轮复测（v2.1 到 v2.4 四个阶段记录）；27B 服务态 C1–C6 六个并发档全部跑通；Ornith 42/42、Flash 21/21 请求全部成功。每张表都限定在同一个模型、同一种量化、同一份负载里；数值直接抄自 CSV，提升幅度按「组合成绩 ÷ 对照成绩 − 1」算，TTFT 写的是降了多少。首页和详档如果有出入，以详档和 CSV 为准。
+下面每个实验一个小表，这是首页唯一放完整数据的地方。标题统一按「实验编号 · 模型 · 权重量化 · 实验用途」排列；KV 缓存量化写在标题下，不和权重量化混写。所有数字都来自 `results/` 与 `data/` 里的实测记录，每一组都经过验证：9B 流水做了多轮复测（v2.1 到 v2.4 四个阶段记录）；27B 服务态 C1–C6 六个并发档全部跑通；Ornith 42/42、Flash 21/21 请求全部成功。每张表都限定在同一个模型、同一种量化、同一份负载里；数值直接抄自 CSV，提升幅度按「组合成绩 ÷ 对照成绩 − 1」算，TTFT 写的是降了多少。首页和详档如果有出入，以详档和 CSV 为准。
 
 **前四个实验有单卡或单机对照，组合成绩对着它们看。**
 
-### 9B-PIPE-01 · 异步分层稠密加速
+### 9B-PIPE-01 · Ornith 9B · Q6_K · 异步分层稠密加速
 
-加速卡 RTX 3060 12GB；9B Q6_K，`llama-bench` pp5064 / tg128；数据出自 [benchmark-results.csv](data/benchmark-results.csv)。
+加速卡 RTX 3060 12GB；模型 Ornith 9B，权重量化 Q6_K（详档与 CSV 里这一档记作「9B · Q6_K」），`llama-bench` pp5064 / tg128；数据出自 [benchmark-results.csv](data/benchmark-results.csv)。
 
 | 配置 | Prefill（tok/s） | Decode（tok/s） |
 | --- | --- | --- |
@@ -89,9 +89,9 @@ flowchart LR
 
 验证了什么：两台设备在稠密区里都真在出力，组合成绩比在场最快的单卡还快。这是仓库里稠密加速的核心证据。
 
-### 9B-PD-01 · 独立 PD
+### 9B-PD-01 · Ornith 9B · Q6_K · 独立 PD
 
-加速卡 RTX 3060 12GB；9B Q6_K，服务状态，5064 输入 / 128 输出；数据出自 [benchmark-results.csv](data/benchmark-results.csv)。
+加速卡 RTX 3060 12GB；模型 Ornith 9B，权重量化 Q6_K，服务状态，5064 输入 / 128 输出；数据出自 [benchmark-results.csv](data/benchmark-results.csv)。
 
 | 配置 | TTFT | Prefill（tok/s） | Decode（tok/s） |
 | --- | --- | --- | --- |
@@ -103,9 +103,9 @@ flowchart LR
 
 395 在 9B 档有两个成绩，不是对不上，是测法不一样：`llama-bench` 那组（970.00 / 31.27）对着 9B-PIPE-01 看，服务状态那组（861.55 / 30.24）对着 9B-PD-01 看。
 
-### 27B-LONG-01 · 模型分层装
+### 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · 模型分层装
 
-加速卡 RTX 3060 12GB；27B IQ3，pp4096 / pp65536 / pp98304 / tg64，单位 tok/s；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。3060 单卡装不下整个 27B，这正是做分层装的原因。
+加速卡 RTX 3060 12GB；模型 Qwen3.8-27B，权重量化 UD-IQ3_XXS；pp4096 / pp65536 / pp98304 / tg64，单位 tok/s；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。3060 单卡装不下整个 27B，这正是做分层装的原因。
 
 | 配置 | pp4096 | pp65536 | pp98304 | tg64 |
 | --- | --- | --- | --- | --- |
@@ -115,9 +115,9 @@ flowchart LR
 
 验证了什么：小卡装不下整模时，分层装不仅把 395 单机跑不完的 98K 长 prompt 跑完了，4K 和 64K 的 Prefill 也比 395 单机快一倍以上。
 
-### 27B-PD-01 · 独立 PD，服务状态
+### 27B-PD-01 · Qwen3.8-27B · Q4_K_M · 独立 PD（服务状态）
 
-加速卡 RTX 3080 20GB；27B Q4，C1–C6 六个并发档全部跑通，表里取 C1；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。
+加速卡 RTX 3080 20GB；模型 Qwen3.8-27B，权重量化 Q4_K_M，KV 缓存 q4_0；C1–C6 六个并发档全部跑通，表里取 C1；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。
 
 | 配置 | TTFT | Prefill（tok/s） | Decode（tok/s） |
 | --- | --- | --- | --- |
@@ -132,9 +132,9 @@ KV 搬运 68–76 毫秒；组合 Prefill 达到 3080 裸算的 82%。验证了�
 
 **后四个实验验证的是服务能力：能装多大、能扛多少并发、在哪一档最好用。**
 
-### 27B-KV-01 · 3080 全算、395 只存 KV
+### 27B-KV-01 · Qwen3.8-27B · Q4_K_M · 3080 全算、395 只存 KV
 
-加速卡 RTX 3080 20GB；27B Q4；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。
+加速卡 RTX 3080 20GB；模型 Qwen3.8-27B，权重量化 Q4_K_M，KV 缓存 q4_0；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。
 
 | 配置 | Prefill（tok/s） | 聚合 Decode C1 | 聚合 Decode C6 | C1→C6 增幅 |
 | --- | --- | --- | --- | --- |
@@ -143,9 +143,9 @@ KV 搬运 68–76 毫秒；组合 Prefill 达到 3080 裸算的 82%。验证了�
 
 每条流 1M 上下文，聚合 Decode 单位 tok/s。验证了什么：想要 Prefill 高选 C，想要 Decode 总吞吐选 D。395 只存 KV、全部计算都在 3080，这是容量和服务路线，和稠密加速分开归类。
 
-### 27B-DRAFT-AUDIT-01 · 投机解码核查
+### 27B-DRAFT-AUDIT-01 · Qwen3.8-27B · Q4_K_M · 投机解码核查
 
-在 AI Max+ 395 上做的数据核查；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。
+模型 Qwen3.8-27B，权重量化 Q4_K_M，KV 缓存 q4_0；在 AI Max+ 395 上做的数据核查；数据出自 [qwen27b-local-results.csv](data/qwen27b-local-results.csv)。
 
 | 文本类型 | Decode（tok/s） | 接受率 |
 | --- | --- | --- |
@@ -154,9 +154,9 @@ KV 搬运 68–76 毫秒；组合 Prefill 达到 3080 裸算的 82%。验证了�
 
 自然语言比重复文本的高分低 68.6%。验证了什么：这是一次数据核查，立下规矩——重复文本上投机解码的高分不能代表真实文本。
 
-### ORNITH-PD-01 · MoE 的 PD 压测
+### ORNITH-PD-01 · Ornith-1.5-35B-A3B · IQ4_XS · MoE 的 PD 压测
 
-RTX 3080 20GB 包下全部 Prefill、AI Max+ 395 包下全部 Decode；Ornith-1.5-35B-A3B；数据出自 [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv)。
+RTX 3080 20GB 包下全部 Prefill、AI Max+ 395 包下全部 Decode；主模型 Ornith-1.5-35B-A3B，权重量化 IQ4_XS；草稿头 Qwen3.6-35B-A3B-DFlash，权重量化 Q4_K_M；数据出自 [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv)。
 
 | 指标 | C1 | C6 | 变化 |
 | --- | --- | --- | --- |
@@ -165,9 +165,9 @@ RTX 3080 20GB 包下全部 Prefill、AI Max+ 395 包下全部 Decode；Ornith-1.
 
 42/42 请求成功，`route=pd`、`n_reuse=0`。验证了什么：MoE 的 PD 在 100K 上下文、六档并发下跑得稳，Prefill 和 Decode 各算在谁头上分得清。
 
-### FLASH-SPLIT-01 · 单服务双设备切层
+### FLASH-SPLIT-01 · Qwen3.8-Flash · Q4 · 单服务双设备切层
 
-一个 llama-server 同时使用 RTX 3080 20GB 和 AI Max+ 395；Qwen3.8-Flash Q4；数据出自 [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv)。
+一个 llama-server 同时使用 RTX 3080 20GB 和 AI Max+ 395；模型 Qwen3.8-Flash，权重量化 Q4，KV 缓存 q4_0；数据出自 [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv)。
 
 | 指标 | C4（最好用的档） | C1→C4 变化 |
 | --- | --- | --- |
@@ -177,11 +177,11 @@ RTX 3080 20GB 包下全部 Prefill、AI Max+ 395 包下全部 Decode；Ornith-1.
 
 21/21 计分请求成功，负载约 2077 输入 / 256 输出。验证了什么：这套配置最好用的并发档是 C4，C5、C6 已经不再上涨；这是一个工作档位，换负载要重测。
 
-### EXT-DGX-01 · DGX Spark 外部参考
+### EXT-DGX-01 · Qwen3.5 9B / TQ3_4S；Qwen3.8-27B / NVFP4 · DGX Spark 外部参考
 
-公开成绩约为 1000 tok/s Prefill、25–30 tok/s 单流 Decode、107 tok/s 聚合 Decode，C1–C6。这是别人机器上的公开数据，只当背景，不和本地数据排名。[详档](results/dgx-spark-community-control.zh-CN.md)
+本条包含两个外部工作负载：Qwen3.5 9B，权重量化 TQ3_4S；Qwen3.8-27B，权重量化 NVFP4、KV 缓存 FP8。公开成绩约为 1000 tok/s Prefill、25–30 tok/s 单流 Decode、107 tok/s 聚合 Decode，C1–C6。这是别人机器上的公开数据，只当背景，不和本地数据排名。[详档](results/dgx-spark-community-control.zh-CN.md)
 
-## 实验发展时间线：v1.0 → v2.24
+## 实验发展时间线：v1.0 → v2.25
 
 版本号只代表发布顺序，不代表做了多少个实验：v2.1 到 v2.4 是同一项 9B 流水实验的四个阶段性记录；后面的版本有些是真的新实验，有些只是把数据归位或把文字改顺。每个阶段的标题写清那一阶段用的是哪张卡。数据不在这里重复，看上面的实验结果。
 
@@ -221,7 +221,7 @@ RTX 3080 20GB 包下全部 Prefill、AI Max+ 395 包下全部 Decode；Ornith-1.
 | v2.13 | 多轮记录里可能混进了别的实验。 | 把证据锁定到 r337。无新测量。 | Ornith 的数据只认这一个来源：3080 纯 Prefill、395 纯 Decode。 |
 | v2.14 | 一个服务同时带两台设备，吞吐在第几档并发就上不去了？ | r374 Qwen3.8-Flash Q4：一个 llama-server 同时使用 3080 和 395，跑 C1–C6（FLASH-SPLIT-01）。 | 计分请求全部成功，找到了最好用的并发档 C4。 |
 
-### 阶段四：v2.15 → v2.24 · 没换硬件、没做新测试，只整理数据归属和改写文字
+### 阶段四：v2.15 → v2.25 · 没换硬件、没做新测试，只整理数据归属和改写文字
 
 这个阶段没有做任何新测试、没有产生任何新数字，只做两件事：把数据归到该归的地方，把文字改得能读。
 
@@ -237,6 +237,7 @@ RTX 3080 20GB 包下全部 Prefill、AI Max+ 395 包下全部 Decode；Ornith-1.
 | v2.22 | 同一份数据从上到下出现好多遍，实验的重点反而不突出。 | 缩减重构：完整数据只在结论章出现一次，其余章节只留实验意图、路线和结论。 | 无新测量，数字未改。首页能一眼看出组合成绩比单卡、单机高多少。 |
 | v2.23 | 27B 档 395 单机的 Prefill 207.2 看起来太低，是不是写错了？ | 回到原始实验记录逐条核对：207.2 是 v1.0 服务态开着检查点时的 C1 solo 实测，关掉检查点后是 307.1，IQ3 `llama-bench` 是 313.28；1200 以上的数都在 3080 那一侧。把三个口径和 3080 侧 683.2 → 1000.6 → 1210.6 的递进补进首页。 | 无新测量，原有数字一个没改。读者能分清 395 的 207 和 3080 的 1210 各是谁的成绩。 |
 | **v2.24** | 数据旁边标着的说明让读者以为数据不可信；8 列宽表在 GitHub 上读不了；原理排在数据后面。 | 章节顺序改成原理在前、数据在后；每个实验一个不超过 5 列的小表；全文统一为「已实测并验证」的口径；架构图重绘成大字号的纵向布局。 | 无新测量，数字未改。读者先看懂方案，再看每个实验验证了什么。 |
+| **v2.25** | 实验标题只有编号和用途，读者不能一眼判断数据对应的模型与量化。 | 双语标题统一补上模型名和权重量化；配置行补齐精确格式，并把 KV 缓存量化单独标明。 | 无新测量，实验数值未改；打开实验目录就能先判断各表是否属于同一口径。 |
 
 几个容易数重的地方：27B-C 和 27B-D 是 27B-KV-01 这一个实验的两种配置，不是两个实验；395 上那组自然语言测试属于 27B-DRAFT-AUDIT-01；DGX Spark 是别人机器上的公开成绩，只当背景。
 
@@ -261,13 +262,13 @@ RTX 3080 20GB 包下全部 Prefill、AI Max+ 395 包下全部 Decode；Ornith-1.
 
 首页每个实验只摘最关键的几个数，完整数据行、指标定义和字段说明都在下面的详档和 CSV 里。自己算的时候用对应的 CSV；除非详档写明有可比的对照，不要把不同编号的实验数据合起来算。
 
-| 编号 | 加速卡 | 要回答的问题 | 详档 | CSV |
+| 编号 | 模型 · 权重量化 · 加速卡 | 要回答的问题 | 详档 | CSV |
 | --- | --- | --- | --- | --- |
-| 9B-PD-01 | RTX 3060 12GB | CUDA 做 Prefill，能不能把状态交给 Vulkan 去 Decode？ | [v1.0 独立 PD](results/v1.0-independent-pd.zh-CN.md) | [CSV](data/benchmark-results.csv) |
-| 9B-PIPE-01 | RTX 3060 12GB | 两台设备能不能通过异步分层流水一起算同一个模型？ | [v2.4 融合分层流水](results/v2.4-fused-layer-pipeline.zh-CN.md) | [CSV](data/benchmark-results.csv) |
-| 27B-LONG-01 · 27B-PD-01 · 27B-KV-01 · 27B-DRAFT-AUDIT-01 | RTX 3060 / RTX 3080 | 27B 分层装、服务状态 PD、远端 KV 和投机解码核查 | [Qwen3.8-27B 双机 PD](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) | [CSV](data/qwen27b-local-results.csv) |
-| ORNITH-PD-01 | RTX 3080 20GB | MoE 能不能分清 Prefill / Decode 归属，并扛住 100K 的 C1–C6 压测？ | [Ornith 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md) | [CSV](data/ornith35a3b-local-results.csv) |
-| FLASH-SPLIT-01 | RTX 3080 20GB | 一个服务同时用 CUDA 和 Vulkan 切层，吞吐在哪一档到顶？ | [Qwen3.8-Flash Q4 切层](results/qwen3.8-flash-q4-layer-split.zh-CN.md) | [CSV](data/qwen38flash-q4-local-results.csv) |
-| EXT-DGX-01 | 外部 | DGX Spark 的公开成绩，只当背景 | [DGX Spark 社区对照](results/dgx-spark-community-control.zh-CN.md) | [CSV](data/dgx-spark-community-controls.csv) |
+| 9B-PD-01 | Ornith 9B · Q6_K · RTX 3060 12GB | CUDA 做 Prefill，能不能把状态交给 Vulkan 去 Decode？ | [v1.0 独立 PD](results/v1.0-independent-pd.zh-CN.md) | [CSV](data/benchmark-results.csv) |
+| 9B-PIPE-01 | Ornith 9B · Q6_K · RTX 3060 12GB | 两台设备能不能通过异步分层流水一起算同一个模型？ | [v2.4 融合分层流水](results/v2.4-fused-layer-pipeline.zh-CN.md) | [CSV](data/benchmark-results.csv) |
+| 27B-LONG-01 · 27B-PD-01 · 27B-KV-01 · 27B-DRAFT-AUDIT-01 | Qwen3.8-27B · UD-IQ3_XXS 与 Q4_K_M · RTX 3060 / RTX 3080 | 27B 分层装、服务状态 PD、远端 KV 和投机解码核查 | [Qwen3.8-27B 双机 PD](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) | [CSV](data/qwen27b-local-results.csv) |
+| ORNITH-PD-01 | Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB | MoE 能不能分清 Prefill / Decode 归属，并扛住 100K 的 C1–C6 压测？ | [Ornith 双机 PD](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md) | [CSV](data/ornith35a3b-local-results.csv) |
+| FLASH-SPLIT-01 | Qwen3.8-Flash · Q4 · RTX 3080 20GB | 一个服务同时用 CUDA 和 Vulkan 切层，吞吐在哪一档到顶？ | [Qwen3.8-Flash Q4 切层](results/qwen3.8-flash-q4-layer-split.zh-CN.md) | [CSV](data/qwen38flash-q4-local-results.csv) |
+| EXT-DGX-01 | Qwen3.5 9B · TQ3_4S 与 Qwen3.8-27B · NVFP4 · 外部 DGX Spark | DGX Spark 的公开成绩，只当背景 | [DGX Spark 社区对照](results/dgx-spark-community-control.zh-CN.md) | [CSV](data/dgx-spark-community-controls.csv) |
 
 实验编号和旧标签的对应关系在 [data/experiment-index.csv](data/experiment-index.csv)；全部详档在 [results/](results/) 目录。[更新记录](CHANGELOG_ZH.md)记录每一版改了什么、纠了什么错。
