@@ -2,6 +2,14 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.25
+
+- Standardized every experiment-result heading on both homepages as "experiment ID · model · weight quantization · purpose." The 9B experiments identify Ornith 9B / Q6_K; the 27B headings use the exact CSV values UD-IQ3_XXS or Q4_K_M, Ornith-1.5-35B-A3B uses IQ4_XS, Flash uses Q4, and the DGX Spark reference identifies Qwen3.5 9B / TQ3_4S and Qwen3.8-27B / NVFP4 separately.
+- Completed the model and quantization lines below the headings while keeping weight quantization separate from KV-cache quantization; the Ornith entry now names both its IQ4_XS main model and Q4_K_M draft head.
+- Renamed the 9B tier's model to "Ornith 9B". The earlier "Ornith-1.5-9B" has no support in the experiment records, the CSV files, or any raw log; that 1.5 was carried over from Ornith-1.5-35B-A3B. The records `results/v1.0-independent-pd.md` and `results/v2.4-fused-layer-pipeline.md` label the tier only as "9B, Q6_K", and the configuration line now says so.
+- Added the model and weight quantization to every cell of the six-cell matrix, and changed the second column of the "Detailed Reports and Data" table from "Accelerator" to "Model · weight quantization · accelerator"; the table is still 5 columns.
+- No new measurements and no experimental value changed.
+
 ## v2.24
 
 - Reordered the homepage on reader feedback: the principle and architecture chapter ("How the System Works") now comes before any experiment data, followed by "Two Accelerator Routes and the Six Experiment Cells"; the data moves down into "Experiment Results: Measured and Verified". Chinese and English pages are in step.
