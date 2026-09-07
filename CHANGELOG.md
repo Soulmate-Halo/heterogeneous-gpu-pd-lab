@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.21
+
+- The architecture diagram at the top of the homepage is now a static image: `assets/base-architecture.zh-CN.png` on the Chinese page and `assets/base-architecture.png` on the English one. The mermaid source is folded underneath the image in a plain code block, so it can still be copied out and redrawn.
+- Why it changed: GitHub used to draw that diagram itself. As soon as a browser translates the whole page, the keywords inside the code block — `flowchart`, `subgraph`, `direction`, `end` — get translated too, GitHub no longer receives valid source, and all that appears in place of the diagram is a single "Unable to render rich display" line. An image is immune to that.
+- The source itself was verified to be fine: mermaid 11.16 both parses and renders it, and on a clean browser with translation off the original diagram displays correctly on GitHub.
+- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION; added assets/base-architecture.zh-CN.png and assets/base-architecture.png. No new measurement, no changed value, and zero changes to the results and data directories.
+
 ## v2.20
 
 - This release is a prose rewrite: both homepages were rewritten sentence by sentence, with no new measurement, no changed value, and zero changes to the results, data, and assets directories.
