@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.23
+
+- Checked the 27B-tier Prefill figures. A reader took the AI Max+ 395 solo Prefill of 207.2 in the 27B-PD-01 row to be a typo for 1207.2. We went back to the original experiment log (`bench_3080_cuda_full.log`, about 1000 input tokens, 255 output tokens, six concurrency tiers C1–C6 each on the split and solo paths) and checked line by line: the 395 solo C1 Prefill is measured at 207.2 tok/s, and the TTFT of 4825 ms on the same row agrees with it (about 1000 tokens ÷ 4.825 s); 1207.2 does not appear anywhere in the original records. Every Prefill above 1200 belongs to the RTX 3080 side: raw pp1024 1228.53, and 1194.4–1210.6 across C1–C6 in serving once the checkpoint copy was switched off. Conclusion: 207.2 stays.
+- The homepage now states the three methods behind the 395's 27B-tier Prefill figures: 207.2 (v1.0 serving, with a 524 MiB recurrent-state checkpoint copied out on every prompt and a Vulkan read-back of about 0.8 s), 307.1 (v1.1 serving on the same machines with that copy switched off; kept in the solo control column of the configuration C table in the 27B-KV-01 record), and 313.28 (`llama-bench` pp4096 on the IQ3 quantization). The 395-alone and pair cells of the 27B-PD-01 row are labelled as the v1.0 method.
+- The v2.6 timeline row gains the Prefill step: with the checkpoint copy off, the 3080 side's serving Prefill went from 1000.6 to 1210.6 tok/s (98.5% of raw) and the 395 solo control went from 207.2 to 307.1 at the same time. The 3080 side's Prefill chain is now 683.2 (per-ubatch RPC sync) → 1000.6 (direct CUDA) → 1210.6 (checkpoint copy off) → 1228.53 (raw ceiling).
+- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION. No new measurement; no existing homepage value changed, only the explanatory figures 307.1, 524 MiB, 0.8 s, and 98.5% were added; zero changes to the results, data, and assets directories.
+
 ## v2.22
 
 - The homepage is trimmed and restructured. The same figures used to appear in "Two accelerator tracks", the timeline, the six cells, "The conclusions in a few lines", "The measurements", "Choosing a route", and the experiment registry. Complete data now appears once, in "Conclusions and Core Data": the controlled experiments (9B-PIPE-01, 9B-PD-01, 27B-LONG-01, 27B-PD-01) are laid out as card alone / 395 alone / pair / gain, so the lead over the card alone and the host alone is visible at a glance; the uncontrolled ones (27B-KV-01, 27B-DRAFT-AUDIT-01, ORNITH-PD-01, FLASH-SPLIT-01, EXT-DGX-01) only record how far they got.
