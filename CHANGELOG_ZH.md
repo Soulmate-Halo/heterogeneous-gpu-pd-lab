@@ -2,6 +2,15 @@
 
 [English](CHANGELOG.md)
 
+## v2.26
+
+- 新增实验 ORNITH-PD-02：在 ORNITH-PD-01 的独立 PD 之上，395 那端的解码改走 DFlash 融合草稿的推测解码（`--spec-type draft-dflash`、草稿步长 n_max 6），六个槽位共用一个统一 KV 池（`--kv-unified`）。1000 输入 / 128 输出的单流负载下实测 Prefill **4173.47 tok/s**、Decode **114.86 tok/s**、DFlash 草稿接受 **107/114（93.86%）**；把 8082 的 batch/ubatch 提到 8196、8081 的 ctx 提到 131072（统一 KV 池下单请求的最大上下文，不是每槽预留 128K）之后复测为 Prefill **4123.15 tok/s**、Decode **114.42 tok/s**。8080/8081/8082 三端 HTTP 200，启动后无 OOM 无崩溃；3080 显存占用 18661/20480 MiB，395 Vulkan 约 22678/65536 MiB。数据取自原始实验记录 `r379_summary.md` 与 `r382_ctx_prefill.md`，本版没有做任何新测量。
+- 同时记录这套配方的负向对照：同一套三进程配方只换一道提示词，DFlash 接受率从 93.9% 掉到 9.4%，Prefill 与 Decode 只有 3665.3 / 37.2 tok/s；同轮另一次附加性能门禁只测到 3785/44，原因同样是那道题的草稿接受率低，不是参数改坏了。因此引用 ORNITH-PD-02 的 Decode 必须同时写明草稿接受率，复测要锁同一道题、固定输出长度与同一个随机种子。
+- 补齐 ORNITH-PD-01 的 1000 输入档 Prefill：双语首页该表新增一行「1000 输入 Prefill 聚合」，C1 4017.46 → C6 3943.88（-1.8%）。这组数本来就在 `data/ornith35a3b-local-results.csv` 与详档里，只是首页此前只展示了 100K 档。该档没有单独计时的 395 纯 Decode 速率，继续保持不记录。
+- 没有把整档墙钟派生的聚合 Decode 值补回任何位置：v2.12 已删除这一列，`e2e_aggregate_primary_tok_s` 继续保持 NA。
+- 新增双语详档 [ornith-1.5-35b-a3b-fused-dflash-pd.md](results/ornith-1.5-35b-a3b-fused-dflash-pd.md) 与 [中文版](results/ornith-1.5-35b-a3b-fused-dflash-pd.zh-CN.md)，含 8080 / 8081 / 8082 三进程参数原文；`data/ornith35a3b-local-results.csv` 追加 2 行（原有 12 行数据行未改），`data/experiment-index.csv` 追加 ORNITH-PD-02 一行。
+- 双语首页同步更新：路线二的实验编号、六格矩阵 M2 格、按目标选路线新增一条、时间线阶段四扩到 v2.26 并新增 v2.26 一行、「怎么读这些数据」的能跑档、末尾详档目录新增 ORNITH-PD-02 一行。
+
 ## v2.25
 
 - 双语首页的每个实验结果标题统一改为「实验编号 · 模型 · 权重量化 · 实验用途」。9B 实验标明 Ornith 9B / Q6_K；27B 使用 CSV 中的精确格式 UD-IQ3_XXS 或 Q4_K_M，Ornith-1.5-35B-A3B 使用 IQ4_XS，Flash 使用 Q4；DGX Spark 外部参考分别标明 Qwen3.5 9B / TQ3_4S 与 Qwen3.8-27B / NVFP4。
