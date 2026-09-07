@@ -2,7 +2,7 @@
 
 [简体中文](README_ZH.md)
 
-This is **v2.25**. Every experiment heading now states the model and weight quantization, so readers know what each result measures before opening its table. KV-cache quantization remains a separate field below the heading so it is not confused with weight quantization. There are no new measurements and no experimental value changed. The exact figures live in the result records under `results/` and the CSV files under `data/`.
+This is **v2.26**. It adds the second Ornith experiment that had never been filed (ORNITH-PD-02): the same model on the same pair of devices, with fused DFlash speculative decode and a unified KV pool added on top of the independent PD, which puts Prefill above 4000 and single-stream Decode above 114. The 1000-input Prefill figures from the first experiment's stress run are filled in as well. No existing value changed. The exact figures live in the result records under `results/` and the CSV files under `data/`.
 
 This repository studies one thing: how a card with plenty of compute but little VRAM can team up with a host that has weak compute but lots of memory, so that together they run large-model inference. What is published here: the architecture, the measured numbers, how the design grew step by step, and where each conclusion applies. Deployment commands, patches, endpoints, and the exact layer-allocation policy stay private.
 
@@ -44,7 +44,7 @@ Only two NVIDIA cards have been used so far, and the large-memory host has alway
 | Releases covered | v1.0 → v2.4 | v2.5 → v2.14 |
 | VRAM and what fits | 12GB, only the 9B dense tier fits; 27B fits only as an IQ3 layer split | 20GB, 27B Q4 fits, and that is what makes the MoE layer splits possible |
 | Models run | Ornith 9B dense Q6_K; Qwen3.8-27B IQ3 | Qwen3.8-27B dense Q4; two MoE models, Ornith-1.5-35B-A3B and Qwen3.8-Flash |
-| Experiment IDs | 9B-PD-01, 9B-PIPE-01, 27B-LONG-01 | 27B-PD-01, 27B-KV-01, 27B-DRAFT-AUDIT-01, ORNITH-PD-01, FLASH-SPLIT-01 |
+| Experiment IDs | 9B-PD-01, 9B-PIPE-01, 27B-LONG-01 | 27B-PD-01, 27B-KV-01, 27B-DRAFT-AUDIT-01, ORNITH-PD-01, ORNITH-PD-02, FLASH-SPLIT-01 |
 | What this line verified | Two devices can prefill one model together and beat the fastest single card present; a layered split lets the small card finish a model it cannot hold alone, and finish it faster | A larger card lifts the model size, the context depth, and the concurrency all at once; phase separation and remote KV both hold up while serving |
 
 **The six experiment cells.** The cells are not divided by model name or parameter count but by how much VRAM the model needs in total compared with the accelerator's VRAM (weights, KV, compute buffers, and headroom). **Fits easily** means plenty of headroom is left; **fills the card** means it is close to the VRAM limit; **does not fit** means the card cannot finish the job alone. Each cell targets five configurations: RTX 3060 alone, RTX 3080 alone, AI Max+ 395 alone, 3060 + 395, and 3080 + 395, with the model, quantization, prompt, context length, concurrency, and metrics kept identical within a cell. When a card truly cannot hold the model, "does not fit, cannot finish" is itself a valid result; a smaller model or a harsher quantization may not be substituted to manufacture a baseline. The table below records how far each cell has been verified; the controls still to be added are listed together in the Roadmap.
@@ -55,7 +55,7 @@ Only two NVIDIA cards have been used so far, and the large-memory host has alway
 | **D2 Dense · fills the card**<br>Qwen3.8-27B · Q4_K_M · RTX 3080 | With VRAM nearly full, which wins: the whole model on one card, separated phases, or a layered dense route? | **Verified**: 27B-PD-01 runs the 3080 on Prefill and the 395 on Decode while serving, cuts the 395's time to first token by more than three quarters, and passes all six tiers C1–C6. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
 | **D3 Dense · does not fit**<br>Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 | When one card cannot finish the job, can splitting the model finish it and still beat the 395? | **Verified**: 27B-LONG-01 runs more than twice as fast as the 395 alone and turns the 98K timeout into a finished run. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
 | **M1 MoE · fits easily**<br>model and quantization TBD (planned for v3.0) | With few active parameters and VRAM to spare, does MoE routing overhead eat back the time the overlap saves? | Planned for v3.0 (see Roadmap). |
-| **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context across six concurrency tiers, and keeps Prefill and Decode attributable. [Record](results/ornith-1.5-35b-a3b-dual-machine-pd.md) |
+| **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context across six concurrency tiers, and keeps both stages attributable ([record](results/ornith-1.5-35b-a3b-dual-machine-pd.md)); ORNITH-PD-02 adds a fused draft head and a unified KV pool on the same pair of devices, reaching Prefill 4173.47 and single-stream Decode 114.86 ([record](results/ornith-1.5-35b-a3b-fused-dflash-pd.md)). |
 | **M3 MoE · does not fit**<br>Qwen3.8-Flash · Q4 · RTX 3080 pilot | When the total footprint exceeds both control cards, can splitting by layer or by expert keep it running, keep throughput, and keep the output correct? | FLASH-SPLIT-01 is the pilot for this cell: it verified that a single-server layer split runs and found its best concurrency tier. The full experiment is planned for v3.0. [Pilot record](results/qwen3.8-flash-q4-layer-split.md) |
 
 **Choosing a route by goal.**
@@ -65,13 +65,14 @@ Only two NVIDIA cards have been used so far, and the large-memory host has alway
 - When the model does not fit the small card: split the model across layers, backed by 27B-LONG-01. For long prompts that need more Prefill, or simply for capacity.
 - For the largest possible context, or for concurrent Decode: the 3080 computes and the 395 acts as a remote KV store, backed by 27B-KV-01. This is a capacity route; the 395 does no compute.
 - To verify MoE PD serving under deep context: see ORNITH-PD-01, which verified stable PD at 100K context across six tiers with both stages clearly attributed.
+- To lift MoE Prefill and single-stream Decode together: see ORNITH-PD-02, which adds fused speculative decode and a unified KV pool on top of independent PD for Prefill above 4000 and single-stream Decode above 114. The cost is that the Decode figure follows draft acceptance, so a different prompt must be measured again.
 - To find the right concurrency tier for a single server: see FLASH-SPLIT-01, which picked C4 on a workload of about 2077 in / 256 out; a different workload must be measured again.
 
 ## Experiment Results: Measured and Verified
 
 **The conclusion first.** Attach a small-VRAM dense accelerator (an RTX 3060 12GB or an RTX 3080 20GB) to an AI Max+ 395, and on the same model the pair's Prefill, Decode, and time to first token all come out clearly ahead of the card running alone and clearly ahead of the 395 running alone. At 9B, the 3060 + 395 asynchronous pipeline beats the fastest single card in the room. At 27B, splitting the layers onto the 3060 finishes long prompts that the 395 alone cannot finish, and phase separation on the 3080 cuts the 395's time to first token by more than three quarters. The card's VRAM decides how large a model fits; the 395 decides how much context it can carry.
 
-One small table per experiment follows; this is the only place on the page with complete data. Headings use the order "experiment ID · model · weight quantization · purpose"; KV-cache quantization is stated below the heading instead of being mixed with weight quantization. Every number comes from the measured records under `results/` and `data/`, and every set has been verified: the 9B pipeline was re-run repeatedly (the four checkpoints v2.1 to v2.4); the 27B serving runs passed all six concurrency tiers C1–C6; Ornith completed 42/42 and Flash 21/21 requests. Each table stays within one model, one quantization, and one workload. The values are copied straight from the CSV files; a gain is "pair result ÷ control result − 1", and TTFT is written as how much it dropped. If this page and a record disagree, the record and the CSV win.
+One small table per experiment follows; this is the only place on the page with complete data. Headings use the order "experiment ID · model · weight quantization · purpose"; KV-cache quantization is stated below the heading instead of being mixed with weight quantization. Every number comes from the measured records under `results/` and `data/`, and every set has been verified: the 9B pipeline was re-run repeatedly (the four checkpoints v2.1 to v2.4); the 27B serving runs passed all six concurrency tiers C1–C6; the Ornith PD stress run completed 42/42 and Flash 21/21 requests; the Ornith fused-draft recipe kept all three endpoints healthy with no OOM. Each table stays within one model, one quantization, and one workload. The values are copied straight from the CSV files; a gain is "pair result ÷ control result − 1", and TTFT is written as how much it dropped. If this page and a record disagree, the record and the CSV win.
 
 **The first four experiments have a single-card or single-host control; read the pair against it.**
 
@@ -160,10 +161,25 @@ The RTX 3080 20GB takes all Prefill and the AI Max+ 395 all Decode; main model O
 
 | Metric | C1 | C6 | Change |
 | --- | --- | --- | --- |
-| Prefill at 100K (tok/s) | 2895.53 | 2793.24 | -3.5% |
+| Aggregate Prefill at 1000 input (tok/s) | 4017.46 | 3943.88 | -1.8% |
+| Aggregate Prefill at 100K (tok/s) | 2895.53 | 2793.24 | -3.5% |
 | 395 pure-Decode aggregate (tok/s) | 23.33 | 148.20 | 6.35× |
 
-42/42 requests succeeded, `route=pd`, `n_reuse=0`. What it verifies: MoE PD runs stably at 100K context across six concurrency tiers, and it is clear which device owns Prefill and which owns Decode.
+One stress run covered two workloads, a short one at 1000 in / 128 out and a long one at 100000 in / 128 out, for 42/42 successful requests in total, `route=pd`, `n_reuse=0`. The short stage has no cell for the 395 pure-Decode rate because that rate was not timed separately. What it verifies: MoE PD runs stably at 100K context across six concurrency tiers, and it is clear which device owns Prefill and which owns Decode.
+
+### ORNITH-PD-02 · Ornith-1.5-35B-A3B · IQ4_XS · PD with a fused DFlash draft head
+
+The same model on the same pair of devices as the first experiment, with two additions on the 395 side: Decode runs fused DFlash speculative decode (`--spec-type draft-dflash`, draft length 6), and the six slots share one unified KV pool (`--kv-unified`). Main model Ornith-1.5-35B-A3B with IQ4_XS weight quantization; draft head Qwen3.6-35B-A3B-DFlash with Q4_K_M weight quantization; KV cache q4_0; workload 1000 in / 128 out, single stream; data from [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv).
+
+| Configuration | Prefill (tok/s) | Single-stream Decode (tok/s) | Draft acceptance |
+| --- | --- | --- | --- |
+| Fused recipe, Prefill batch 4096 | **4173.47** | **114.86** | 93.86% |
+| Fused recipe, batch raised to 8196, context 128K | **4123.15** | **114.42** | not recorded |
+| Same recipe, a prompt the draft head could not predict | 3665.3 | 37.2 | 9.4% |
+
+On this same 1000 in / 128 out workload the first experiment reached Prefill C1 4017.46 down to C6 3943.88, so the fused recipe's 4173.47 sits 3.9% above its C1. The first experiment did not record a single-stream Decode figure; the 395 pure-Decode numbers published for its 100K stage are six-tier aggregates (C1 23.33 to C6 148.20), which is not the same quantity as the single stream here and cannot be compared directly.
+
+What it verifies: Prefill holds above 4000 while single-stream Decode reaches 114. When draft acceptance returns from 9.4% to 93.86%, Decode rises from 37.2 to 114.86, a factor of 3.09, so the Decode gain at this tier comes from the fused draft head; re-measuring requires the same prompt, a fixed output length, and the same seed, because a different prompt drops it back. All three endpoints answered HTTP 200 with no OOM or crash after start-up, and the 3080 held 18661/20480 MiB. [Record](results/ornith-1.5-35b-a3b-fused-dflash-pd.md)
 
 ### FLASH-SPLIT-01 · Qwen3.8-Flash · Q4 · one server split across both devices
 
@@ -181,7 +197,7 @@ A single llama-server using the RTX 3080 20GB and the AI Max+ 395 together; mode
 
 This entry contains two external workloads: Qwen3.5 9B with TQ3_4S weight quantization, and Qwen3.8-27B with NVFP4 weights and an FP8 KV cache. Public figures are about 1000 tok/s Prefill, 25–30 tok/s single-stream Decode, and 107 tok/s aggregate Decode, C1–C6. These are public results from someone else's machine, kept as background and never ranked against local data. [Record](results/dgx-spark-community-control.md)
 
-## Experiment Timeline: v1.0 → v2.25
+## Experiment Timeline: v1.0 → v2.26
 
 Release numbers show publishing order, not how many experiments were run: v2.1 to v2.4 are four checkpoints of one 9B pipeline experiment, and among the later releases some are real new experiments while others only file data or fix wording. Each phase heading names the card used. The figures are not repeated here; see the experiment results above.
 
@@ -221,9 +237,9 @@ Two questions: with an MoE model, can Prefill and Decode still be attributed to 
 | v2.13 | Other experiments may have leaked into the multi-run record. | Pinned the evidence to r337. Nothing new measured. | Ornith data comes from this one source only: 3080 pure Prefill, 395 pure Decode. |
 | v2.14 | With one server driving both devices, where does throughput level off? | r374 Qwen3.8-Flash Q4: a single llama-server using the 3080 and the 395 together, C1–C6 (FLASH-SPLIT-01). | All scored requests succeed, and C4 is found to be the best tier. |
 
-### Phase 4: v2.15 → v2.25 · no hardware change and no new tests, only filing the data properly and rewriting the text
+### Phase 4: v2.15 → v2.26 · no hardware change; first filing the data properly and rewriting the text, then adding one experiment that had been left out
 
-This phase ran no new tests and produced no new number. It did two things: put every figure where it belongs, and make the text readable.
+This phase mainly did two things: put every figure where it belongs, and make the text readable. Its last release adds ORNITH-PD-02, which had never been filed; those figures come from the original experiment record, not from a new run in this phase.
 
 | Release | Question | What was done | How the conclusion moved |
 | --- | --- | --- | --- |
@@ -238,12 +254,13 @@ This phase ran no new tests and produced no new number. It did two things: put e
 | v2.23 | The 395's 207.2 Prefill at the 27B tier looks too low; is it a typo? | Went back to the original experiment log and checked line by line: 207.2 is the measured C1 solo result under the v1.0 serving method with the checkpoint copy on, 307.1 is the result with it off, and 313.28 is `llama-bench` on IQ3; every figure above 1200 belongs to the 3080 side. Added the three methods and the 3080 side's 683.2 → 1000.6 → 1210.6 climb to the homepage. | Nothing new measured; no existing number changed. Readers can now tell the 395's 207 from the 3080's 1210. |
 | **v2.24** | Notes next to the data made it look unreliable; the 8-column table could not be read on GitHub; the principle came after the data. | Reordered the chapters so the principle comes first and the data second; one table per experiment with at most 5 columns; the whole page stated as measured and verified; the architecture diagram redrawn as a vertical layout with large type. | Nothing new measured, no number changed. Readers understand the design first, then see what each experiment verified. |
 | **v2.25** | Experiment headings gave only an ID and purpose, so readers could not identify the model and quantization at a glance. | Added the model and exact weight quantization to every bilingual heading; completed the configuration lines and kept KV-cache quantization as a separate field. | Nothing new measured and no experimental value changed; readers can judge whether tables share an envelope before comparing them. |
+| **v2.26** | Two experiments were run on the Ornith tier, but only the independent PD one had been filed. | Added ORNITH-PD-02: fused DFlash speculative decode and a unified KV pool on top of independent PD, with Prefill 4173.47, single-stream Decode 114.86, and draft acceptance 93.86%; also filled in the 1000-input Prefill figures of the first experiment. The figures come from the original experiment record, not from a new run for this release. | The MoE tier moves from "phase separation runs stably" to "Prefill above 4000 with single-stream Decode above 114", with the boundary that Decode follows draft acceptance. |
 
 Things that are easy to double-count: 27B-C and 27B-D are two configurations of the single experiment 27B-KV-01, not two experiments; the natural-language run on the 395 belongs to 27B-DRAFT-AUDIT-01; DGX Spark is a public result from someone else's machine, kept as background.
 
 ## How to Read the Data
 
-- **Runs**: the request completes, the state hands over, and every metric can be credited to a device — then we write "this configuration runs". 27B-KV-01, ORNITH-PD-01, and FLASH-SPLIT-01 belong here, all verified.
+- **Runs**: the request completes, the state hands over, and every metric can be credited to a device — then we write "this configuration runs". 27B-KV-01, ORNITH-PD-01, ORNITH-PD-02, and FLASH-SPLIT-01 belong here, all verified.
 - **Faster**: model, quantization, workload, and metrics all match, and a single-card or single-host control exists — then we write "faster than the control". 9B-PIPE-01, 9B-PD-01, 27B-LONG-01, and 27B-PD-01 meet this bar, and their gains are in the tables above.
 - **Fits and serves**: the workload completes with memory and stability data — then the conclusion reads "fits" or "serves to this level". That is how 27B-KV-01 and FLASH-SPLIT-01 are written.
 - **Remote KV is a capacity route**: a configuration where the 395 only stores KV and does no compute verifies capacity and is filed apart from Dense Acceleration.
@@ -268,6 +285,7 @@ This page quotes only the few key figures per experiment; the full rows, the met
 | 9B-PIPE-01 | Ornith 9B · Q6_K · RTX 3060 12GB | Can both devices compute one model together through an asynchronous layered pipeline? | [v2.4 fused layer pipeline](results/v2.4-fused-layer-pipeline.md) | [CSV](data/benchmark-results.csv) |
 | 27B-LONG-01 · 27B-PD-01 · 27B-KV-01 · 27B-DRAFT-AUDIT-01 | Qwen3.8-27B · UD-IQ3_XXS and Q4_K_M · RTX 3060 / RTX 3080 | The 27B layer split, PD while serving, remote KV, and the speculative-decode audit | [Qwen3.8-27B two-machine PD](results/qwen3.8-27b-dual-machine-pd.md) | [CSV](data/qwen27b-local-results.csv) |
 | ORNITH-PD-01 | Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB | Can an MoE model keep Prefill and Decode attributable while surviving 100K stress from C1 to C6? | [Ornith two-machine PD](results/ornith-1.5-35b-a3b-dual-machine-pd.md) | [CSV](data/ornith35a3b-local-results.csv) |
+| ORNITH-PD-02 | Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB | With a fused draft head and a unified KV pool on top of independent PD, do Prefill and single-stream Decode rise together? | [Ornith fused-draft PD](results/ornith-1.5-35b-a3b-fused-dflash-pd.md) | [CSV](data/ornith35a3b-local-results.csv) |
 | FLASH-SPLIT-01 | Qwen3.8-Flash · Q4 · RTX 3080 20GB | With one server split across CUDA and Vulkan, where does throughput level off? | [Qwen3.8-Flash Q4 layer split](results/qwen3.8-flash-q4-layer-split.md) | [CSV](data/qwen38flash-q4-local-results.csv) |
 | EXT-DGX-01 | Qwen3.5 9B · TQ3_4S and Qwen3.8-27B · NVFP4 · external DGX Spark | DGX Spark public figures, background only | [DGX Spark community control](results/dgx-spark-community-control.md) | [CSV](data/dgx-spark-community-controls.csv) |
 
