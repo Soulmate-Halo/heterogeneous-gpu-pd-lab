@@ -2,6 +2,15 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.26
+
+- Added the experiment ORNITH-PD-02: on top of the independent PD of ORNITH-PD-01, the 395 side now runs fused DFlash speculative decode (`--spec-type draft-dflash`, draft length n_max 6) and its six slots share one unified KV pool (`--kv-unified`). On a single-stream 1000 in / 128 out workload the measured figures are Prefill **4173.47 tok/s**, Decode **114.86 tok/s**, and DFlash draft acceptance **107/114 (93.86%)**; after raising 8082 batch/ubatch to 8196 and 8081 ctx to 131072 (the single-request maximum under the unified KV pool, not 128K reserved per slot), the re-measured figures are Prefill **4123.15 tok/s** and Decode **114.42 tok/s**. All of 8080/8081/8082 answered HTTP 200 with no OOM and no crash after start-up; the 3080 held 18661/20480 MiB and the 395 Vulkan side about 22678/65536 MiB. The figures come from the original records `r379_summary.md` and `r382_ctx_prefill.md`; this release measured nothing new.
+- Filed the negative control for the same recipe: with only the prompt changed, DFlash acceptance fell from 93.9% to 9.4% and Prefill/Decode came out at just 3665.3 / 37.2 tok/s; a separate performance gate in the same round reached only 3785/44 for the same reason, low acceptance on that prompt rather than a bad parameter change. Any quotation of the ORNITH-PD-02 Decode figure must therefore state the acceptance rate, and re-measurement needs the same prompt, a fixed output length, and the same seed.
+- Filled in the 1000-input Prefill figures of ORNITH-PD-01: the bilingual homepage table gains a row "Aggregate Prefill at 1000 input", C1 4017.46 → C6 3943.88 (-1.8%). Those values were already in `data/ornith35a3b-local-results.csv` and in the record; the homepage had shown only the 100K stage. That stage still has no separately timed 395 pure-Decode rate and remains not recorded.
+- Nothing derived from total wall-clock time was restored anywhere: v2.12 removed that aggregate Decode column, and `e2e_aggregate_primary_tok_s` stays NA.
+- Added the bilingual record [ornith-1.5-35b-a3b-fused-dflash-pd.md](results/ornith-1.5-35b-a3b-fused-dflash-pd.md) and its [Chinese version](results/ornith-1.5-35b-a3b-fused-dflash-pd.zh-CN.md), including the verbatim parameters of the 8080 / 8081 / 8082 processes; appended 2 rows to `data/ornith35a3b-local-results.csv` (the existing 12 data rows unchanged) and one ORNITH-PD-02 row to `data/experiment-index.csv`.
+- Updated both homepages accordingly: the Route 2 experiment IDs, the M2 cell of the six-cell matrix, one more entry under choosing a route by goal, Phase 4 of the timeline extended to v2.26 with a new v2.26 row, the "Runs" tier under how to read the data, and a new ORNITH-PD-02 row in the closing record table.
+
 ## v2.25
 
 - Standardized every experiment-result heading on both homepages as "experiment ID · model · weight quantization · purpose." The 9B experiments identify Ornith 9B / Q6_K; the 27B headings use the exact CSV values UD-IQ3_XXS or Q4_K_M, Ornith-1.5-35B-A3B uses IQ4_XS, Flash uses Q4, and the DGX Spark reference identifies Qwen3.5 9B / TQ3_4S and Qwen3.8-27B / NVFP4 separately.
