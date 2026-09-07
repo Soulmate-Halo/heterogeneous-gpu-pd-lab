@@ -2,7 +2,7 @@
 
 [简体中文](README_ZH.md)
 
-This is **v2.24**. It makes three changes asked for by readers: the principle and the architecture now come before any experiment data; every figure is stated as measured and verified, and the notes that used to sit next to the data and made it look unreliable are gone; the 8-column wide table is split into one small table per experiment, never more than 5 columns, so the page reads properly on GitHub. No new measurements, and no numeric value changed. The exact figures live in the result records under `results/` and the CSV files under `data/`.
+This is **v2.25**. Every experiment heading now states the model and weight quantization, so readers know what each result measures before opening its table. KV-cache quantization remains a separate field below the heading so it is not confused with weight quantization. There are no new measurements and no experimental value changed. The exact figures live in the result records under `results/` and the CSV files under `data/`.
 
 This repository studies one thing: how a card with plenty of compute but little VRAM can team up with a host that has weak compute but lots of memory, so that together they run large-model inference. What is published here: the architecture, the measured numbers, how the design grew step by step, and where each conclusion applies. Deployment commands, patches, endpoints, and the exact layer-allocation policy stay private.
 
@@ -43,7 +43,7 @@ Only two NVIDIA cards have been used so far, and the large-memory host has alway
 | --- | --- | --- |
 | Releases covered | v1.0 → v2.4 | v2.5 → v2.14 |
 | VRAM and what fits | 12GB, only the 9B dense tier fits; 27B fits only as an IQ3 layer split | 20GB, 27B Q4 fits, and that is what makes the MoE layer splits possible |
-| Models run | 9B dense Q6_K; 27B IQ3 | 27B dense Q4; two MoE models, Ornith-1.5-35B-A3B and Qwen3.8-Flash |
+| Models run | Ornith 9B dense Q6_K; Qwen3.8-27B IQ3 | Qwen3.8-27B dense Q4; two MoE models, Ornith-1.5-35B-A3B and Qwen3.8-Flash |
 | Experiment IDs | 9B-PD-01, 9B-PIPE-01, 27B-LONG-01 | 27B-PD-01, 27B-KV-01, 27B-DRAFT-AUDIT-01, ORNITH-PD-01, FLASH-SPLIT-01 |
 | What this line verified | Two devices can prefill one model together and beat the fastest single card present; a layered split lets the small card finish a model it cannot hold alone, and finish it faster | A larger card lifts the model size, the context depth, and the concurrency all at once; phase separation and remote KV both hold up while serving |
 
@@ -51,12 +51,12 @@ Only two NVIDIA cards have been used so far, and the large-memory host has alway
 
 | Cell | Question | Verified so far |
 | --- | --- | --- |
-| **D1 Dense · fits easily** (RTX 3060) | With the model held comfortably on the card, can a dense pipeline actually beat the faster card, rather than just add capacity? | **Verified**: 9B-PIPE-01 has both the 3060 single-card and the 395 single-host controls, and the pair beats both. [Record](results/v2.4-fused-layer-pipeline.md) |
-| **D2 Dense · fills the card** (RTX 3080) | With VRAM nearly full, which wins: the whole model on one card, separated phases, or a layered dense route? | **Verified**: 27B-PD-01 runs the 3080 on Prefill and the 395 on Decode while serving, cuts the 395's time to first token by more than three quarters, and passes all six tiers C1–C6. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
-| **D3 Dense · does not fit** (RTX 3060) | When one card cannot finish the job, can splitting the model finish it and still beat the 395? | **Verified**: 27B-LONG-01 runs more than twice as fast as the 395 alone and turns the 98K timeout into a finished run. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
-| **M1 MoE · fits easily** | With few active parameters and VRAM to spare, does MoE routing overhead eat back the time the overlap saves? | Planned for v3.0 (see Roadmap). |
-| **M2 MoE · fills the card** (RTX 3080) | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context across six concurrency tiers, and keeps Prefill and Decode attributable. [Record](results/ornith-1.5-35b-a3b-dual-machine-pd.md) |
-| **M3 MoE · does not fit** (RTX 3080, pilot) | When the total footprint exceeds both control cards, can splitting by layer or by expert keep it running, keep throughput, and keep the output correct? | FLASH-SPLIT-01 is the pilot for this cell: it verified that a single-server layer split runs and found its best concurrency tier. The full experiment is planned for v3.0. [Pilot record](results/qwen3.8-flash-q4-layer-split.md) |
+| **D1 Dense · fits easily**<br>Ornith 9B · Q6_K · RTX 3060 | With the model held comfortably on the card, can a dense pipeline actually beat the faster card, rather than just add capacity? | **Verified**: 9B-PIPE-01 has both the 3060 single-card and the 395 single-host controls, and the pair beats both. [Record](results/v2.4-fused-layer-pipeline.md) |
+| **D2 Dense · fills the card**<br>Qwen3.8-27B · Q4_K_M · RTX 3080 | With VRAM nearly full, which wins: the whole model on one card, separated phases, or a layered dense route? | **Verified**: 27B-PD-01 runs the 3080 on Prefill and the 395 on Decode while serving, cuts the 395's time to first token by more than three quarters, and passes all six tiers C1–C6. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
+| **D3 Dense · does not fit**<br>Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 | When one card cannot finish the job, can splitting the model finish it and still beat the 395? | **Verified**: 27B-LONG-01 runs more than twice as fast as the 395 alone and turns the 98K timeout into a finished run. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
+| **M1 MoE · fits easily**<br>model and quantization TBD (planned for v3.0) | With few active parameters and VRAM to spare, does MoE routing overhead eat back the time the overlap saves? | Planned for v3.0 (see Roadmap). |
+| **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context across six concurrency tiers, and keeps Prefill and Decode attributable. [Record](results/ornith-1.5-35b-a3b-dual-machine-pd.md) |
+| **M3 MoE · does not fit**<br>Qwen3.8-Flash · Q4 · RTX 3080 pilot | When the total footprint exceeds both control cards, can splitting by layer or by expert keep it running, keep throughput, and keep the output correct? | FLASH-SPLIT-01 is the pilot for this cell: it verified that a single-server layer split runs and found its best concurrency tier. The full experiment is planned for v3.0. [Pilot record](results/qwen3.8-flash-q4-layer-split.md) |
 
 **Choosing a route by goal.**
 
@@ -71,13 +71,13 @@ Only two NVIDIA cards have been used so far, and the large-memory host has alway
 
 **The conclusion first.** Attach a small-VRAM dense accelerator (an RTX 3060 12GB or an RTX 3080 20GB) to an AI Max+ 395, and on the same model the pair's Prefill, Decode, and time to first token all come out clearly ahead of the card running alone and clearly ahead of the 395 running alone. At 9B, the 3060 + 395 asynchronous pipeline beats the fastest single card in the room. At 27B, splitting the layers onto the 3060 finishes long prompts that the 395 alone cannot finish, and phase separation on the 3080 cuts the 395's time to first token by more than three quarters. The card's VRAM decides how large a model fits; the 395 decides how much context it can carry.
 
-One small table per experiment follows; this is the only place on the page with complete data. Every number comes from the measured records under `results/` and `data/`, and every set has been verified: the 9B pipeline was re-run repeatedly (the four checkpoints v2.1 to v2.4); the 27B serving runs passed all six concurrency tiers C1–C6; Ornith completed 42/42 and Flash 21/21 requests. Each table stays within one model, one quantization, and one workload. The values are copied straight from the CSV files; a gain is "pair result ÷ control result − 1", and TTFT is written as how much it dropped. If this page and a record disagree, the record and the CSV win.
+One small table per experiment follows; this is the only place on the page with complete data. Headings use the order "experiment ID · model · weight quantization · purpose"; KV-cache quantization is stated below the heading instead of being mixed with weight quantization. Every number comes from the measured records under `results/` and `data/`, and every set has been verified: the 9B pipeline was re-run repeatedly (the four checkpoints v2.1 to v2.4); the 27B serving runs passed all six concurrency tiers C1–C6; Ornith completed 42/42 and Flash 21/21 requests. Each table stays within one model, one quantization, and one workload. The values are copied straight from the CSV files; a gain is "pair result ÷ control result − 1", and TTFT is written as how much it dropped. If this page and a record disagree, the record and the CSV win.
 
 **The first four experiments have a single-card or single-host control; read the pair against it.**
 
-### 9B-PIPE-01 · asynchronous layered Dense Acceleration
+### 9B-PIPE-01 · Ornith 9B · Q6_K · asynchronous layered Dense Acceleration
 
-Accelerator RTX 3060 12GB; 9B Q6_K, `llama-bench` pp5064 / tg128; data from [benchmark-results.csv](data/benchmark-results.csv).
+Accelerator RTX 3060 12GB; model Ornith 9B, weight quantization Q6_K (the records and CSV label this tier "9B · Q6_K"), `llama-bench` pp5064 / tg128; data from [benchmark-results.csv](data/benchmark-results.csv).
 
 | Configuration | Prefill (tok/s) | Decode (tok/s) |
 | --- | --- | --- |
@@ -89,9 +89,9 @@ Accelerator RTX 3060 12GB; 9B Q6_K, `llama-bench` pp5064 / tg128; data from [ben
 
 What it verifies: both devices are genuinely working inside the Dense Region, and the pair beats the fastest single card present. This is the core Dense Acceleration evidence in the repository.
 
-### 9B-PD-01 · independent PD
+### 9B-PD-01 · Ornith 9B · Q6_K · independent PD
 
-Accelerator RTX 3060 12GB; 9B Q6_K, serving, 5064 in / 128 out; data from [benchmark-results.csv](data/benchmark-results.csv).
+Accelerator RTX 3060 12GB; model Ornith 9B, weight quantization Q6_K, serving, 5064 in / 128 out; data from [benchmark-results.csv](data/benchmark-results.csv).
 
 | Configuration | TTFT | Prefill (tok/s) | Decode (tok/s) |
 | --- | --- | --- | --- |
@@ -103,9 +103,9 @@ What it verifies: the state computed on the CUDA side hands over in one piece to
 
 The 395 has two 9B figures. They do not disagree; they were measured differently: the `llama-bench` figure (970.00 / 31.27) is the control for 9B-PIPE-01 and the serving figure (861.55 / 30.24) is the control for 9B-PD-01.
 
-### 27B-LONG-01 · model split across layers
+### 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · model split across layers
 
-Accelerator RTX 3060 12GB; 27B IQ3, pp4096 / pp65536 / pp98304 / tg64, all in tok/s; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv). The 3060 alone cannot hold the whole 27B, which is exactly why the model is split across layers.
+Accelerator RTX 3060 12GB; model Qwen3.8-27B, weight quantization UD-IQ3_XXS; pp4096 / pp65536 / pp98304 / tg64, all in tok/s; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv). The 3060 alone cannot hold the whole 27B, which is exactly why the model is split across layers.
 
 | Configuration | pp4096 | pp65536 | pp98304 | tg64 |
 | --- | --- | --- | --- | --- |
@@ -115,9 +115,9 @@ Accelerator RTX 3060 12GB; 27B IQ3, pp4096 / pp65536 / pp98304 / tg64, all in to
 
 What it verifies: when the small card cannot hold the model, the layered split finishes the 98K prompt that the 395 alone could not finish, and at 4K and 64K its Prefill runs more than twice as fast as the 395 alone.
 
-### 27B-PD-01 · independent PD, serving
+### 27B-PD-01 · Qwen3.8-27B · Q4_K_M · independent PD (serving)
 
-Accelerator RTX 3080 20GB; 27B Q4, all six concurrency tiers C1–C6 passed, tier C1 shown; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
+Accelerator RTX 3080 20GB; model Qwen3.8-27B, weight quantization Q4_K_M, KV cache q4_0; all six concurrency tiers C1–C6 passed, tier C1 shown; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
 
 | Configuration | TTFT | Prefill (tok/s) | Decode (tok/s) |
 | --- | --- | --- | --- |
@@ -132,9 +132,9 @@ The 395 also has three Prefill figures at the 27B tier. Again they were measured
 
 **The next four experiments verify service capability: how much fits, how much concurrency it carries, and which tier works best.**
 
-### 27B-KV-01 · 3080 does all compute, 395 stores KV only
+### 27B-KV-01 · Qwen3.8-27B · Q4_K_M · 3080 does all compute, 395 stores KV only
 
-Accelerator RTX 3080 20GB; 27B Q4; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
+Accelerator RTX 3080 20GB; model Qwen3.8-27B, weight quantization Q4_K_M, KV cache q4_0; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
 
 | Configuration | Prefill (tok/s) | Aggregate Decode C1 | Aggregate Decode C6 | Growth C1→C6 |
 | --- | --- | --- | --- | --- |
@@ -143,9 +143,9 @@ Accelerator RTX 3080 20GB; 27B Q4; data from [qwen27b-local-results.csv](data/qw
 
 1M context per stream; aggregate Decode in tok/s. What it verifies: pick C for Prefill and D for total Decode throughput. The 395 only stores KV and the 3080 does all compute, so this is a capacity and serving route, filed apart from Dense Acceleration.
 
-### 27B-DRAFT-AUDIT-01 · speculative-decode audit
+### 27B-DRAFT-AUDIT-01 · Qwen3.8-27B · Q4_K_M · speculative-decode audit
 
-A data audit run on the AI Max+ 395; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
+Model Qwen3.8-27B, weight quantization Q4_K_M, KV cache q4_0; a data audit run on the AI Max+ 395; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
 
 | Text type | Decode (tok/s) | Acceptance |
 | --- | --- | --- |
@@ -154,9 +154,9 @@ A data audit run on the AI Max+ 395; data from [qwen27b-local-results.csv](data/
 
 Natural language sits 68.6% below the repetitive-text high score. What it verifies: this is a data audit that sets a rule — a speculative-decode score on repetitive text does not stand in for real text.
 
-### ORNITH-PD-01 · MoE PD stress test
+### ORNITH-PD-01 · Ornith-1.5-35B-A3B · IQ4_XS · MoE PD stress test
 
-The RTX 3080 20GB takes all Prefill and the AI Max+ 395 all Decode; Ornith-1.5-35B-A3B; data from [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv).
+The RTX 3080 20GB takes all Prefill and the AI Max+ 395 all Decode; main model Ornith-1.5-35B-A3B with IQ4_XS weight quantization; draft head Qwen3.6-35B-A3B-DFlash with Q4_K_M weight quantization; data from [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv).
 
 | Metric | C1 | C6 | Change |
 | --- | --- | --- | --- |
@@ -165,9 +165,9 @@ The RTX 3080 20GB takes all Prefill and the AI Max+ 395 all Decode; Ornith-1.5-3
 
 42/42 requests succeeded, `route=pd`, `n_reuse=0`. What it verifies: MoE PD runs stably at 100K context across six concurrency tiers, and it is clear which device owns Prefill and which owns Decode.
 
-### FLASH-SPLIT-01 · one server split across both devices
+### FLASH-SPLIT-01 · Qwen3.8-Flash · Q4 · one server split across both devices
 
-A single llama-server using the RTX 3080 20GB and the AI Max+ 395 together; Qwen3.8-Flash Q4; data from [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv).
+A single llama-server using the RTX 3080 20GB and the AI Max+ 395 together; model Qwen3.8-Flash, weight quantization Q4, KV cache q4_0; data from [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv).
 
 | Metric | C4 (best tier) | Change C1→C4 |
 | --- | --- | --- |
@@ -177,11 +177,11 @@ A single llama-server using the RTX 3080 20GB and the AI Max+ 395 together; Qwen
 
 21/21 scored requests succeeded on a workload of about 2077 in / 256 out. What it verifies: the best tier for this configuration is C4, and C5 and C6 no longer rise. It is an operating point, and a different workload must be measured again.
 
-### EXT-DGX-01 · DGX Spark external reference
+### EXT-DGX-01 · Qwen3.5 9B / TQ3_4S; Qwen3.8-27B / NVFP4 · DGX Spark external reference
 
-Public figures of about 1000 tok/s Prefill, 25–30 tok/s single-stream Decode, and 107 tok/s aggregate Decode, C1–C6. A public result from someone else's machine, kept as background and never ranked against local data. [Record](results/dgx-spark-community-control.md)
+This entry contains two external workloads: Qwen3.5 9B with TQ3_4S weight quantization, and Qwen3.8-27B with NVFP4 weights and an FP8 KV cache. Public figures are about 1000 tok/s Prefill, 25–30 tok/s single-stream Decode, and 107 tok/s aggregate Decode, C1–C6. These are public results from someone else's machine, kept as background and never ranked against local data. [Record](results/dgx-spark-community-control.md)
 
-## Experiment Timeline: v1.0 → v2.24
+## Experiment Timeline: v1.0 → v2.25
 
 Release numbers show publishing order, not how many experiments were run: v2.1 to v2.4 are four checkpoints of one 9B pipeline experiment, and among the later releases some are real new experiments while others only file data or fix wording. Each phase heading names the card used. The figures are not repeated here; see the experiment results above.
 
@@ -221,7 +221,7 @@ Two questions: with an MoE model, can Prefill and Decode still be attributed to 
 | v2.13 | Other experiments may have leaked into the multi-run record. | Pinned the evidence to r337. Nothing new measured. | Ornith data comes from this one source only: 3080 pure Prefill, 395 pure Decode. |
 | v2.14 | With one server driving both devices, where does throughput level off? | r374 Qwen3.8-Flash Q4: a single llama-server using the 3080 and the 395 together, C1–C6 (FLASH-SPLIT-01). | All scored requests succeed, and C4 is found to be the best tier. |
 
-### Phase 4: v2.15 → v2.24 · no hardware change and no new tests, only filing the data properly and rewriting the text
+### Phase 4: v2.15 → v2.25 · no hardware change and no new tests, only filing the data properly and rewriting the text
 
 This phase ran no new tests and produced no new number. It did two things: put every figure where it belongs, and make the text readable.
 
@@ -237,6 +237,7 @@ This phase ran no new tests and produced no new number. It did two things: put e
 | v2.22 | The same figures appeared many times from top to bottom, and the point of the experiments was lost. | Trimmed and restructured: complete data appears once, in the conclusions chapter; the other sections keep only intent, routes, and conclusions. | Nothing new measured, no number changed. The page now shows at a glance how far the pair is ahead of the card alone and the host alone. |
 | v2.23 | The 395's 207.2 Prefill at the 27B tier looks too low; is it a typo? | Went back to the original experiment log and checked line by line: 207.2 is the measured C1 solo result under the v1.0 serving method with the checkpoint copy on, 307.1 is the result with it off, and 313.28 is `llama-bench` on IQ3; every figure above 1200 belongs to the 3080 side. Added the three methods and the 3080 side's 683.2 → 1000.6 → 1210.6 climb to the homepage. | Nothing new measured; no existing number changed. Readers can now tell the 395's 207 from the 3080's 1210. |
 | **v2.24** | Notes next to the data made it look unreliable; the 8-column table could not be read on GitHub; the principle came after the data. | Reordered the chapters so the principle comes first and the data second; one table per experiment with at most 5 columns; the whole page stated as measured and verified; the architecture diagram redrawn as a vertical layout with large type. | Nothing new measured, no number changed. Readers understand the design first, then see what each experiment verified. |
+| **v2.25** | Experiment headings gave only an ID and purpose, so readers could not identify the model and quantization at a glance. | Added the model and exact weight quantization to every bilingual heading; completed the configuration lines and kept KV-cache quantization as a separate field. | Nothing new measured and no experimental value changed; readers can judge whether tables share an envelope before comparing them. |
 
 Things that are easy to double-count: 27B-C and 27B-D are two configurations of the single experiment 27B-KV-01, not two experiments; the natural-language run on the 395 belongs to 27B-DRAFT-AUDIT-01; DGX Spark is a public result from someone else's machine, kept as background.
 
@@ -261,13 +262,13 @@ Things that are easy to double-count: 27B-C and 27B-D are two configurations of 
 
 This page quotes only the few key figures per experiment; the full rows, the metric definitions, and the field notes live in the records and CSV files below. Use the matching CSV for your own calculations, and do not combine data from different experiment IDs unless the record states that a comparable control exists.
 
-| ID | Accelerator | Question | Record | CSV |
+| ID | Model · weight quantization · accelerator | Question | Record | CSV |
 | --- | --- | --- | --- | --- |
-| 9B-PD-01 | RTX 3060 12GB | Can CUDA Prefill hand its state to Vulkan Decode? | [v1.0 independent PD](results/v1.0-independent-pd.md) | [CSV](data/benchmark-results.csv) |
-| 9B-PIPE-01 | RTX 3060 12GB | Can both devices compute one model together through an asynchronous layered pipeline? | [v2.4 fused layer pipeline](results/v2.4-fused-layer-pipeline.md) | [CSV](data/benchmark-results.csv) |
-| 27B-LONG-01 · 27B-PD-01 · 27B-KV-01 · 27B-DRAFT-AUDIT-01 | RTX 3060 / RTX 3080 | The 27B layer split, PD while serving, remote KV, and the speculative-decode audit | [Qwen3.8-27B two-machine PD](results/qwen3.8-27b-dual-machine-pd.md) | [CSV](data/qwen27b-local-results.csv) |
-| ORNITH-PD-01 | RTX 3080 20GB | Can an MoE model keep Prefill and Decode attributable while surviving 100K stress from C1 to C6? | [Ornith two-machine PD](results/ornith-1.5-35b-a3b-dual-machine-pd.md) | [CSV](data/ornith35a3b-local-results.csv) |
-| FLASH-SPLIT-01 | RTX 3080 20GB | With one server split across CUDA and Vulkan, where does throughput level off? | [Qwen3.8-Flash Q4 layer split](results/qwen3.8-flash-q4-layer-split.md) | [CSV](data/qwen38flash-q4-local-results.csv) |
-| EXT-DGX-01 | External | DGX Spark public figures, background only | [DGX Spark community control](results/dgx-spark-community-control.md) | [CSV](data/dgx-spark-community-controls.csv) |
+| 9B-PD-01 | Ornith 9B · Q6_K · RTX 3060 12GB | Can CUDA Prefill hand its state to Vulkan Decode? | [v1.0 independent PD](results/v1.0-independent-pd.md) | [CSV](data/benchmark-results.csv) |
+| 9B-PIPE-01 | Ornith 9B · Q6_K · RTX 3060 12GB | Can both devices compute one model together through an asynchronous layered pipeline? | [v2.4 fused layer pipeline](results/v2.4-fused-layer-pipeline.md) | [CSV](data/benchmark-results.csv) |
+| 27B-LONG-01 · 27B-PD-01 · 27B-KV-01 · 27B-DRAFT-AUDIT-01 | Qwen3.8-27B · UD-IQ3_XXS and Q4_K_M · RTX 3060 / RTX 3080 | The 27B layer split, PD while serving, remote KV, and the speculative-decode audit | [Qwen3.8-27B two-machine PD](results/qwen3.8-27b-dual-machine-pd.md) | [CSV](data/qwen27b-local-results.csv) |
+| ORNITH-PD-01 | Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB | Can an MoE model keep Prefill and Decode attributable while surviving 100K stress from C1 to C6? | [Ornith two-machine PD](results/ornith-1.5-35b-a3b-dual-machine-pd.md) | [CSV](data/ornith35a3b-local-results.csv) |
+| FLASH-SPLIT-01 | Qwen3.8-Flash · Q4 · RTX 3080 20GB | With one server split across CUDA and Vulkan, where does throughput level off? | [Qwen3.8-Flash Q4 layer split](results/qwen3.8-flash-q4-layer-split.md) | [CSV](data/qwen38flash-q4-local-results.csv) |
+| EXT-DGX-01 | Qwen3.5 9B · TQ3_4S and Qwen3.8-27B · NVFP4 · external DGX Spark | DGX Spark public figures, background only | [DGX Spark community control](results/dgx-spark-community-control.md) | [CSV](data/dgx-spark-community-controls.csv) |
 
 The mapping from experiment IDs to legacy labels is in [data/experiment-index.csv](data/experiment-index.csv); all records are under [results/](results/). The [changelog](CHANGELOG.md) records what each release changed or corrected.
