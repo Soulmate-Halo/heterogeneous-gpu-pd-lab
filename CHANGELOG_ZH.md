@@ -2,6 +2,13 @@
 
 [English](CHANGELOG.md)
 
+## v2.27
+
+- 27B-KV-01 表补上配置 D 的 Prefill：此前这一格是空的（`—`），现在填入单流区间 **1077–1090 tok/s**。数据本来就在原始压测记录里（router v1.2 两阶段抢占，1000 输入 / 128 输出），与 [qwen3.8-27b-dual-machine-pd.zh-CN.md](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) 里「配置 D」两张表一致，本版没有做任何新测量。
+- 表后说明补写口径：配置 D 的单流 Prefill 从 C1 到 C6 依次为 1090 / 1081 / 1080 / 1077 / 1082 / 1082 tok/s，同一轮的聚合口径从 1079 降到 1016 tok/s；两列 Prefill 都是单流口径，因此可与配置 C 的 1194.4–1210.6 直接对比。
+- 写明配置 D 比配置 C 低约一成的原因：D 要腾出解码显存，把 ubatch 从 1024 降到 512。
+- 本版未改动 `results/`、`data/`、`assets/` 下任何文件。
+
 ## v2.26
 
 - 新增实验 ORNITH-PD-02：在 ORNITH-PD-01 的独立 PD 之上，395 那端的解码改走 DFlash 融合草稿的推测解码（`--spec-type draft-dflash`、草稿步长 n_max 6），六个槽位共用一个统一 KV 池（`--kv-unified`）。1000 输入 / 128 输出的单流负载下实测 Prefill **4173.47 tok/s**、Decode **114.86 tok/s**、DFlash 草稿接受 **107/114（93.86%）**；把 8082 的 batch/ubatch 提到 8196、8081 的 ctx 提到 131072（统一 KV 池下单请求的最大上下文，不是每槽预留 128K）之后复测为 Prefill **4123.15 tok/s**、Decode **114.42 tok/s**。8080/8081/8082 三端 HTTP 200，启动后无 OOM 无崩溃；3080 显存占用 18661/20480 MiB，395 Vulkan 约 22678/65536 MiB。数据取自原始实验记录 `r379_summary.md` 与 `r382_ctx_prefill.md`，本版没有做任何新测量。
