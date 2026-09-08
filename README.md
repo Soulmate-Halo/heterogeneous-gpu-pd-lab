@@ -140,9 +140,9 @@ Accelerator RTX 3080 20GB; model Qwen3.8-27B, weight quantization Q4_K_M, KV cac
 | Configuration | Prefill (tok/s) | Aggregate Decode C1 | Aggregate Decode C6 | Growth C1→C6 |
 | --- | --- | --- | --- | --- |
 | Configuration C | 1194.4–1210.6 | 33.55 | 63.84 | +90.3% |
-| Configuration D | — | 63.2 | 116.3 | +84.0% |
+| Configuration D | 1077–1090 | 63.2 | 116.3 | +84.0% |
 
-1M context per stream; aggregate Decode in tok/s. What it verifies: pick C for Prefill and D for total Decode throughput. The 395 only stores KV and the 3080 does all compute, so this is a capacity and serving route, filed apart from Dense Acceleration.
+1M context per stream; aggregate Decode in tok/s. Both Prefill columns are single-stream figures; configuration D reads 1090 / 1081 / 1080 / 1077 / 1082 / 1082 tok/s from C1 to C6, and the aggregate figures from the same run fall from 1079 to 1016 tok/s. Configuration D sits about ten percent below configuration C because it drops ubatch from 1024 to 512 to free VRAM for Decode. What it verifies: pick C for Prefill and D for total Decode throughput. The 395 only stores KV and the 3080 does all compute, so this is a capacity and serving route, filed apart from Dense Acceleration.
 
 ### 27B-DRAFT-AUDIT-01 · Qwen3.8-27B · Q4_K_M · speculative-decode audit
 
