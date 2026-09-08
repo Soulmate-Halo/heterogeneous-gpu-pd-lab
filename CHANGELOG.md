@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.27
+
+- Filled in the Prefill figure for configuration D of 27B-KV-01: that cell used to be empty (`—`) and now carries the single-stream range **1077–1090 tok/s**. The values were already in the original benchmark record (router v1.2 two-stage preemption, 1000 in / 128 out) and match the two configuration D tables in [qwen3.8-27b-dual-machine-pd.md](results/qwen3.8-27b-dual-machine-pd.md); this release measured nothing new.
+- Stated the measurement basis under the table: configuration D reads 1090 / 1081 / 1080 / 1077 / 1082 / 1082 tok/s from C1 to C6 single-stream, and the aggregate figures from the same run fall from 1079 to 1016 tok/s. Both Prefill columns are single-stream, so configuration D compares directly with the 1194.4–1210.6 of configuration C.
+- Explained why configuration D sits about ten percent below configuration C: it drops ubatch from 1024 to 512 to free VRAM for Decode.
+- No file under `results/`, `data/`, or `assets/` changed in this release.
+
 ## v2.26
 
 - Added the experiment ORNITH-PD-02: on top of the independent PD of ORNITH-PD-01, the 395 side now runs fused DFlash speculative decode (`--spec-type draft-dflash`, draft length n_max 6) and its six slots share one unified KV pool (`--kv-unified`). On a single-stream 1000 in / 128 out workload the measured figures are Prefill **4173.47 tok/s**, Decode **114.86 tok/s**, and DFlash draft acceptance **107/114 (93.86%)**; after raising 8082 batch/ubatch to 8196 and 8081 ctx to 131072 (the single-request maximum under the unified KV pool, not 128K reserved per slot), the re-measured figures are Prefill **4123.15 tok/s** and Decode **114.42 tok/s**. All of 8080/8081/8082 answered HTTP 200 with no OOM and no crash after start-up; the 3080 held 18661/20480 MiB and the 395 Vulkan side about 22678/65536 MiB. The figures come from the original records `r379_summary.md` and `r382_ctx_prefill.md`; this release measured nothing new.
