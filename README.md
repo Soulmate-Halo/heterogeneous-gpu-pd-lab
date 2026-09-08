@@ -63,7 +63,7 @@ Only two NVIDIA cards have been used so far, and the large-memory host has alway
 - To show two devices computing one model faster together: asynchronous layered Dense Acceleration, backed by 9B-PIPE-01. That result rests on a single-card control and a single-host control; a different model must be verified the same way.
 - For a faster first token with Prefill and Decode on different devices: independent PD, the 3060 for 9B (9B-PD-01) and the 3080 for 27B (27B-PD-01). The Prefill side must hold its own copy of the model.
 - When the model does not fit the small card: split the model across layers, backed by 27B-LONG-01. For long prompts that need more Prefill, or simply for capacity.
-- For the largest possible context, or for concurrent Decode: the 3080 computes and the 395 acts as a remote KV store, backed by 27B-KV-01. This is a capacity route; the 395 does no compute.
+- For the largest possible context, or for concurrent Decode: the 3080 runs Prefill and the 395 acts as a remote KV store, backed by 27B-KV-01. This is a capacity route; the 395 never runs Prefill, and Decode sits on either card depending on the route.
 - To verify MoE PD serving under deep context: see ORNITH-PD-01, which verified stable PD at 100K context across six tiers with both stages clearly attributed.
 - To lift MoE Prefill and single-stream Decode together: see ORNITH-PD-02, which adds fused speculative decode and a unified KV pool on top of independent PD for Prefill above 4000 and single-stream Decode above 114. The cost is that the Decode figure follows draft acceptance, so a different prompt must be measured again.
 - To find the right concurrency tier for a single server: see FLASH-SPLIT-01, which picked C4 on a workload of about 2077 in / 256 out; a different workload must be measured again.
@@ -133,16 +133,16 @@ The 395 also has three Prefill figures at the 27B tier. Again they were measured
 
 **The next four experiments verify service capability: how much fits, how much concurrency it carries, and which tier works best.**
 
-### 27B-KV-01 · Qwen3.8-27B · Q4_K_M · 3080 does all compute, 395 stores KV only
+### 27B-KV-01 · Qwen3.8-27B · Q4_K_M · Remote KV pool with two decode routes
 
 Accelerator RTX 3080 20GB; model Qwen3.8-27B, weight quantization Q4_K_M, KV cache q4_0; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
 
 | Configuration | Prefill (tok/s) | Aggregate Decode C1 | Aggregate Decode C6 | Growth C1→C6 |
 | --- | --- | --- | --- | --- |
-| Configuration C | 1194.4–1210.6 | 33.55 | 63.84 | +90.3% |
-| Configuration D | 1077–1090 | 63.2 | 116.3 | +84.0% |
+| Configuration C · 395 decodes | 1194.4–1210.6 | 33.55 | 63.84 | +90.3% |
+| Configuration D · 3080 decodes | 1077–1090 | 63.2 | 116.3 | +84.0% |
 
-1M context per stream; aggregate Decode in tok/s. Both Prefill columns are single-stream figures; configuration D reads 1090 / 1081 / 1080 / 1077 / 1082 / 1082 tok/s from C1 to C6, and the aggregate figures from the same run fall from 1079 to 1016 tok/s. Configuration D sits about ten percent below configuration C because it drops ubatch from 1024 to 512 to free VRAM for Decode. What it verifies: pick C for Prefill and D for total Decode throughput. The 395 only stores KV and the 3080 does all compute, so this is a capacity and serving route, filed apart from Dense Acceleration.
+1M context per stream; aggregate Decode in tok/s. These are not two tuning passes over one route but **two decode routes**, and what differs is which card carries Decode. **Configuration C**: the 3080 carries no draft head, spends every bit of its compute on Prefill and writes KV back to the 395, which then does the decoding (that side runs a DFlash head at 38.75 tok/s single-stream while holding the full KV pool, and the headless 3080 still keeps 2 slots), so Prefill reaches 1194.4–1210.6, the highest figure in this entry. **Configuration D**: the DFlash draft head moves onto the 3080 and the 3080 decodes for itself (measured single-stream on that card: 42.7 tok/s on natural language and 67.4 tok/s on code, 2.2–2.3 times the 395 running the same head), which lifts aggregate Decode from 63.84 to 116.3. Prefill pays for it: Decode takes a large share of the compute and VRAM on the 3080 — the draft head weights occupy 1080 MiB and the verification batch needs roughly 500 MiB more of compute buffer, so at ctx8192 ubatch has to drop from 1024 to 512 and the slot count from 2 to 1, and the per-step verification matmul is real work (+21 ms on a 4-token batch, +49 ms on an 8-token batch). Prefill therefore falls from 1210.6 to 1077–1090, about ten percent lower. Both Prefill columns are single-stream figures and compare directly; configuration D reads 1090 / 1081 / 1080 / 1077 / 1082 / 1082 tok/s from C1 to C6, and the aggregate figures from the same run fall from 1079 to 1016 tok/s. What it verifies: take C and let the 395 decode when Prefill is the constraint; take D and let the 3080 decode when total Decode throughput is the constraint. On both routes the 395 never runs Prefill and the dense weight compute always stays on the 3080, so this is a capacity and serving route, filed apart from Dense Acceleration.
 
 ### 27B-DRAFT-AUDIT-01 · Qwen3.8-27B · Q4_K_M · speculative-decode audit
 
@@ -222,7 +222,7 @@ The 9B method moves to a larger model and a stronger card and meets five new pro
 | v2.5 | Can the 3080 take all Prefill and the 395 all Decode, and carry 27B Q4 in a real service? | Moved to the RTX 3080 20GB; six concurrency tiers C1–C6, each on the split and solo paths (27B-PD-01). After removing the per-ubatch RPC sync, Prefill went from **683.2** to **1000.6 tok/s**. | PD works while serving: Prefill does not fall off as concurrency rises and Decode is unharmed. The sync overhead is identified as the biggest waste at that point. |
 | v2.6 | The 3060 IQ3 run and the 3080 Q4 run are two disconnected 27B records; how do they merge? | Merged into one 27B section; released the 3080 router v1.1 and the live v1.2: with both ends no longer copying out a 524 MiB recurrent-state checkpoint on every prompt, the 3080 side's serving Prefill went from **1000.6** to **1210.6 tok/s** (98.5% of the 3080's raw figure) and the 395 solo control went from 207.2 to 307.1 at the same time; added the natural-language audit on the 395 (27B-DRAFT-AUDIT-01). | Prefill-first and Decode-first profiles are told apart, and a rule is set: a high score on repetitive text does not represent real text. |
 | v2.7 | The most important result is buried under implementation detail. | Reordered the presentation only; nothing new measured. | Route selection moves ahead of parameter detail. |
-| v2.8 | In configurations C and D, "who computes" and "how much fits" are being mixed up. | Corrected the attribution; nothing new measured. | All compute is on the 3080 and the 395 only stores KV; remote KV is filed as a capacity route, not a speed route. |
+| v2.8 | In configurations C and D, "who computes" and "how much fits" are being mixed up. | Corrected the attribution; nothing new measured. | Dense Prefill compute all sits on the 3080 and the 395 only acts as a remote KV pool that never runs Prefill; Decode ownership splits into two routes (the 395 decodes in C, the 3080 decodes in D); remote KV is filed as a capacity route, not a speed route. |
 | v2.9 | The C6 peak of 27B-D and its scope need correcting. | Fixed the figure; no new experiment. | The number and its conditions now match. |
 | v2.10 | The C, D, and DGX Spark figures are scattered. | Merged them into one comparison table and listed the DFlash2 draft head as its own category; nothing new measured locally. | External results sit in their own column and are no longer mixed with local data. |
 
@@ -263,7 +263,7 @@ Things that are easy to double-count: 27B-C and 27B-D are two configurations of 
 - **Runs**: the request completes, the state hands over, and every metric can be credited to a device — then we write "this configuration runs". 27B-KV-01, ORNITH-PD-01, ORNITH-PD-02, and FLASH-SPLIT-01 belong here, all verified.
 - **Faster**: model, quantization, workload, and metrics all match, and a single-card or single-host control exists — then we write "faster than the control". 9B-PIPE-01, 9B-PD-01, 27B-LONG-01, and 27B-PD-01 meet this bar, and their gains are in the tables above.
 - **Fits and serves**: the workload completes with memory and stability data — then the conclusion reads "fits" or "serves to this level". That is how 27B-KV-01 and FLASH-SPLIT-01 are written.
-- **Remote KV is a capacity route**: a configuration where the 395 only stores KV and does no compute verifies capacity and is filed apart from Dense Acceleration.
+- **Remote KV is a capacity route**: a configuration where the 395 only acts as a remote KV pool and never runs dense Prefill compute verifies capacity, with Decode ownership described by the two routes in 27B-KV-01, and is filed apart from Dense Acceleration.
 - **A speculative-decode point test is not interchangeable with a random-seed stress test**: 27B-DRAFT-AUDIT-01 sets a rule and claims no gain.
 - **External references are background**: DGX Spark is someone else's public measurement with its method and source stated; it is not used as a local control.
 - Every figure must say whether it came from the RTX 3060 or the RTX 3080; data that differ in model, quantization, engine, prompt, or connection are never joined into one ranking table. A release number is not an experiment ID and not a data source.
