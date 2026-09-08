@@ -2,6 +2,13 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
+## v2.28
+
+- Reframed configurations C and D of 27B-KV-01 as two decode routes instead of "Prefill-first / Decode-first": in configuration C the 3080 carries no draft head and spends all of its compute on Prefill while the 395 does the decoding (a DFlash head at 38.75 tok/s single-stream on that side, holding the full KV pool); in configuration D the DFlash draft head moves onto the 3080 and that card decodes for itself (measured single-stream on it: 42.7 tok/s on natural language, 67.4 tok/s on code, 2.2–2.3 times the 395 running the same head).
+- Rewrote why configuration D sits about ten percent below C on Prefill: it is not only about freeing VRAM. Decode takes a large share of the compute and VRAM on the 3080 — draft head weights of 1080 MiB plus roughly 500 MiB of verification-batch compute buffer, ubatch down from 1024 to 512 at ctx8192, slot count down from 2 to 1, and a per-step verification matmul costing +21 ms on a 4-token batch and +49 ms on an 8-token batch.
+- Replaced every claim that the 395 performs no compute at all with the accurate one: the 395 runs no dense Prefill compute, and Decode ownership is described by the two routes. This touched both README pages, both 27B records, the v2.8 timeline row, and the closing boundary notes.
+- Nothing new was measured in this release; all figures come from the existing benchmark records, and no file under `data/` or `assets/` changed.
+
 ## v2.27
 
 - Filled in the Prefill figure for configuration D of 27B-KV-01: that cell used to be empty (`—`) and now carries the single-stream range **1077–1090 tok/s**. The values were already in the original benchmark record (router v1.2 two-stage preemption, 1000 in / 128 out) and match the two configuration D tables in [qwen3.8-27b-dual-machine-pd.md](results/qwen3.8-27b-dual-machine-pd.md); this release measured nothing new.
