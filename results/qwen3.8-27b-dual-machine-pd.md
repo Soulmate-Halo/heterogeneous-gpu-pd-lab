@@ -10,7 +10,7 @@ This file is the single human-readable source of record for the local Qwen3.8-27
 | --- | --- | --- | --- |
 | **27B-LONG-01** | 27B-A | 3060 + 395 IQ3 long-prompt layered placement | Matched-host improvement |
 | **27B-PD-01** | 27B-B | 3080 full Prefill → 395 full Decode service handoff | PD feasibility and scheduler envelope |
-| **27B-KV-01** | 27B-C / 27B-D | 3080 full compute + 395 KV-only storage; C/D are two profiles | Capacity and serving envelope |
+| **27B-KV-01** | 27B-C / 27B-D | 3080 runs Prefill + 395 remote KV pool; C/D are two decode routes | Capacity and serving envelope |
 | **27B-DRAFT-AUDIT-01** | 395 natural-language audit | Workload-sensitivity check for speculative Decode | Validation guardrail |
 
 ## 27B-LONG-01 — layered long-prompt feasibility
@@ -68,21 +68,21 @@ The separate RTX 3080 hardware checks were pp1024 1228.53, pp4096 1203.06, and t
 
 **Answer:** the experiment passes the state-handoff and C1–C6 service-feasibility gate. It measures serial phase ownership; it does not show both devices computing the same phase.
 
-## 27B-KV-01 — remote-KV serving profiles
+## 27B-KV-01 — two decode routes over a remote KV pool
 
 ### Experimental contract
 
 | Item | Definition |
 | --- | --- |
-| Primary question | What capacity and serving trade-off results when the RTX 3080 performs all Prefill and Decode while the 395 stores remote KV? |
-| Compute ownership | RTX 3080: all compute. AI Max+ 395: KV-only storage, no Prefill and no Decode. |
-| Profiles | C = Prefill-first; D = Decode-first. They are two profiles of one experiment, not two experiments. |
+| Primary question | When the RTX 3080 performs all Prefill and the 395 only holds remote KV, which card should carry Decode, and what capacity and serving trade-off follows? |
+| Compute ownership | Dense Prefill compute: the RTX 3080 only. AI Max+ 395: remote KV pool, never runs Prefill. Decode ownership splits into two routes: the 395 decodes in configuration C, and the 3080 decodes with its own DFlash head in configuration D. |
+| Two routes | C = a headless 3080 doing Prefill only, with Decode handed to the 395; D = the 3080 decoding with its own DFlash head and giving up about ten percent of Prefill. They are two decode routes of one experiment, not two experiments. |
 | Latest matched control | Not recorded: there is no same-run 3080 no-remote-KV series at the same per-stream 1M context. |
 | Changed factors | Scheduler profile and C1–C6 concurrency. |
 | Decision metrics | Context capacity, Prefill, single-stream Decode, aggregate Decode, and missing-field coverage. |
-| Claim boundary | Capacity and serving envelope only. This topology is not Dense Acceleration because the 395 contributes no model compute. |
+| Claim boundary | Capacity and serving envelope only. This topology is not Dense Acceleration because the 395 contributes no dense Prefill compute. |
 
-### Profile C — Prefill-first series, shown once
+### Route C — headless Prefill on the 3080, Decode on the 395, shown once
 
 This series was first published under the router-v1.1 label and later reissued with corrected compute attribution as remote-KV-latest. It is one measured series, so the numbers are not repeated as a second experiment. Values left/right are the primary path / historical 395-solo control captured with the original series.
 
@@ -95,7 +95,7 @@ This series was first published under the router-v1.1 label and later reissued w
 | 5 | 2668 / 7609 | 1194.4 / 131.4 | 16.07 / 8.27 | 61.64 / 25.12 |
 | 6 | 3122 / 8354 | 1197.2 / 119.7 | 14.68 / 8.34 | 63.84 / 27.25 |
 
-### Profile D — Decode-first historical scheduler matrix
+### Route D — the 3080 decodes with its own head, historical scheduler matrix
 
 This router-v1.2 matrix is a historical scheduler envelope. Values left/right are router / 395-solo; aggregate columns apply to the router unless a slash is shown.
 
@@ -108,7 +108,7 @@ This router-v1.2 matrix is a historical scheduler envelope. Values left/right ar
 | 5 | 2911 / 7603 | 836 | 1082 / 1018 | 13.9 / 8.1 | 45.4 | 42.8 / 19.6 |
 | 6 | 3404 / 8319 | 1060 | 1082 / 1016 | 13.2 / 7.4 | 48.0 | 45.7 / 23.3 |
 
-### Profile D — later summary-only envelope
+### Route D — later summary-only envelope
 
 The later corrected summary records only C1 and the C6 aggregate-Decode endpoint. It is not spliced into the historical matrix, and missing C2–C5 values are not interpolated.
 
@@ -117,7 +117,7 @@ The later corrected summary records only C1 and the C6 aggregate-Decode endpoint
 | C1 | 1090 tok/s | 63.2 tok/s | 63.2 tok/s |
 | C6 | Not recorded | Not recorded | 116.3 tok/s |
 
-**Answer:** these profiles establish a 1M-per-stream remote-KV serving envelope and expose scheduler trade-offs. Without a matched 3080-only run at the same context, they do not prove that remote KV accelerates the 3080.
+**Answer:** these two decode routes establish a 1M-per-stream remote-KV serving envelope and expose the trade-off that comes with Decode ownership: C keeps peak Prefill by letting the 395 decode, while D buys aggregate throughput by letting the 3080 decode and pays about ten percent of Prefill. Without a matched 3080-only run at the same context, they do not prove that remote KV accelerates the 3080.
 
 ## 27B-DRAFT-AUDIT-01 — natural-language guardrail
 
