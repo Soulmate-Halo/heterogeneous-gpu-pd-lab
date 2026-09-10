@@ -21,8 +21,8 @@
 ## v1.4
 
 - 测了 ORNITH-PD-01：RTX 3080 包全部 Prefill、AI Max+ 395 包全部 Decode，主模型 Ornith-1.5-35B-A3B IQ4_XS，草稿头 Qwen3.6-35B-A3B-DFlash Q4_K_M；42/42 请求成功，`route=pd`、`n_reuse=0`。
-- 结果：1000 输入 / 128 输出 Prefill 聚合 C1 **4017.46** 到 C6 **3943.88**（−1.8%）；100K Prefill 聚合 C1 **2895.53** 到 C6 **2793.24**（−3.5%）；100K 395 纯 Decode 聚合 C1 **23.33** 到 C6 **148.20**（6.35×）。
-- 结论：MoE 的 PD 在 100K、六档并发下跑得稳，Prefill 与 Decode 归属分得清。
+- 结果：输入 1000 / 输出 128：3080 Prefill 聚合从 1 路（C1）**4017.46** 到 6 路（C6）**3943.88**（−1.8%）；输入 100K：3080 Prefill 聚合 C1 **2895.53** 到 C6 **2793.24**（−3.5%）；输入 100K：395 Decode 聚合 C1 **23.33** 到 C6 **148.20**（6.35×）。
+- 结论：MoE 的 PD 在 100K、1 到 6 路并发下跑得稳，Prefill 与 Decode 归属分得清。
 - 限制：短任务档没有单独计时的 395 纯 Decode 速率；不公布由整档墙钟派生的聚合 Decode。详档：[ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)。
 
 ## v1.3

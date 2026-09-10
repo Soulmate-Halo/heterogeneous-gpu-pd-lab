@@ -21,8 +21,8 @@ Public versions are the seven measured experiment milestones below. [VERSION_HIS
 ## v1.4
 
 - Measured ORNITH-PD-01: RTX 3080 full Prefill and AI Max+ 395 full Decode on Ornith-1.5-35B-A3B IQ4_XS with Qwen3.6-35B-A3B-DFlash Q4_K_M; 42/42 requests, `route=pd`, `n_reuse=0`.
-- Result: 1000 in / 128 out aggregate Prefill C1 **4017.46** to C6 **3943.88** (−1.8%); 100K aggregate Prefill C1 **2895.53** to C6 **2793.24** (−3.5%); 100K 395 pure-Decode aggregate C1 **23.33** to C6 **148.20** (6.35×).
-- Conclusion: MoE PD stays stable at 100K across six tiers, and Prefill versus Decode stays attributable.
+- Result: 1000 in / 128 out: 3080 Prefill aggregate from 1 stream (C1) **4017.46** to 6 streams (C6) **3943.88** (−1.8%); 100K: 3080 Prefill aggregate C1 **2895.53** to C6 **2793.24** (−3.5%); 100K: 395 Decode aggregate C1 **23.33** to C6 **148.20** (6.35×).
+- Conclusion: MoE PD stays stable at 100K across 1 to 6 concurrent streams, and Prefill versus Decode stays attributable.
 - Limit: the short stage has no separately timed 395 pure-Decode rate; no wall-clock-derived aggregate Decode is published. Record: [ornith-1.5-35b-a3b-dual-machine-pd.md](results/ornith-1.5-35b-a3b-dual-machine-pd.md).
 
 ## v1.3

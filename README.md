@@ -8,18 +8,18 @@ Current release **v1.6**, seven public milestones. Deployment commands, patches,
 
 ## One minute: the core results
 
-Each row is one approach, one experiment, one key result, and its control figures.
+Each row is one approach, one experiment: first how the two devices are combined, then the key result and its controls. C1–C6 means 1 to 6 concurrent requests at once; C1 is single-stream. "Aggregate" is the combined speed of the streams that are running together.
 
-| Approach | Experiment (ID · model · quant · hardware) | Key result (with controls) | What it shows |
+| Approach | Experiment (ID · model · quant · hardware) | Setup and key result (with controls) | What it shows |
 | --- | --- | --- | --- |
-| Dense Acceleration | 9B-PIPE-01 · Ornith 9B · Q6_K · RTX 3060 12GB + 395 | Prefill **2129.69** tok/s (3060 alone 1589.00, 395 alone 970.00); Decode **50.73** (43.87 / 31.27) | The pair beats the fastest single device present; the extra is real 395 compute |
-| Layer-split loading | 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 12GB + 395 | pp4096 **658.52** vs 313.28; pp65536 **319.10** vs 136.69; pp98304 **225.10** vs a 900 s timeout | The 3060 can take part even when 27B does not fit, and the long prompt finishes |
-| Phase-separated PD | 9B-PD-01 · Ornith 9B · Q6_K · RTX 3060 12GB + 395 | TTFT **3.496** s vs 5.879 s; Prefill **1452.29** vs 861.55; Decode **30.28** vs 30.24 | TTFT drops while Decode holds; the phases still run one after the other |
-| Phase-separated PD | 27B-PD-01 · Qwen3.8-27B · Q4_K_M · RTX 3080 20GB + 395 | TTFT **1073** ms vs 4825 ms; Prefill **1000.6** vs 207.2, only 82% of the 3080 raw 1228.53 | The ceiling is the accelerator card's own raw compute; PD buys TTFT and capacity |
-| Remote KV pool | 27B-KV-01 · Qwen3.8-27B · Q4_K_M · RTX 3080 20GB + 395 | C: Prefill 1194.4–1210.6, Decode C1 33.55 / C6 63.84; D: Prefill 1077–1090, Decode C1 63.2 / C6 116.3 | Two decode routes: C, the 395 decodes; D, the 3080 decodes; the 395 never runs Prefill |
-| MoE PD | ORNITH-PD-01 · Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB + 395 | Prefill at 1000 in 4017.46 → 3943.88; 100K 2895.53 → 2793.24; 395 pure Decode 23.33 → 148.20 (6.35×); 42/42 successful requests | MoE PD stays stable at 100K context across six tiers, with both stages attributable |
-| MoE fused draft | ORNITH-PD-02 · Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB + 395 | Prefill **4173.47**, single-stream Decode **114.86**, draft acceptance 107/114 (93.86%) | Decode gain comes from draft acceptance: at 9.4% acceptance it is only 3665.3 / 37.2, and at 93.86% Decode is 3.09 times that |
-| Single-server split | FLASH-SPLIT-01 · Qwen3.8-Flash · Q4 · RTX 3080 20GB + 395 | Best tier C4: Prefill 633.685, aggregate Decode 71.185, total throughput 338.270; tensor split 0.38 / 0.62 | One server drives both devices; C4 is the operating point on this workload |
+| Dense Acceleration | 9B-PIPE-01 · Ornith 9B · Q6_K · RTX 3060 12GB + 395 | Setup: the 3060 computes front-stage layers, the 395 computes rear-stage layers, both computing the same stage at once. Prefill: Setup **2129.69** tok/s, 3060 alone 1589.00, 395 alone 970.00. Decode: Setup **50.73**, 3060 alone 43.87, 395 alone 31.27 | The pair beats the fastest single device present; the extra is real 395 compute |
+| Layer-split loading | 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 12GB + 395 | Setup: the 3060 holds only the front-stage layers, the 395 holds the rear-stage layers; the model is split across two devices. The control is the 395 alone. Setup vs 395: pp4096 **658.52** vs 313.28, pp65536 **319.10** vs 136.69, pp98304 **225.10** vs a 900 s timeout | The 3060 can take part even when 27B does not fit, and the long prompt finishes |
+| Phase-separated PD | 9B-PD-01 · Ornith 9B · Q6_K · RTX 3060 12GB + 395 | Setup: the 3060 does all Prefill and hands the state over in one piece for the 395 to Decode; the control is the 395 alone. Setup vs 395: TTFT **3.496** s vs 5.879 s, Prefill **1452.29** vs 861.55, Decode **30.28** vs 30.24 | TTFT drops while Decode holds; the phases still run one after the other |
+| Phase-separated PD | 27B-PD-01 · Qwen3.8-27B · Q4_K_M · RTX 3080 20GB + 395 | Setup: the 3080 does all Prefill and hands KV through shared memory for the 395 to Decode, single-stream (C1); the control is the 395 alone. Setup vs 395: TTFT **1073** ms vs 4825 ms, Prefill **1000.6** vs 207.2; the 3080's own raw compute is 1228.53, and the Setup reaches only 82% of that | The ceiling is the accelerator card's own raw compute; PD buys TTFT and capacity |
+| Remote KV pool | 27B-KV-01 · Qwen3.8-27B · Q4_K_M · RTX 3080 20GB + 395 | Setup: the 3080 does all Prefill and stores KV in the 395's remote pool; decode has two routes. Configuration C, the 395 decodes: 3080 Prefill 1194.4–1210.6, aggregate Decode 1 stream 33.55 → 6 streams 63.84. Configuration D, the 3080 decodes: 3080 Prefill 1077–1090, aggregate Decode 1 stream 63.2 → 6 streams 116.3 | Two decode routes: C, the 395 decodes; D, the 3080 decodes; the 395 never runs Prefill |
+| MoE PD | ORNITH-PD-01 · Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB + 395 | Setup: the 3080 does all Prefill and migrates KV to the 395 for all Decode; concurrency rises from 1 stream (C1) to 6 streams (C6), and the arrow is those two tiers. 1000 input tokens: 3080 Prefill aggregate 4017.46 → 3943.88 tok/s. 100K input: 3080 Prefill aggregate 2895.53 → 2793.24. 395 Decode aggregate (100K tier): 23.33 → 148.20, 6.35×. Two workloads × six concurrency tiers, 42 requests, 42/42 succeeded | MoE PD stays stable at 100K context under 1 to 6 concurrent streams; Prefill is attributed to the 3080 and Decode to the 395 |
+| MoE fused draft | ORNITH-PD-02 · Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB + 395 | Setup: same as ORNITH-PD-01, the 3080 does all Prefill and the 395 does all Decode, with a DFlash draft head on the 395 for speculative decode, single-stream. 3080 Prefill **4173.47**; 395 single-stream Decode **114.86**, draft acceptance 107/114 (93.86%) | Decode gain comes from draft acceptance: at 9.4% acceptance it is only 3665.3 / 37.2, and at 93.86% Decode is 3.09 times that |
+| Single-server split | FLASH-SPLIT-01 · Qwen3.8-Flash · Q4 · RTX 3080 20GB + 395 | Setup: one llama-server uses both devices at once, tensor split 0.38 on the 3080 and 0.62 on the 395; among 1 to 6 concurrent streams the best tier is 4 streams (C4). C4: Prefill 633.685, aggregate Decode 71.185, total throughput 338.270 tok/s | One server drives both devices; C4 is the operating point on this workload |
 
 ## Why Dense Acceleration is this repository's focus
 
@@ -94,12 +94,12 @@ Every figure belongs to one of two hardware routes and one of six experiment cel
 | **D2 Dense · fills the card**<br>Qwen3.8-27B · Q4_K_M · RTX 3080 | With VRAM nearly full, which wins: the whole model on one card, separated phases, or a layered dense route? | **Verified**: 27B-PD-01 runs the 3080 on Prefill and the 395 on Decode while serving, cuts the 395's time to first token by more than three quarters, and passes all six tiers C1–C6. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
 | **D3 Dense · does not fit**<br>Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 | When one card cannot finish the job, can splitting the model finish it and still beat the 395? | **Verified**: 27B-LONG-01 runs more than twice as fast as the 395 alone and turns the 98K timeout into a finished run. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
 | **M1 MoE · fits easily**<br>model and quantization TBD | With few active parameters and VRAM to spare, does MoE routing overhead eat back the time the overlap saves? | Planned (see Roadmap). |
-| **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context across six concurrency tiers, and keeps both stages attributable ([record](results/ornith-1.5-35b-a3b-dual-machine-pd.md)); ORNITH-PD-02 adds a fused draft head and a unified KV pool on the same pair of devices, reaching Prefill 4173.47 and single-stream Decode 114.86 ([record](results/ornith-1.5-35b-a3b-fused-dflash-pd.md)). |
+| **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context under 1 to 6 concurrent streams, and keeps both stages attributable ([record](results/ornith-1.5-35b-a3b-dual-machine-pd.md)); ORNITH-PD-02 adds a fused draft head and a unified KV pool on the same pair of devices, reaching 3080 Prefill 4173.47 and 395 single-stream Decode 114.86 ([record](results/ornith-1.5-35b-a3b-fused-dflash-pd.md)). |
 | **M3 MoE · does not fit**<br>Qwen3.8-Flash · Q4 · RTX 3080 pilot | When the total footprint exceeds both control cards, can splitting by layer or by expert keep it running, keep throughput, and keep the output correct? | FLASH-SPLIT-01 is the pilot for this cell: it verified that a single-server split runs and found its best concurrency tier. The full experiment is planned (see Roadmap). [Pilot record](results/qwen3.8-flash-q4-layer-split.md) |
 
 ## Experiment data
 
-One small table per experiment; this is the only place on the front page that holds complete figures. Figures are copied from `results/` and `data/`; if this page and a record disagree, the record and the CSV win. A gain is "pair result ÷ control result − 1", and TTFT is written as how much it dropped.
+One small table per experiment; this is the only place on the front page that holds complete figures. Figures are copied from `results/` and `data/`; if this page and a record disagree, the record and the CSV win. A gain is "pair result ÷ control result − 1", and TTFT is written as how much it dropped. In the tables, C1–C6 means 1 to 6 concurrent requests at once; C1 is single-stream. "Aggregate" is the combined speed of the streams that are running together, and "single-stream" is the speed of one stream on its own.
 
 **Dense Acceleration.** The direct evidence is only 9B-PIPE-01, with both a 3060 single-card control and a 395 single-host control.
 
@@ -162,13 +162,13 @@ What it verifies: phase separation works while serving, Prefill does not fall of
 
 The RTX 3080 20GB takes all Prefill and the AI Max+ 395 all Decode; main model Ornith-1.5-35B-A3B with IQ4_XS weight quantization; draft head Qwen3.6-35B-A3B-DFlash with Q4_K_M weight quantization; data from [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv).
 
-| Metric | C1 | C6 | Change |
+| Metric | C1 (1 concurrent stream) | C6 (6 concurrent streams) | Change |
 | --- | --- | --- | --- |
-| Aggregate Prefill at 1000 input (tok/s) | 4017.46 | 3943.88 | -1.8% |
-| Aggregate Prefill at 100K (tok/s) | 2895.53 | 2793.24 | -3.5% |
-| 395 pure-Decode aggregate (tok/s) | 23.33 | 148.20 | 6.35× |
+| 3080 Prefill aggregate, 1000 input tokens (tok/s) | 4017.46 | 3943.88 | -1.8% |
+| 3080 Prefill aggregate, 100K input (tok/s) | 2895.53 | 2793.24 | -3.5% |
+| 395 Decode aggregate, 100K input (tok/s) | 23.33 | 148.20 | 6.35× |
 
-One stress run covered two workloads, a short one at 1000 in / 128 out and a long one at 100000 in / 128 out, for 42/42 successful requests in total, `route=pd`, `n_reuse=0`. The short stage has no cell for the 395 pure-Decode rate because that rate was not timed separately. What it verifies: MoE PD runs stably at 100K context across six concurrency tiers, and it is clear which device owns Prefill and which owns Decode.
+The same stress run covered two workloads: 1000 in / 128 out, and 100000 in / 128 out; each workload ran 1 to 6 concurrent streams, 1+2+3+4+5+6 = 21 requests, 42/42 succeeded in total, `route=pd`, `n_reuse=0`. The 1000-input tier did not separately record the 395 Decode rate, so the table only has Decode for the 100K tier. What it verifies: MoE PD runs stably at 100K context under 1 to 6 concurrent streams, with Prefill attributed to the 3080 and Decode to the 395.
 
 ### ORNITH-PD-02 · Ornith-1.5-35B-A3B · IQ4_XS · PD with a fused DFlash draft head
 
@@ -188,7 +188,7 @@ What it verifies: Prefill holds above 4000 while single-stream Decode reaches 11
 
 Accelerator RTX 3080 20GB; model Qwen3.8-27B, weight quantization Q4_K_M, KV cache q4_0; data from [qwen27b-local-results.csv](data/qwen27b-local-results.csv).
 
-| Configuration | Prefill (tok/s) | Aggregate Decode C1 | Aggregate Decode C6 | Growth C1→C6 |
+| Configuration | 3080 Prefill (tok/s) | Aggregate Decode · 1 stream (C1) | Aggregate Decode · 6 streams (C6) | 1 stream → 6 streams growth |
 | --- | --- | --- | --- | --- |
 | Configuration C · 395 decodes | 1194.4–1210.6 | 33.55 | 63.84 | +90.3% |
 | Configuration D · 3080 decodes | 1077–1090 | 63.2 | 116.3 | +84.0% |
@@ -199,7 +199,7 @@ Accelerator RTX 3080 20GB; model Qwen3.8-27B, weight quantization Q4_K_M, KV cac
 
 A single llama-server using the RTX 3080 20GB and the AI Max+ 395 together; model Qwen3.8-Flash, weight quantization Q4, KV cache q4_0; tensor split 0.38 / 0.62, ubatch 1024 / batch 4096, 6 slots at 131072 context; 3080 VRAM peaked at 19129 MiB; data from [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv).
 
-| Metric | C4 (best tier) | Change C1→C4 |
+| Metric | C4 (4 concurrent streams, best tier) | 1 stream (C1) → 4 streams (C4) change |
 | --- | --- | --- |
 | Prefill (tok/s) | 633.685 | +11.2% |
 | Aggregate Decode (tok/s) | 71.185 | +102.2% |
@@ -245,13 +245,13 @@ Seven releases map onto seven experiments that have data.
 
 | Release | Experiment | One-line conclusion |
 | --- | --- | --- |
-| v1.0 | 9B-PD-01 | The handoff works: first token 3.496 s vs 5.879 s, Prefill 1452.29 vs 861.55, Decode 30.28 vs 30.24 |
-| **v1.1** | 9B-PIPE-01, 27B-LONG-01, EXT-DGX-01 | Dense Acceleration works at 9B (Prefill 1865.08 → 1893.87 → 1999.51 → 2129.69, Decode 50.73; 37.16 only at 1999.51). 27B-LONG-01 more than doubles Prefill at 4K and 64K (658.52 / 319.10 vs 313.28 / 136.69) and turns the 98K timeout into 225.10 |
-| v1.2 | 27B-PD-01 | PD works while serving. Prefill 683.2 → 1000.6, then held 1000–1015 as concurrency rose; C1 TTFT 1073 ms vs 4825 ms. 207.2 is the measured v1.0-method 395 solo Prefill |
-| v1.3 | 27B-KV-01, 27B-DRAFT-AUDIT-01 | Checkpoint copy off: 3080 serving Prefill 1000.6 → 1210.6 (98.5% of 1228.53), 395 solo 207.2 → 307.1. C: Prefill 1194.4–1210.6, Decode C1 33.55 / C6 63.84. D: Prefill 1077–1090, Decode C1 63.2 / C6 116.3. Natural-language C1 Decode 12.1 at 17.7% acceptance |
-| v1.4 | ORNITH-PD-01 | Every request goes through (42/42). Prefill 4017.46 → 3943.88 at 1000 input and 2895.53 → 2793.24 at 100K; 395 pure-Decode aggregate 23.33 → 148.20 |
-| v1.5 | FLASH-SPLIT-01 | 21/21 scored requests succeed. C4 is the best tier: Prefill 633.685, aggregate Decode 71.185, total throughput 338.270. C1–C6 Prefill 569.892–633.685 |
-| **v1.6** | ORNITH-PD-02 | Prefill 4173.47, single-stream Decode 114.86, draft acceptance 107/114 (93.86%). Decode follows draft acceptance: 3665.3 / 37.2 at 9.4% |
+| v1.0 | 9B-PD-01 | The 3060 does Prefill and hands state to the 395 for Decode. Setup vs 395 alone: first token 3.496 s vs 5.879 s, Prefill 1452.29 vs 861.55, Decode 30.28 vs 30.24 |
+| **v1.1** | 9B-PIPE-01, 27B-LONG-01, EXT-DGX-01 | 3060 + 395 computing the same stage at once, 9B Dense Acceleration works: Setup Prefill four checkpoints 1865.08 → 1893.87 → 1999.51 → 2129.69, final Decode 50.73 (37.16 belongs only to the 1999.51 checkpoint). 27B-LONG-01 layer-split vs 395 alone: pp4096 658.52 vs 313.28, pp65536 319.10 vs 136.69, pp98304 from a 900 s timeout to 225.10 |
+| v1.2 | 27B-PD-01 | 3080 Prefill and 395 Decode works while serving. 3080 Prefill rose from 683.2 (per-ubatch RPC sync) to 1000.6 (direct CUDA), holding 1000–1015 from 1 to 6 concurrent streams; C1 TTFT Setup 1073 ms vs 395 alone 4825 ms. 207.2 is the measured v1.0-method 395-alone Prefill |
+| v1.3 | 27B-KV-01, 27B-DRAFT-AUDIT-01 | With the checkpoint copy off, 3080 serving Prefill 1000.6 → 1210.6 (98.5% of raw 1228.53), 395-alone Prefill 207.2 → 307.1. Remote KV pool, two routes: configuration C, the 395 decodes, 3080 Prefill 1194.4–1210.6, aggregate Decode 1 stream 33.55 → 6 streams 63.84; configuration D, the 3080 decodes, 3080 Prefill 1077–1090, aggregate Decode 1 stream 63.2 → 6 streams 116.3. Audit: on the 395, natural-language C1 Decode 12.1, draft acceptance 17.7% |
+| v1.4 | ORNITH-PD-01 | MoE stress test with 3080 doing all Prefill and 395 all Decode; two workloads × six concurrency tiers, 42/42 requests. 1000 input tokens: 3080 Prefill aggregate 1 stream 4017.46 → 6 streams 3943.88; 100K input: 2895.53 → 2793.24; 395 Decode aggregate (100K tier) 1 stream 23.33 → 6 streams 148.20 |
+| v1.5 | FLASH-SPLIT-01 | Single-server split (3080 at 0.38, 395 at 0.62), 21/21 scored requests succeeded. Best tier is 4 streams (C4): Prefill 633.685, aggregate Decode 71.185, total throughput 338.270; 1 to 6 streams Prefill 569.892–633.685 |
+| **v1.6** | ORNITH-PD-02 | 3080 Prefill 4173.47, 395 with DFlash draft single-stream Decode 114.86, draft acceptance 107/114 (93.86%). Decode follows acceptance: at 9.4% only 3665.3 / 37.2 |
 
 Version numbers are experiment milestones, not a count of documentation edits; how they map onto older publication numbers is in [VERSION_HISTORY.md](VERSION_HISTORY.md).
 
