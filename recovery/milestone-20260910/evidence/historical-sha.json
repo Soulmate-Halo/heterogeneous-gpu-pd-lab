@@ -1,0 +1,299 @@
+{
+  "investigated_at": "2026-09-10",
+  "repo": "Soulmate-Halo/heterogeneous-gpu-pd-lab",
+  "expected_old_main": "a608d07e4d70094b9dd5949abb889095a93c26e6",
+  "expected_old_tree": "d73412b26bdd9204444a77e6ddd7944de9583564",
+  "old_main_parents": ["538867fcd7c0c0ccd2f527a5b9366b5db48e3dcb"],
+  "catalog_date_not_original_publish": "2026-09-10",
+  "note": "2026-09-10 is the recatalog date. Original GitHub published_at values below are historical evidence and must not be rewritten onto new v1.x releases as if they were first published that day.",
+  "current_ref_count": {
+    "tags": 21,
+    "releases": 21,
+    "heads": ["refs/heads/main"]
+  },
+  "tags": [
+    {
+      "name": "v1.0",
+      "ref_object_type": "commit",
+      "ref_object_sha": "b36c383b68b349937a568846f969cdb7534160c3",
+      "resolved_commit": "b36c383b68b349937a568846f969cdb7534160c3"
+    },
+    {
+      "name": "v2.0",
+      "ref_object_type": "commit",
+      "ref_object_sha": "c57dc6dc10b32b17fa64db883c4cad332933d84a",
+      "resolved_commit": "c57dc6dc10b32b17fa64db883c4cad332933d84a"
+    },
+    {
+      "name": "v2.1",
+      "ref_object_type": "tag",
+      "ref_object_sha": "45758722f17a72df675aa649bb9a5c33eed1bfd0",
+      "resolved_commit": "fbe3d07ec13db1ffb6a17caa3cceedd6aea9901b",
+      "annotated": {
+        "sha": "45758722f17a72df675aa649bb9a5c33eed1bfd0",
+        "tag": "v2.1",
+        "message": "v2.1 public experiment checkpoint",
+        "object_type": "commit",
+        "object_sha": "fbe3d07ec13db1ffb6a17caa3cceedd6aea9901b",
+        "tagger_name": "Soulmate-Halo",
+        "tagger_date": "2026-09-01T17:53:38Z"
+      }
+    },
+    {
+      "name": "v2.2",
+      "ref_object_type": "tag",
+      "ref_object_sha": "03793f1247d3bafae6219e5f16f9c6e196a44de2",
+      "resolved_commit": "a5bd73c4f6392a742f04b4e179f7022132d5810d",
+      "annotated": {
+        "sha": "03793f1247d3bafae6219e5f16f9c6e196a44de2",
+        "tag": "v2.2",
+        "message": "v2.2 public experiment checkpoint",
+        "object_type": "commit",
+        "object_sha": "a5bd73c4f6392a742f04b4e179f7022132d5810d",
+        "tagger_name": "Soulmate-Halo",
+        "tagger_date": "2026-09-01T17:53:40Z"
+      }
+    },
+    {
+      "name": "v2.3",
+      "ref_object_type": "tag",
+      "ref_object_sha": "97abffe113450c912e85a7508b40b881b0619849",
+      "resolved_commit": "7139bf41c9d4bcdfafcdc316c9dd625cc80ecd84",
+      "annotated": {
+        "sha": "97abffe113450c912e85a7508b40b881b0619849",
+        "tag": "v2.3",
+        "message": "v2.3 public experiment checkpoint",
+        "object_type": "commit",
+        "object_sha": "7139bf41c9d4bcdfafcdc316c9dd625cc80ecd84",
+        "tagger_name": "Soulmate-Halo",
+        "tagger_date": "2026-09-01T17:53:42Z"
+      }
+    },
+    {
+      "name": "v2.4",
+      "ref_object_type": "commit",
+      "ref_object_sha": "0814893d8778af874c7b704444087a07b6c4fa6b",
+      "resolved_commit": "0814893d8778af874c7b704444087a07b6c4fa6b"
+    },
+    {
+      "name": "v2.14",
+      "ref_object_type": "commit",
+      "ref_object_sha": "ad27c08e92e745009613c1ca3d829e3bb5c8ed1c",
+      "resolved_commit": "ad27c08e92e745009613c1ca3d829e3bb5c8ed1c"
+    },
+    {
+      "name": "v2.15",
+      "ref_object_type": "commit",
+      "ref_object_sha": "b5c619aeb5cb1dfe9aaa7fd56ad049fed4c363e3",
+      "resolved_commit": "b5c619aeb5cb1dfe9aaa7fd56ad049fed4c363e3"
+    },
+    {
+      "name": "v2.16",
+      "ref_object_type": "commit",
+      "ref_object_sha": "de1c2bb8686a517f6b84a9a225475a803b04c161",
+      "resolved_commit": "de1c2bb8686a517f6b84a9a225475a803b04c161"
+    },
+    {
+      "name": "v2.17",
+      "ref_object_type": "commit",
+      "ref_object_sha": "6ced746664a4b7ade4231daefab3242a75a3ee77",
+      "resolved_commit": "6ced746664a4b7ade4231daefab3242a75a3ee77"
+    },
+    {
+      "name": "v2.18",
+      "ref_object_type": "commit",
+      "ref_object_sha": "9d033105eb70c45770902ad8969167ab7a132b44",
+      "resolved_commit": "9d033105eb70c45770902ad8969167ab7a132b44"
+    },
+    {
+      "name": "v2.19",
+      "ref_object_type": "commit",
+      "ref_object_sha": "71503e6ebb2c40187ac69cd4cf36046fe99233b6",
+      "resolved_commit": "71503e6ebb2c40187ac69cd4cf36046fe99233b6"
+    },
+    {
+      "name": "v2.20",
+      "ref_object_type": "commit",
+      "ref_object_sha": "25e7dbcd4bd36921e4d8e43cdbd5a3035acf260d",
+      "resolved_commit": "25e7dbcd4bd36921e4d8e43cdbd5a3035acf260d"
+    },
+    {
+      "name": "v2.21",
+      "ref_object_type": "commit",
+      "ref_object_sha": "6c9f46e827e040517127ce9c85602c459228a724",
+      "resolved_commit": "6c9f46e827e040517127ce9c85602c459228a724"
+    },
+    {
+      "name": "v2.22",
+      "ref_object_type": "commit",
+      "ref_object_sha": "cb8589da99c27de1a34544600bd44d32cb6dffb6",
+      "resolved_commit": "cb8589da99c27de1a34544600bd44d32cb6dffb6"
+    },
+    {
+      "name": "v2.23",
+      "ref_object_type": "commit",
+      "ref_object_sha": "491b1230c1f52d057c02da6a09ac4b02b28a6493",
+      "resolved_commit": "491b1230c1f52d057c02da6a09ac4b02b28a6493"
+    },
+    {
+      "name": "v2.24",
+      "ref_object_type": "commit",
+      "ref_object_sha": "1680b4a72b242238bd30aec5d8a817cd1cd2c594",
+      "resolved_commit": "1680b4a72b242238bd30aec5d8a817cd1cd2c594"
+    },
+    {
+      "name": "v2.25",
+      "ref_object_type": "commit",
+      "ref_object_sha": "8bccb850abd21ecc54c634c79992807069d86a57",
+      "resolved_commit": "8bccb850abd21ecc54c634c79992807069d86a57"
+    },
+    {
+      "name": "v2.26",
+      "ref_object_type": "commit",
+      "ref_object_sha": "c8943d032009a5d018d8e034e88534a6a9dab3f1",
+      "resolved_commit": "c8943d032009a5d018d8e034e88534a6a9dab3f1"
+    },
+    {
+      "name": "v2.27",
+      "ref_object_type": "commit",
+      "ref_object_sha": "b3112b19953d0024d63b49e3270dc83e970e41f9",
+      "resolved_commit": "b3112b19953d0024d63b49e3270dc83e970e41f9"
+    },
+    {
+      "name": "v2.28",
+      "ref_object_type": "commit",
+      "ref_object_sha": "a608d07e4d70094b9dd5949abb889095a93c26e6",
+      "resolved_commit": "a608d07e4d70094b9dd5949abb889095a93c26e6"
+    }
+  ],
+  "missing_tags_located_via_gh_commits": {
+    "method": "gh api repos/Soulmate-Halo/heterogeneous-gpu-pd-lab/commits?path=VERSION then commits?sha=ad27c08e92e745009613c1ca3d829e3bb5c8ed1c; take newest commit whose message starts with v2.X: and VERSION blob equals that version. No guess.",
+    "v2.5": {
+      "tip_commit": "5472a50bb98dcb730c08aa4967d7a699875410d6",
+      "tree": "0caa90cfbace80115954043f63b67ef51107fd9b",
+      "VERSION": "2.5",
+      "committer_date": "2026-09-02T14:40:13Z",
+      "message": "v2.5: add Qwen3.8-27B dual-machine heterogeneous PD (RTX 3080 + AI Max+ 395) results",
+      "series_newest_first": [
+        "5472a50bb98dcb730c08aa4967d7a699875410d6",
+        "4c39ab0d93a66fc9f771af8970d8e6a85e47172f",
+        "30421a30abdbc0ed25b51e38126b2d122b189431",
+        "149fe8ebaf659ebd495f766c2e2f15a699da1942",
+        "53a80444df17344bdef60ca219b7f586b37699a5",
+        "e6319d87f1747f57875fa354880e5529dde872af",
+        "f127abd401738b47e907386e159a3f5518b346a8",
+        "3cca78367fb52cb6b2710fb89f58570d3272be83"
+      ],
+      "version_path_commit": "53a80444df17344bdef60ca219b7f586b37699a5",
+      "not_the_renamed_original_v25": "68561e8c81d0799bf014e0c25180d93d0990e787 was later renamed to v2.4 and is the v2.4 tag, not v1.2"
+    },
+    "v2.6": {
+      "tip_commit": "a22229a47c40af720046ac7aab63553b32da1e28",
+      "tree": "fd5bc2bda9daa59b351fe77e33b757e21088e7f3",
+      "VERSION": "2.6",
+      "committer_date": "2026-09-02T17:08:15Z",
+      "message": "v2.6: unify 27B experiments and add router v1.1/v1.2",
+      "series_newest_first": [
+        "a22229a47c40af720046ac7aab63553b32da1e28",
+        "86062a15d529a7be4c7943ad611c333af7aff267",
+        "8423f598aec4a20e21d888474074de86d1edd09d",
+        "6ef26080d158271dfeeb4fa9d7e2422b72969fd2",
+        "1291190b4c34dcf930fa3a9e037bcdf99e71500b",
+        "3fd8247542fab76cf793b0d39ff6bb9e2ba26d7d",
+        "75735113a9254a09815eb1fdc7794415ee43921c",
+        "50ede7ad071836dddc62067a6094f82f289b9325"
+      ],
+      "version_path_commit": "a22229a47c40af720046ac7aab63553b32da1e28"
+    },
+    "v2.11": {
+      "tip_commit": "898b81898e57f63dd722f30f1ffae7e78a453fe7",
+      "tree": "ae2bf4bb9a2da3370af318ad5ee3d71115df15ad",
+      "VERSION": "2.11",
+      "committer_date": "2026-09-03T09:03:42Z",
+      "message": "v2.11: add Ornith-1.5-35B-A3B experiment (8/8)",
+      "series_newest_first": [
+        "898b81898e57f63dd722f30f1ffae7e78a453fe7",
+        "eae5e815f26da3fa677ea96707e746cda0a56643",
+        "44696f9ddf8b36195f110204a1ecdabafe0ee804",
+        "3fc8926c6d10112c0330c8abc1d76f2fac727328",
+        "a63e25013feaf3848faa32a9af56cadb32f8c903",
+        "14feab444ceb17d7932660039e55a7919ac3e62f",
+        "e6a819cc2afb7684240b363b4da766d766145195",
+        "72dec38bf625324f0e5a229c234734dbf6b05d4b"
+      ],
+      "version_path_commit": "898b81898e57f63dd722f30f1ffae7e78a453fe7"
+    }
+  },
+  "milestone_tag_targets": {
+    "v1.0": "b36c383b68b349937a568846f969cdb7534160c3",
+    "v1.1": "0814893d8778af874c7b704444087a07b6c4fa6b",
+    "v1.2": "5472a50bb98dcb730c08aa4967d7a699875410d6",
+    "v1.3": "a22229a47c40af720046ac7aab63553b32da1e28",
+    "v1.4": "898b81898e57f63dd722f30f1ffae7e78a453fe7",
+    "v1.5": "ad27c08e92e745009613c1ca3d829e3bb5c8ed1c",
+    "v1.6": "NEW_MAIN_AFTER_SIX_DOC_FILES"
+  },
+  "original_releases_snapshot_fields": [
+    "id",
+    "tag_name",
+    "name",
+    "body",
+    "draft",
+    "prerelease",
+    "target_commitish",
+    "published_at",
+    "created_at",
+    "html_url"
+  ],
+  "original_release_ids": {
+    "v1.0": 380668628,
+    "v2.0": 380668636,
+    "v2.1": 380711668,
+    "v2.2": 380711681,
+    "v2.3": 380711687,
+    "v2.4": 380711705,
+    "v2.14": 382847850,
+    "v2.15": 383308146,
+    "v2.16": 383317930,
+    "v2.17": 383328509,
+    "v2.18": 383635474,
+    "v2.19": 383651864,
+    "v2.20": 383658092,
+    "v2.21": 384008800,
+    "v2.22": 384024897,
+    "v2.23": 384041074,
+    "v2.24": 384071717,
+    "v2.25": 384131184,
+    "v2.26": 384230825,
+    "v2.27": 384442692,
+    "v2.28": 384493484
+  },
+  "original_release_published_at": {
+    "v1.0": "2026-09-01T16:40:24Z",
+    "v2.0": "2026-09-01T16:40:25Z",
+    "v2.1": "2026-09-01T17:53:48Z",
+    "v2.2": "2026-09-01T17:53:49Z",
+    "v2.3": "2026-09-01T17:53:51Z",
+    "v2.4": "2026-09-01T17:53:52Z",
+    "v2.14": "2026-09-04T15:52:19Z",
+    "v2.15": "2026-09-05T16:49:28Z",
+    "v2.16": "2026-09-05T17:24:39Z",
+    "v2.17": "2026-09-05T18:01:02Z",
+    "v2.18": "2026-09-06T15:41:58Z",
+    "v2.19": "2026-09-06T16:45:13Z",
+    "v2.20": "2026-09-06T17:09:58Z",
+    "v2.21": "2026-09-07T10:34:24Z",
+    "v2.22": "2026-09-07T11:03:28Z",
+    "v2.23": "2026-09-07T11:32:15Z",
+    "v2.24": "2026-09-07T12:26:27Z",
+    "v2.25": "2026-09-07T14:02:08Z",
+    "v2.26": "2026-09-07T17:10:14Z",
+    "v2.27": "2026-09-08T04:15:40Z",
+    "v2.28": "2026-09-08T06:36:41Z"
+  },
+  "irreversible_on_delete": [
+    "GitHub release numeric id",
+    "published_at / created_at original timestamps",
+    "asset download_count"
+  ]
+}

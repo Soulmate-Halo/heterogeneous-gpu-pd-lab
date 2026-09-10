@@ -1,0 +1,566 @@
+{
+  "repo": "Soulmate-Halo/heterogeneous-gpu-pd-lab",
+  "archive_branch": "archive/pre-milestones-20260910",
+  "old_main": "a608d07e4d70094b9dd5949abb889095a93c26e6",
+  "old_tree": "d73412b26bdd9204444a77e6ddd7944de9583564",
+  "tags": [
+    {
+      "name": "v1.0",
+      "ref_object_type": "commit",
+      "ref_object_sha": "b36c383b68b349937a568846f969cdb7534160c3",
+      "resolved_commit": "b36c383b68b349937a568846f969cdb7534160c3",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.0",
+      "ref_object_type": "commit",
+      "ref_object_sha": "c57dc6dc10b32b17fa64db883c4cad332933d84a",
+      "resolved_commit": "c57dc6dc10b32b17fa64db883c4cad332933d84a",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.1",
+      "ref_object_type": "tag",
+      "ref_object_sha": "45758722f17a72df675aa649bb9a5c33eed1bfd0",
+      "resolved_commit": "fbe3d07ec13db1ffb6a17caa3cceedd6aea9901b",
+      "annotated_chain": [
+        {
+          "sha": "45758722f17a72df675aa649bb9a5c33eed1bfd0",
+          "tag": "v2.1",
+          "message": "v2.1 public experiment checkpoint",
+          "object": {
+            "sha": "fbe3d07ec13db1ffb6a17caa3cceedd6aea9901b",
+            "type": "commit",
+            "url": "https://api.github.com/repos/Soulmate-Halo/heterogeneous-gpu-pd-lab/git/commits/fbe3d07ec13db1ffb6a17caa3cceedd6aea9901b"
+          },
+          "tagger": {
+            "name": "Soulmate-Halo",
+            "email": "2548483948@qq.com",
+            "date": "2026-09-01T17:53:38Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "v2.14",
+      "ref_object_type": "commit",
+      "ref_object_sha": "ad27c08e92e745009613c1ca3d829e3bb5c8ed1c",
+      "resolved_commit": "ad27c08e92e745009613c1ca3d829e3bb5c8ed1c",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.15",
+      "ref_object_type": "commit",
+      "ref_object_sha": "b5c619aeb5cb1dfe9aaa7fd56ad049fed4c363e3",
+      "resolved_commit": "b5c619aeb5cb1dfe9aaa7fd56ad049fed4c363e3",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.16",
+      "ref_object_type": "commit",
+      "ref_object_sha": "de1c2bb8686a517f6b84a9a225475a803b04c161",
+      "resolved_commit": "de1c2bb8686a517f6b84a9a225475a803b04c161",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.17",
+      "ref_object_type": "commit",
+      "ref_object_sha": "6ced746664a4b7ade4231daefab3242a75a3ee77",
+      "resolved_commit": "6ced746664a4b7ade4231daefab3242a75a3ee77",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.18",
+      "ref_object_type": "commit",
+      "ref_object_sha": "9d033105eb70c45770902ad8969167ab7a132b44",
+      "resolved_commit": "9d033105eb70c45770902ad8969167ab7a132b44",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.19",
+      "ref_object_type": "commit",
+      "ref_object_sha": "71503e6ebb2c40187ac69cd4cf36046fe99233b6",
+      "resolved_commit": "71503e6ebb2c40187ac69cd4cf36046fe99233b6",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.2",
+      "ref_object_type": "tag",
+      "ref_object_sha": "03793f1247d3bafae6219e5f16f9c6e196a44de2",
+      "resolved_commit": "a5bd73c4f6392a742f04b4e179f7022132d5810d",
+      "annotated_chain": [
+        {
+          "sha": "03793f1247d3bafae6219e5f16f9c6e196a44de2",
+          "tag": "v2.2",
+          "message": "v2.2 public experiment checkpoint",
+          "object": {
+            "sha": "a5bd73c4f6392a742f04b4e179f7022132d5810d",
+            "type": "commit",
+            "url": "https://api.github.com/repos/Soulmate-Halo/heterogeneous-gpu-pd-lab/git/commits/a5bd73c4f6392a742f04b4e179f7022132d5810d"
+          },
+          "tagger": {
+            "name": "Soulmate-Halo",
+            "email": "2548483948@qq.com",
+            "date": "2026-09-01T17:53:40Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "v2.20",
+      "ref_object_type": "commit",
+      "ref_object_sha": "25e7dbcd4bd36921e4d8e43cdbd5a3035acf260d",
+      "resolved_commit": "25e7dbcd4bd36921e4d8e43cdbd5a3035acf260d",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.21",
+      "ref_object_type": "commit",
+      "ref_object_sha": "6c9f46e827e040517127ce9c85602c459228a724",
+      "resolved_commit": "6c9f46e827e040517127ce9c85602c459228a724",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.22",
+      "ref_object_type": "commit",
+      "ref_object_sha": "cb8589da99c27de1a34544600bd44d32cb6dffb6",
+      "resolved_commit": "cb8589da99c27de1a34544600bd44d32cb6dffb6",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.23",
+      "ref_object_type": "commit",
+      "ref_object_sha": "491b1230c1f52d057c02da6a09ac4b02b28a6493",
+      "resolved_commit": "491b1230c1f52d057c02da6a09ac4b02b28a6493",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.24",
+      "ref_object_type": "commit",
+      "ref_object_sha": "1680b4a72b242238bd30aec5d8a817cd1cd2c594",
+      "resolved_commit": "1680b4a72b242238bd30aec5d8a817cd1cd2c594",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.25",
+      "ref_object_type": "commit",
+      "ref_object_sha": "8bccb850abd21ecc54c634c79992807069d86a57",
+      "resolved_commit": "8bccb850abd21ecc54c634c79992807069d86a57",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.26",
+      "ref_object_type": "commit",
+      "ref_object_sha": "c8943d032009a5d018d8e034e88534a6a9dab3f1",
+      "resolved_commit": "c8943d032009a5d018d8e034e88534a6a9dab3f1",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.27",
+      "ref_object_type": "commit",
+      "ref_object_sha": "b3112b19953d0024d63b49e3270dc83e970e41f9",
+      "resolved_commit": "b3112b19953d0024d63b49e3270dc83e970e41f9",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.28",
+      "ref_object_type": "commit",
+      "ref_object_sha": "a608d07e4d70094b9dd5949abb889095a93c26e6",
+      "resolved_commit": "a608d07e4d70094b9dd5949abb889095a93c26e6",
+      "annotated_chain": []
+    },
+    {
+      "name": "v2.3",
+      "ref_object_type": "tag",
+      "ref_object_sha": "97abffe113450c912e85a7508b40b881b0619849",
+      "resolved_commit": "7139bf41c9d4bcdfafcdc316c9dd625cc80ecd84",
+      "annotated_chain": [
+        {
+          "sha": "97abffe113450c912e85a7508b40b881b0619849",
+          "tag": "v2.3",
+          "message": "v2.3 public experiment checkpoint",
+          "object": {
+            "sha": "7139bf41c9d4bcdfafcdc316c9dd625cc80ecd84",
+            "type": "commit",
+            "url": "https://api.github.com/repos/Soulmate-Halo/heterogeneous-gpu-pd-lab/git/commits/7139bf41c9d4bcdfafcdc316c9dd625cc80ecd84"
+          },
+          "tagger": {
+            "name": "Soulmate-Halo",
+            "email": "2548483948@qq.com",
+            "date": "2026-09-01T17:53:42Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "v2.4",
+      "ref_object_type": "commit",
+      "ref_object_sha": "0814893d8778af874c7b704444087a07b6c4fa6b",
+      "resolved_commit": "0814893d8778af874c7b704444087a07b6c4fa6b",
+      "annotated_chain": []
+    }
+  ],
+  "releases": [
+    {
+      "id": 384493484,
+      "tag_name": "v2.28",
+      "name": "v2.28",
+      "body": "本版把 27B-KV-01 的配置 C 与配置 D 从「Prefill 优先 / Decode 优先」改述为**两条解码路线**，区别在解码主力放在哪张卡上。\n\n- **配置 C · 395 解码**：RTX 3080 不装草稿头，算力全部给 Prefill，KV 写回 AI Max+ 395，解码由 395 承担（该侧带 DFlash 头单流 38.75 tok/s、持全量 KV 池）。Prefill 因此是本节最高的 1194.4–1210.6 tok/s。\n- **配置 D · 3080 解码**：DFlash 草稿头装到 3080 上，由 3080 自己解码（该卡带头单流实测自然语言 42.7 tok/s、代码 67.4 tok/s，是 395 带同一个头的 2.2–2.3 倍），聚合 Decode 从 63.84 抬到 116.3 tok/s。\n- **配置 D 的 Prefill 为什么低约一成**：不只是「腾显存」，而是 3080 的算力和显存被解码分走一大块——草稿头权重 1080 MiB、验证批另需约 500 MiB 计算缓冲，ctx8192 下 ubatch 从 1024 压到 512、slot 从 2 个减到 1 个，每步验证批矩阵乘 4 token 批 +21 ms、8 token 批 +49 ms。Prefill 于是从 1210.6 掉到 1077–1090 tok/s。\n- 全库把「395 不参与任何计算」改为准确表述「395 不参与 Prefill 稠密计算」，解码归属改由两条路线说明；涉及双语首页、双语 27B 详档、时间线 v2.8 行与末尾口径条。\n\n本版没有做任何新测量，所有数值沿用既有实测记录；`data/`、`assets/` 下文件未改动。\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-08T06:36:41Z",
+      "created_at": "2026-09-08T06:36:38Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.28",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 384442692,
+      "tag_name": "v2.27",
+      "name": "v2.27 - 27B-KV-01 configuration D Prefill",
+      "body": "27B-KV-01 的配置 D 补上 Prefill：单流 1077-1090 tok/s（此前该格为空）。\n\n- 逐档单流 Prefill：C1 到 C6 依次 1090 / 1081 / 1080 / 1077 / 1082 / 1082 tok/s\n- 同一轮聚合口径：1079 降到 1016 tok/s\n- 配置 D 低于配置 C 约一成，原因是把 ubatch 从 1024 降到 512 以腾出解码显存\n- 数据出自原始压测记录（router v1.2 两阶段抢占，1000 输入 / 128 输出），本版无新测量\n- results/ data/ assets/ 未改动",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-08T04:15:40Z",
+      "created_at": "2026-09-08T04:15:37Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.27",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 384230825,
+      "tag_name": "v2.26",
+      "name": "v2.26 - ORNITH-PD-02 fused DFlash speculative decode over PD",
+      "body": "This release adds the second Ornith experiment, which had never been filed: **ORNITH-PD-02**.\n\n## What is new\n\nOn top of the independent PD of ORNITH-PD-01 (RTX 3080 does all Prefill, AI Max+ 395 does all Decode), the 395 side now runs fused DFlash speculative decode (`--spec-type draft-dflash`, draft length n_max 6) and its six slots share one unified KV pool (`--kv-unified`).\n\nMeasured on a single-stream 1000 in / 128 out workload:\n\n| Configuration | Prefill (tok/s) | Single-stream Decode (tok/s) | Draft acceptance |\n| --- | ---: | ---: | ---: |\n| Fused recipe, Prefill batch 4096 | 4173.47 | 114.86 | 107/114 (93.86%) |\n| Fused recipe, batch 8196, context 128K | 4123.15 | 114.42 | not recorded |\n| Same recipe, a prompt the draft head could not predict | 3665.3 | 37.2 | 9.4% |\n\nAll three endpoints answered HTTP 200 with no OOM or crash; the RTX 3080 held 18661/20480 MiB and the 395 Vulkan side about 22678/65536 MiB. The Decode figure tracks draft acceptance: back at 93.86% it is 3.09x the 37.2 result, so the acceptance rate must always be quoted with it.\n\nAlso filled in: the 1000-input Prefill figures of ORNITH-PD-01, C1 4017.46 to C6 3943.88, which were already in the CSV and the record but had not been shown on the homepage. On that same workload the fused recipe sits 3.88% above the C1 figure.\n\n## Boundaries kept\n\n- The two Ornith experiments use different workloads: ORNITH-PD-01 is a C1-C6 concurrency matrix, ORNITH-PD-02 is a single stream. They are not merged into one ranking.\n- Nothing derived from total wall-clock time was restored; the aggregate Decode column removed in v2.12 stays removed and `e2e_aggregate_primary_tok_s` stays NA.\n- No new measurement was taken for this release. Every figure comes verbatim from the original experiment records `r379_summary.md` and `r382_ctx_prefill.md`.\n\n## Files\n\nNew bilingual record `results/ornith-1.5-35b-a3b-fused-dflash-pd.md` (and `.zh-CN.md`) with the verbatim parameters of the 8080 / 8081 / 8082 processes; two rows appended to `data/ornith35a3b-local-results.csv` and one row to `data/experiment-index.csv`, with all existing rows unchanged.\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-07T17:10:14Z",
+      "created_at": "2026-09-07T17:10:11Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.26",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 384131184,
+      "tag_name": "v2.25",
+      "name": "v2.25 - model and quantization in every experiment heading",
+      "body": "## 中文\n\n这一版只改标识，不改数据：每个实验的标题现在直接写出被测模型与权重量化，读者不用打开表格就知道数据对应什么。\n\n- 双语首页的 9 个实验标题统一为「实验编号 · 模型 · 权重量化 · 实验用途」。例如 `27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · 模型分层装`、`ORNITH-PD-01 · Ornith-1.5-35B-A3B · IQ4_XS · MoE 的 PD 压测`。\n- 标题下的配置行补齐模型与量化，并把**权重量化**和 **KV 缓存量化**分开写（27B 服务态与 Flash 切层的 KV 都是 `q4_0`）；Ornith 那项同时标明 `IQ4_XS` 主模型与 `Qwen3.6-35B-A3B-DFlash-Q4_K_M` 草稿头。\n- 量化格式一律照抄 `data/` 里 CSV 的 `quantization` 字段与 `results/` 详档原文，不做归一化改写。\n- 9B 那一档的模型名改为 **Ornith 9B**。此前写的「Ornith-1.5-9B」在详档、CSV 和全部原始记录里都查不到依据（那个 1.5 是从 Ornith-1.5-35B-A3B 类推来的）；详档 `results/v1.0-independent-pd.md` 与 `results/v2.4-fused-layer-pipeline.md` 只记「9B, Q6_K」，配置行现已注明这一点。\n- 六格实验矩阵的每一格补上该格用的模型与权重量化；「详档与数据」目录表第二列由「加速卡」改为「模型 · 权重量化 · 加速卡」，表格仍是 5 列。\n\n没有新测量，没有改动任何实验数值。门禁 10 项全部通过：以远端 v2.24 为基线，双语首页数值多重集无一丢失（唯一减少的两个 token 是版本号 `2.24` 与被替换掉的 v2.24 版本说明句里的 `5`，同一表述仍在时间线 v2.24 行），17 个链接目标全在，所有表格不超过 5 列，`results`/`data`/`assets` 共 22 个文件与 v2.24 逐字节相同，与基线不同的文件恰好只有本次发布的这 5 个。\n\n## English\n\nThis release changes labels only, not data: every experiment heading now names the model under test and its weight quantization, so a reader knows what a table measures before opening it.\n\n- All 9 experiment headings on both homepages follow \"experiment ID · model · weight quantization · purpose\", for example `27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · model split across layers` and `ORNITH-PD-01 · Ornith-1.5-35B-A3B · IQ4_XS · MoE PD stress test`.\n- The configuration line under each heading now carries the model and quantization, keeping **weight quantization** separate from **KV-cache quantization** (`q4_0` for the 27B serving runs and the Flash layer split). The Ornith entry names both its `IQ4_XS` main model and its `Qwen3.6-35B-A3B-DFlash-Q4_K_M` draft head.\n- Quantization strings are copied verbatim from the `quantization` column in `data/` and from the records under `results/`, with no normalization.\n- The 9B tier's model is now **Ornith 9B**. The earlier \"Ornith-1.5-9B\" has no support in the records, the CSV files, or any raw log; that 1.5 was carried over from Ornith-1.5-35B-A3B. `results/v1.0-independent-pd.md` and `results/v2.4-fused-layer-pipeline.md` label the tier only as \"9B, Q6_K\", and the configuration line now says so.\n- Every cell of the six-cell matrix now states its model and weight quantization, and the second column of \"Detailed Reports and Data\" changed from \"Accelerator\" to \"Model · weight quantization · accelerator\". The table is still 5 columns.\n\nNo new measurements and no experimental value changed. All 10 gate checks passed against remote v2.24: no numeric token lost from either homepage (the only two that drop are the version token `2.24` and the `5` inside the replaced v2.24 version note, whose statement still exists in the v2.24 timeline row), all 17 link targets intact, every table at most 5 columns, all 22 files under `results`/`data`/`assets` byte-identical to v2.24, and exactly the 5 published files differ from the baseline.\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-07T14:02:08Z",
+      "created_at": "2026-09-07T14:02:04Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.25",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 384071717,
+      "tag_name": "v2.24",
+      "name": "v2.24",
+      "body": "## v2.24 — 原理在前、数据已验证、表格可读\n\n- 首页章节顺序改为：这套方案怎么工作 → 两条加速卡路线与六类实验 → 实验结果：全部实测并验证 → 时间线 → 怎么读这些数据 → 后续规划 → 详档与数据。中英文同步。\n- 每一处数据都按「已实测并验证」陈述：删去六格矩阵的进度行和路线表「这条线缺什么」一行，矩阵第三列改为「已验证到哪一步」；原「没有对照的实验」一组改为服务能力实验组，每项写它验证了什么；要补的对照集中写进后续规划 v3.0。\n- 原 8 列宽表拆成每个实验一个不超过 5 列的小表（行是配置、列是指标），GitHub 上可正常阅读。\n- 架构图 `assets/base-architecture.png` / `assets/base-architecture.zh-CN.png` 重绘为 1600×1100 纵向大字号布局；绘图脚本 `make_base_architecture.py` 入库。\n- 没有新测量，没有改动任何一个数值。\n\nEnglish: the principle and architecture now come before any data; every figure is stated as measured and verified; one table per experiment with at most 5 columns; the architecture diagram is redrawn at 1600×1100 with large type; no new measurements and no numeric value changed.\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "1680b4a72b242238bd30aec5d8a817cd1cd2c594",
+      "published_at": "2026-09-07T12:26:27Z",
+      "created_at": "2026-09-07T12:26:25Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.24",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 384041074,
+      "tag_name": "v2.23",
+      "name": "v2.23",
+      "body": "## v2.23 — 27B 档 Prefill 数值口径核对 / Prefill figures at the 27B tier: methods stated\n\n- 核对结论：首页 27B-PD-01 里 AI Max+ 395 单机的 Prefill **207.2 tok/s** 是原始实验记录里的 C1 solo 实测（v1.0 服务态，TTFT 4825 毫秒与之自洽），不是 1207.2 的笔误；1200 以上的 Prefill 只出现在 RTX 3080 一侧。\n- 首页补写 395 单机 27B Prefill 的三个口径：207.2（v1.0 服务态、开着 524 MiB 递归态检查点整拷）、307.1（关掉检查点后的 v1.1 服务态）、313.28（IQ3 `llama-bench` pp4096）；时间线 v2.6 行补入 3080 侧 1000.6 → 1210.6 的递进。\n- 无新测量，原有数值一个没改；`results/`、`data/`、`assets/` 零改动。\n\n---\n\n- Verified: the AI Max+ 395 solo Prefill of **207.2 tok/s** in the 27B-PD-01 row is the measured C1 solo result from the original log (v1.0 serving; the 4825 ms TTFT on the same row agrees with it), not a typo for 1207.2. Every Prefill above 1200 belongs to the RTX 3080 side.\n- The homepage now states the three methods behind the 395's 27B Prefill figures — 207.2 (v1.0 serving with the 524 MiB recurrent-state checkpoint copy on), 307.1 (v1.1 serving with it off), 313.28 (`llama-bench` pp4096 on IQ3) — and the v2.6 timeline row gains the 3080 side's 1000.6 → 1210.6 step.\n- No new measurement; no existing value changed; zero changes under `results/`, `data/`, and `assets/`.\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "491b1230c1f52d057c02da6a09ac4b02b28a6493",
+      "published_at": "2026-09-07T11:32:15Z",
+      "created_at": "2026-09-07T11:31:45Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.23",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 384024897,
+      "tag_name": "v2.22",
+      "name": "v2.22",
+      "body": "v2.22 — 首页缩减重构 / Homepage trimmed and restructured\n\n- 完整实验数据只在「结论与核心数据」一章出现一次；有对照的实验按「加速卡单独跑 / 395 单机跑 / 组合跑 / 提升幅度」并列，没有对照的实验只写实测到哪一步。其余章节只保留实验意图、路线、时间线与结论。没有新测量，没有修改任何数值。\n- Complete data now appears once, in \"Conclusions and Core Data\": controlled experiments are laid out as card alone / 395 alone / pair / gain; uncontrolled ones only record how far they got. Every other section keeps only intent, routes, timeline, and conclusions. Nothing new measured, no number changed.\n- Files changed: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION. results / data / assets untouched.\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-07T11:03:28Z",
+      "created_at": "2026-09-07T11:03:21Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.22",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 384008800,
+      "tag_name": "v2.21",
+      "name": "v2.21 · 架构图改为静态图片",
+      "body": "架构图改为静态图片（中文页 assets/base-architecture.zh-CN.png，英文页 assets/base-architecture.png），mermaid 源码折叠在图下面用普通代码块保留。\n\n原因：图原先由 GitHub 自己渲染，浏览器一开整页翻译就会把代码块里的 flowchart、subgraph、direction、end 一起翻掉，GitHub 拿到的不是合法源码，图的位置只显示 Unable to render rich display。已核实源码本身合法：mermaid 11.16 解析与渲染均通过，关闭翻译的干净浏览器里原图正常显示。\n\n无新测量，无任何数值改动，results 与 data 目录零改动。",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-07T10:34:24Z",
+      "created_at": "2026-09-07T10:34:21Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.21",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 383658092,
+      "tag_name": "v2.20",
+      "name": "v2.20 - readable rewrite of both homepages",
+      "body": "v2.20 rewrites both homepages for readability.\r\n\r\n- Plain wording replaces stacked jargon in Chinese and English.\r\n- Long sentences are broken into short ones with a clear subject and verb.\r\n- Section headings were reworded; structure and ordering are unchanged.\r\n- No new measurement, no changed value; results, data, and assets are untouched.\r\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-06T17:09:58Z",
+      "created_at": "2026-09-06T17:09:56Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.20",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 383651864,
+      "tag_name": "v2.19",
+      "name": "v2.19 - accelerator tracks split, single-device baselines first",
+      "body": "v2.19 splits the two accelerator tracks apart and puts single-device baselines first.\r\n\r\n- New chapter \"Two accelerator tracks: RTX 3060 12GB and RTX 3080 20GB\" placed before the timeline. Track 1 covers v1.0-v2.4 (9B dense, 9B-PD-01 / 9B-PIPE-01 / 27B-LONG-01); track 2 covers v2.5-v2.14 (27B dense and MoE, 27B-PD-01 / 27B-KV-01 / ORNITH-PD-01 / FLASH-SPLIT-01). The two tracks are never merged into one ranking.\r\n- New section \"Single-device baselines first\" ahead of every heterogeneous table: RTX 3060 card 1589.00 / 43.87 tok/s, AI Max+ 395 host 861.55 / 30.24 tok/s (serving) and 970.00 / 31.27 tok/s (llama-bench) for the 9B tier; RTX 3080 raw compute and 395 host rows for the 27B tier.\r\n- Matched-baseline table now shows baseline and route values in separate columns; envelope table gained an accelerator column and a missing-baseline column; the six-cell matrix, route selector, and experiment registry all name their card.\r\n- No new measurement, no changed value; the results, data, and assets directories are unchanged.\r\n",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-06T16:45:13Z",
+      "created_at": "2026-09-06T16:45:11Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.19",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 383635474,
+      "tag_name": "v2.18",
+      "name": "v2.18 - experiment timeline front and center, both languages rewritten",
+      "body": "Homepage narrative rebuild. The experiment timeline (v1.0 to v2.17) now sits right after the base architecture and is grouped into four phases: 9B dense pipeline, 27B on the RTX 3080, MoE and single-server layer split, then governance-only releases. Wording rewritten in both Chinese and English. No new measurement, no value change; results/ and data/ untouched.",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-06T15:41:58Z",
+      "created_at": "2026-09-06T15:41:56Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.18",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 383328509,
+      "tag_name": "v2.17",
+      "name": "v2.17 — Architecture-first six-experiment plan",
+      "body": "Moves the base architecture to the top; restores the RTX 3080/3060 six-experiment matrix for Dense and MoE fit regimes; restores the v2.1→v2.1X evolution and preserves v3.0/v4.0 planning. No benchmark source value changed.",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-05T18:01:02Z",
+      "created_at": "2026-09-05T18:00:58Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.17",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 383317930,
+      "tag_name": "v2.16",
+      "name": "v2.16 — Data-first experiment overview and route selection",
+      "body": "Homepage now exposes matched baseline gains, no-baseline serving envelopes, direct conclusions, and a route selector. Full result matrices remain in canonical records and CSV files. Benchmark source values are unchanged.",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-05T17:24:39Z",
+      "created_at": "2026-09-05T17:23:39Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.16",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 383308146,
+      "tag_name": "v2.15",
+      "name": "v2.15 — Experiment contracts and evidence boundaries",
+      "body": "Reorganizes the repository around stable experiment IDs and explicit research contracts.\n\n- One primary question, control, changed factor, decision gate, and claim boundary per experiment\n- Benchmark tables removed from the homepages and retained in canonical result records\n- 9B checkpoints and 27B C/D profiles no longer counted as separate experiments\n- KV-only, Ornith, and Flash layer-split claims narrowed to the evidence their controls support\n- Added data/experiment-index.csv for legacy-label and evidence mapping",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-05T16:49:28Z",
+      "created_at": "2026-09-05T16:48:13Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.15",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 382847850,
+      "tag_name": "v2.14",
+      "name": "v2.14 — Qwen3.8-Flash Q4 Dual-Device Layer Split (r374 Final C1–C6)",
+      "body": "Publishes the Qwen3.8-Flash Q4 dual-device layer-split record (r374): one llama-server on the RTX 3080 (CUDA0) and AI Max+ 395 (Vulkan1), tensor split 0.38/0.62, ubatch 1024 / batch 4096, flash attention on, q4_0 KV cache, 6 slots at 131072 context. Final C1-C6 envelope (~2077 in / 256 out, temperature 0): aggregate Prefill 569.892-633.685 tok/s (peak C4), aggregate Decode 35.204-71.185 tok/s (peak C4), total throughput up to 338.270 tok/s at C4. 21/21 scored requests HTTP 200 with complete timings; warm-up excluded. New files: results/qwen3.8-flash-q4-layer-split.md (+ zh-CN), data/qwen38flash-q4-local-results.csv.",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-04T15:52:19Z",
+      "created_at": "2026-09-04T15:52:06Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.14",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 380711705,
+      "tag_name": "v2.4",
+      "name": "v2.4 — Small-VRAM Accelerator + Large-VRAM, Low-Compute Host Dense Acceleration",
+      "body": "Final calibrated pipeline: 2129.69 tok/s prefill. English is now the default language; a complete Chinese mirror, Soulmate spirit mark, and source-linked DGX Spark community controls are included. External controls are explicitly not directly comparable.\n\n最终校准流水：prefill 2129.69 tok/s。仓库默认英语并提供完整中文镜像、小灵魂标志与带来源的 DGX Spark 社区外部对照；外部对照明确不可直接比较。",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "0814893d8778af874c7b704444087a07b6c4fa6b",
+      "published_at": "2026-09-01T17:53:52Z",
+      "created_at": "2026-09-02T04:31:37Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.4",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 380711687,
+      "tag_name": "v2.3",
+      "name": "v2.3 — Balance Refinement",
+      "body": "Balance-refinement checkpoint: 1999.51 tok/s prefill and 37.16 tok/s decode.\n\n平衡细化节点：prefill 1999.51 tok/s，decode 37.16 tok/s。",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "7139bf41c9d4bcdfafcdc316c9dd625cc80ecd84",
+      "published_at": "2026-09-01T17:53:51Z",
+      "created_at": "2026-09-01T17:53:42Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.3",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 380711681,
+      "tag_name": "v2.2",
+      "name": "v2.2 — Overlap Refinement",
+      "body": "Overlap-refinement checkpoint: 1893.87 tok/s prefill.\n\n重叠细化节点：prefill 1893.87 tok/s。",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "a5bd73c4f6392a742f04b4e179f7022132d5810d",
+      "published_at": "2026-09-01T17:53:49Z",
+      "created_at": "2026-09-01T17:53:40Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.2",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 380711668,
+      "tag_name": "v2.1",
+      "name": "v2.1 — First Fused Pipeline",
+      "body": "First public fused-pipeline checkpoint: 1865.08 tok/s prefill.\n\n首个公开融合流水节点：prefill 1865.08 tok/s。",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "fbe3d07ec13db1ffb6a17caa3cceedd6aea9901b",
+      "published_at": "2026-09-01T17:53:48Z",
+      "created_at": "2026-09-01T17:53:38Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.1",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 380668636,
+      "tag_name": "v2.0",
+      "name": "v2.0 — Fused Layer Pipeline",
+      "body": "Adds asynchronous heterogeneous layer-pipeline measurements enabled by upstream llama.cpp RPC events/async. Best measured prefill is 2129.69 tok/s at a 0.58 / 0.42 layer allocation. Results remain limited to a single-host 9B single-concurrency benchmark.",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-01T16:40:25Z",
+      "created_at": "2026-09-01T16:40:21Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v2.0",
+      "download_count_sum": 0,
+      "assets": []
+    },
+    {
+      "id": 380668628,
+      "tag_name": "v1.0",
+      "name": "v1.0 — Independent PD",
+      "body": "First public research snapshot: RTX 3060 handles prefill and Ryzen AI Max+ 395 / Radeon 8060S handles decode. Includes four measured 9B Q6_K nodes and explicit validation limits. Implementation instructions are intentionally excluded.",
+      "draft": false,
+      "prerelease": false,
+      "target_commitish": "main",
+      "published_at": "2026-09-01T16:40:24Z",
+      "created_at": "2026-09-01T16:40:10Z",
+      "html_url": "https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/tag/v1.0",
+      "download_count_sum": 0,
+      "assets": []
+    }
+  ],
+  "untagged_located": {
+    "v2.5": {
+      "tip_commit": "5472a50bb98dcb730c08aa4967d7a699875410d6",
+      "committer_date": "2026-09-02T14:40:13Z",
+      "message": "v2.5: add Qwen3.8-27B dual-machine heterogeneous PD (RTX 3080 + AI Max+ 395) results",
+      "series": [
+        "5472a50bb98dcb730c08aa4967d7a699875410d6",
+        "4c39ab0d93a66fc9f771af8970d8e6a85e47172f",
+        "30421a30abdbc0ed25b51e38126b2d122b189431",
+        "149fe8ebaf659ebd495f766c2e2f15a699da1942",
+        "53a80444df17344bdef60ca219b7f586b37699a5",
+        "e6319d87f1747f57875fa354880e5529dde872af",
+        "f127abd401738b47e907386e159a3f5518b346a8",
+        "3cca78367fb52cb6b2710fb89f58570d3272be83"
+      ],
+      "VERSION": "2.5"
+    },
+    "v2.6": {
+      "tip_commit": "a22229a47c40af720046ac7aab63553b32da1e28",
+      "committer_date": "2026-09-02T17:08:15Z",
+      "message": "v2.6: unify 27B experiments and add router v1.1/v1.2",
+      "series": [
+        "a22229a47c40af720046ac7aab63553b32da1e28",
+        "86062a15d529a7be4c7943ad611c333af7aff267",
+        "8423f598aec4a20e21d888474074de86d1edd09d",
+        "6ef26080d158271dfeeb4fa9d7e2422b72969fd2",
+        "1291190b4c34dcf930fa3a9e037bcdf99e71500b",
+        "3fd8247542fab76cf793b0d39ff6bb9e2ba26d7d",
+        "75735113a9254a09815eb1fdc7794415ee43921c",
+        "50ede7ad071836dddc62067a6094f82f289b9325"
+      ],
+      "VERSION": "2.6"
+    },
+    "v2.11": {
+      "tip_commit": "898b81898e57f63dd722f30f1ffae7e78a453fe7",
+      "committer_date": "2026-09-03T09:03:42Z",
+      "message": "v2.11: add Ornith-1.5-35B-A3B experiment (8/8)",
+      "series": [
+        "898b81898e57f63dd722f30f1ffae7e78a453fe7",
+        "eae5e815f26da3fa677ea96707e746cda0a56643",
+        "44696f9ddf8b36195f110204a1ecdabafe0ee804",
+        "3fc8926c6d10112c0330c8abc1d76f2fac727328",
+        "a63e25013feaf3848faa32a9af56cadb32f8c903",
+        "14feab444ceb17d7932660039e55a7919ac3e62f",
+        "e6a819cc2afb7684240b363b4da766d766145195",
+        "72dec38bf625324f0e5a229c234734dbf6b05d4b"
+      ],
+      "VERSION": "2.11"
+    }
+  },
+  "milestone_tag_targets": {
+    "v1.0": "b36c383b68b349937a568846f969cdb7534160c3",
+    "v1.1": "0814893d8778af874c7b704444087a07b6c4fa6b",
+    "v1.2": "5472a50bb98dcb730c08aa4967d7a699875410d6",
+    "v1.3": "a22229a47c40af720046ac7aab63553b32da1e28",
+    "v1.4": "898b81898e57f63dd722f30f1ffae7e78a453fe7",
+    "v1.5": "ad27c08e92e745009613c1ca3d829e3bb5c8ed1c",
+    "v1.6": "NEW_MAIN_AFTER_SIX_DOC_FILES"
+  },
+  "zip": {
+    "path": "C:\\Users\\Win11\\AppData\\Roaming\\xiaoyi-fenji\\worktrees\\work\\p_msge6fj0_vgyj\\s_mteggz85_ua3j\\deploy\\heterogeneous-gpu-pd-release\\milestone-20260910\\work-live\\remote-head.zip",
+    "sha256": "b8eee5ad69e9a952345bc27694b05007ef80c7a614783da8bee1b1f27b2dee0e",
+    "nbytes": 1124397,
+    "entries": 36
+  },
+  "irreversible_on_delete": "GitHub numeric release id, original published_at/created_at, and asset download_count cannot be restored after delete. Restore recreates a new release with the same tag_name, name, body, draft, prerelease and target_commitish only.",
+  "generated_at": "2026-09-10T10:55:02Z"
+}

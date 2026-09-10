@@ -1,0 +1,135 @@
+{
+  "schema": "heterogeneous-gpu-pd-lab/milestone-release-plan/v1",
+  "catalog_date": "2026-09-10",
+  "catalog_date_meaning": {
+    "en": "2026-09-10 is the date the historical experiments were recataloged into seven public milestones. It is not the original measurement day and must not be written as the original GitHub published_at of any old v2.* release.",
+    "zh": "2026-09-10 是把历史实验重新编目为七个公开里程碑的整理日期，不是原始测量日，也不得写成任何旧 v2.* GitHub Release 的首次发布时间。"
+  },
+  "source_of_numbers": {
+    "en": "Numbers below are copied from the recataloged local CHANGELOG.md / CHANGELOG_ZH.md that will be published as the six allowed documentation files, which themselves summarize remote historical CHANGELOG sections at the mapped commits. No figure was invented for this plan.",
+    "zh": "下列数字来自将作为六份允许文档发布的本地 CHANGELOG.md / CHANGELOG_ZH.md，它们归纳了远端历史 CHANGELOG 在映射提交上的原文。本计划未编造任何实验数字。"
+  },
+  "recatalog_map": [
+    {"public": "v1.0", "old": "v1.0", "tag_commit": "b36c383b68b349937a568846f969cdb7534160c3", "keep_original_ref": true, "had_github_release": true, "original_published_at": "2026-09-01T16:40:24Z"},
+    {"public": "v1.1", "old": "v2.1–v2.4 (tag target = v2.4)", "tag_commit": "0814893d8778af874c7b704444087a07b6c4fa6b", "keep_original_ref": false, "had_github_release": true, "original_published_at": "2026-09-01T17:53:52Z"},
+    {"public": "v1.2", "old": "v2.5 (untagged; located)", "tag_commit": "5472a50bb98dcb730c08aa4967d7a699875410d6", "keep_original_ref": false, "had_github_release": false, "commit_date": "2026-09-02T14:40:13Z"},
+    {"public": "v1.3", "old": "v2.6 (untagged; located)", "tag_commit": "a22229a47c40af720046ac7aab63553b32da1e28", "keep_original_ref": false, "had_github_release": false, "commit_date": "2026-09-02T17:08:15Z"},
+    {"public": "v1.4", "old": "v2.11 (untagged; located)", "tag_commit": "898b81898e57f63dd722f30f1ffae7e78a453fe7", "keep_original_ref": false, "had_github_release": false, "commit_date": "2026-09-03T09:03:42Z"},
+    {"public": "v1.5", "old": "v2.14", "tag_commit": "ad27c08e92e745009613c1ca3d829e3bb5c8ed1c", "keep_original_ref": false, "had_github_release": true, "original_published_at": "2026-09-04T15:52:19Z"},
+    {"public": "v1.6", "old": "new main after six-file docs commit (experiment body recatalogs ORNITH-PD-02 / old v2.26)", "tag_commit": "NEW_MAIN_AFTER_SIX_DOC_FILES", "keep_original_ref": false, "had_github_release": false, "make_latest": true}
+  ],
+  "milestones": [
+    {
+      "public": "v1.0",
+      "experiment_ids": ["9B-PD-01"],
+      "en": {
+        "measured": "Independent heterogeneous PD: Ornith 9B Q6_K, RTX 3060 Prefill handing state to Vulkan Decode on AI Max+ 395, 5064 in / 128 out, four measured handoff nodes, versus the single-host 9B boundary.",
+        "result": "Pair TTFT 3.496 s / Prefill 1452.29 tok/s / Decode 30.28 versus 395 serving 5.879 s / 861.55 / 30.24 (−40.5% TTFT, Prefill +68.6%, Decode +0.1%).",
+        "conclusion": "The CUDA-side state hands over in one piece; first token is sooner; Decode holds.",
+        "limit": "The two phases still run one after the other, so this is phase separation, not Dense Acceleration."
+      },
+      "zh": {
+        "measured": "异构独立 PD：Ornith 9B Q6_K，RTX 3060 做 Prefill，把状态交给 AI Max+ 395 的 Vulkan Decode，5064 输入 / 128 输出，四个实测交接节点，对照单机 9B 边界。",
+        "result": "组合 TTFT 3.496 秒 / Prefill 1452.29 / Decode 30.28，对照 395 服务态 5.879 秒 / 861.55 / 30.24（TTFT −40.5%，Prefill +68.6%，Decode +0.1%）。",
+        "conclusion": "CUDA 侧状态能整体交接；首字更快；Decode 不掉。",
+        "limit": "两段仍是先后跑，属于阶段分离，不是稠密加速。"
+      }
+    },
+    {
+      "public": "v1.1",
+      "experiment_ids": ["9B-PIPE-01", "27B-LONG-01"],
+      "en": {
+        "measured": "Fused 9B asynchronous layered pipeline (four checkpoints now under this milestone) and 27B IQ3 layer-split long-context 27B-LONG-01. 9B Ornith Q6_K on RTX 3060 12GB + AI Max+ 395; 27B Qwen3.8-27B UD-IQ3_XXS.",
+        "result": "9B-PIPE-01 pair Prefill 2129.69 / Decode 50.73 versus 3060 alone 1589.00 / 43.87 (+34.0% / +15.6%) and 395 llama-bench 970.00 / 31.27 (+119.6% / +62.2%). Checkpoint Prefill climb 1865.08 → 1893.87 → 1999.51 → 2129.69; 37.16 tok/s decode belongs only to the 1999.51 checkpoint. 27B-LONG-01 pair pp4096 658.52, pp65536 319.10, pp98304 225.10, tg64 19.57 versus 395 313.28 / 136.69 / timed out at 900 s / 18.26.",
+        "conclusion": "Dense Acceleration at 9B beats the fastest single card present; when the 3060 cannot hold 27B, the layer split finishes 98K and more than doubles Prefill at 4K and 64K.",
+        "limit": "9B gains need the same controls on another model; 27B-LONG-01 is IQ3, not Q4."
+      },
+      "zh": {
+        "measured": "9B 融合异步分层流水（四个检查点现归入本里程碑）以及 27B IQ3 分层长上下文 27B-LONG-01。9B 为 Ornith Q6_K，RTX 3060 12GB + AI Max+ 395；27B 为 Qwen3.8-27B UD-IQ3_XXS。",
+        "result": "9B-PIPE-01 组合 Prefill 2129.69 / Decode 50.73，对照 3060 单卡 1589.00 / 43.87 和 395 llama-bench 970.00 / 31.27。检查点 Prefill 爬升 1865.08 → 1893.87 → 1999.51 → 2129.69。27B-LONG-01 组合 pp4096 658.52、pp65536 319.10、pp98304 225.10、tg64 19.57。",
+        "conclusion": "9B 稠密加速比在场最快的单卡还快；3060 装不下 27B 时，分层装能跑完 98K，4K 和 64K 的 Prefill 快一倍以上。",
+        "limit": "9B 的提升换模型要按同样对照重测；27B-LONG-01 是 IQ3，不是 Q4。"
+      }
+    },
+    {
+      "public": "v1.2",
+      "experiment_ids": ["27B-PD-01"],
+      "en": {
+        "measured": "27B-PD-01 serving PD: RTX 3080 20GB Prefill and AI Max+ 395 Decode on Qwen3.8-27B Q4_K_M, six concurrency tiers C1–C6 on split and solo paths.",
+        "result": "C1 v1.0-method TTFT 1073 ms / Prefill 1000.6 / Decode 38.75 versus 395 solo 4825 ms / 207.2 / 36.33 (−77.8% TTFT, Prefill +382.9% / 4.83×, Decode +6.7%). Removing per-ubatch RPC sync lifted Prefill from 683.2 to 1000.6 (+46%), about 82% of 3080 raw pp1024 1228.53. Serving Prefill held 1000–1015 tok/s as concurrency rose. KV transfer 68–76 ms.",
+        "conclusion": "Phase separation works while serving; Prefill does not fall off as concurrency rises; Decode is unharmed. 207.2 is the measured v1.0-method 395 solo C1, not a typo for 1207.2.",
+        "limit": "This verifies separated phases, not both devices computing the same phase."
+      },
+      "zh": {
+        "measured": "27B-PD-01 服务态 PD：RTX 3080 20GB 做 Prefill、AI Max+ 395 做 Decode，Qwen3.8-27B Q4_K_M，C1–C6 六个并发档各跑 split 与 solo。",
+        "result": "C1、v1.0 口径 TTFT 1073 毫秒 / Prefill 1000.6 / Decode 38.75，对照 395 单机 4825 毫秒 / 207.2 / 36.33。去掉 RPC 逐 ubatch 同步后 Prefill 从 683.2 涨到 1000.6。服务态 Prefill 稳定在 1000–1015 tok/s。",
+        "conclusion": "服务状态下的阶段分离能跑，Prefill 不随并发下滑，Decode 不掉。207.2 是实测，不是 1207.2 的笔误。",
+        "limit": "验证的是阶段分离，不是同一阶段一起算。"
+      }
+    },
+    {
+      "public": "v1.3",
+      "experiment_ids": ["27B-KV-01", "27B-DRAFT-AUDIT-01"],
+      "en": {
+        "measured": "27B-KV-01 remote KV with two decode routes, and 27B-DRAFT-AUDIT-01, on Qwen3.8-27B Q4_K_M / KV q4_0. With the 524 MiB recurrent-state checkpoint copy off, 3080 serving Prefill rose from 1000.6 to 1210.6 tok/s (98.5% of raw 1228.53) and the 395 solo control from 207.2 to 307.1.",
+        "result": "Route C (395 decodes, 3080 headless Prefill): Prefill 1194.4–1210.6, aggregate Decode C1 33.55 / C6 63.84 (+90.3%). Route D (3080 decodes): Prefill 1077–1090 (C1–C6 1090/1081/1080/1077/1082/1082), aggregate Decode C1 63.2 / C6 116.3 (+84.0%). Draft-head audit: repetitive text 35.0–38.5 tok/s at 100% acceptance; natural-language C1 12.1 tok/s at 17.7% (−68.6%).",
+        "conclusion": "Take C when Prefill is the constraint, D when aggregate Decode is; the 395 never runs dense Prefill. A repetitive-text speculative-decode score does not stand in for real text.",
+        "limit": "D Prefill is about ten percent below C because Decode shares 3080 compute and VRAM; C and D are two routes of one experiment, not two experiments. Tag v1.3 points at the original v2.6 commit; later D Prefill fill-in was recorded on later old publications and is recataloged here on 2026-09-10, not back-dated onto v2.6's GitHub Release (there was none)."
+      },
+      "zh": {
+        "measured": "27B-KV-01 远端 KV 的两条解码路线，以及 27B-DRAFT-AUDIT-01；模型 Qwen3.8-27B Q4_K_M，KV q4_0。关掉每 prompt 整拷 524 MiB 递归态检查点后，3080 服务态 Prefill 从 1000.6 涨到 1210.6 tok/s。",
+        "result": "配置 C：Prefill 1194.4–1210.6，聚合 Decode C1 33.55 / C6 63.84。配置 D：Prefill 1077–1090，聚合 Decode C1 63.2 / C6 116.3。核查：重复文本 35.0–38.5 tok/s、接受率 100%；自然语言 C1 12.1 tok/s、接受率 17.7%。",
+        "conclusion": "Prefill 吃紧走 C；解码总吞吐吃紧走 D。395 不参与 Prefill 稠密计算。重复文本上的投机解码高分不能代表真实文本。",
+        "limit": "D 的 Prefill 比 C 低约一成。C 与 D 是同一实验的两条路线。v1.3 标签指向原 v2.6 提交；后来补进的 D Prefill 是 2026-09-10 编目时写入公开说明，不是把旧发布时间改写成 2026-09-10。"
+      }
+    },
+    {
+      "public": "v1.4",
+      "experiment_ids": ["ORNITH-PD-01"],
+      "en": {
+        "measured": "ORNITH-PD-01: RTX 3080 full Prefill and AI Max+ 395 full Decode on Ornith-1.5-35B-A3B IQ4_XS with Qwen3.6-35B-A3B-DFlash Q4_K_M; 42/42 requests, route=pd, n_reuse=0.",
+        "result": "1000 in / 128 out aggregate Prefill C1 4017.46 to C6 3943.88 (−1.8%); 100K aggregate Prefill C1 2895.53 to C6 2793.24 (−3.5%); 100K 395 pure-Decode aggregate C1 23.33 to C6 148.20 (6.35×).",
+        "conclusion": "MoE PD stays stable at 100K across six tiers, and Prefill versus Decode stays attributable.",
+        "limit": "The short stage has no separately timed 395 pure-Decode rate; no wall-clock-derived aggregate Decode is published."
+      },
+      "zh": {
+        "measured": "ORNITH-PD-01：RTX 3080 包全部 Prefill、AI Max+ 395 包全部 Decode，主模型 Ornith-1.5-35B-A3B IQ4_XS，草稿头 Qwen3.6-35B-A3B-DFlash Q4_K_M；42/42 请求成功。",
+        "result": "1000 输入 / 128 输出 Prefill 聚合 C1 4017.46 到 C6 3943.88（−1.8%）；100K Prefill 聚合 C1 2895.53 到 C6 2793.24（−3.5%）；100K 395 纯 Decode 聚合 C1 23.33 到 C6 148.20（6.35×）。",
+        "conclusion": "MoE 的 PD 在 100K、六档并发下跑得稳，Prefill 与 Decode 归属分得清。",
+        "limit": "短任务档没有单独计时的 395 纯 Decode 速率；不公布由整档墙钟派生的聚合 Decode。"
+      }
+    },
+    {
+      "public": "v1.5",
+      "experiment_ids": ["FLASH-SPLIT-01"],
+      "en": {
+        "measured": "FLASH-SPLIT-01: one llama-server on RTX 3080 (CUDA0) and AI Max+ 395 (Vulkan1), Qwen3.8-Flash Q4, tensor split 0.38 / 0.62, ubatch 1024 / batch 4096, q4_0 KV, 6 slots at 131072 context; 3080 VRAM peaked at 19129 MiB.",
+        "result": "~2077 in / 256 out, C1–C6 aggregate Prefill 569.892–633.685 tok/s (peak C4 633.685), aggregate Decode 35.204–71.185 tok/s (peak C4 71.185), total throughput C4 338.270 tok/s; 21/21 scored requests succeeded. C1→C4 Prefill +11.2%, aggregate Decode +102.2%, total throughput +58.4%.",
+        "conclusion": "C4 is the best concurrency tier for this workload; C5 and C6 no longer rise.",
+        "limit": "An operating point, not a matched speed-up versus a standalone card; a different workload must be measured again."
+      },
+      "zh": {
+        "measured": "FLASH-SPLIT-01：一个 llama-server 同时用 RTX 3080（CUDA0）和 AI Max+ 395（Vulkan1），Qwen3.8-Flash Q4，张量切分 0.38 / 0.62，ubatch 1024 / batch 4096，KV q4_0，6 槽、每槽 131072 上下文。",
+        "result": "约 2077 输入 / 256 输出，C1–C6 Prefill 聚合 569.892–633.685 tok/s（C4 峰值 633.685），聚合 Decode 35.204–71.185 tok/s（C4 峰值 71.185），总吞吐 C4 338.270 tok/s；21/21 计分请求成功。",
+        "conclusion": "这份负载最好用的并发档是 C4，C5、C6 已经不再上涨。",
+        "limit": "这是工作档位，不是相对单卡的匹配加速；换负载必须重测。"
+      }
+    },
+    {
+      "public": "v1.6",
+      "experiment_ids": ["ORNITH-PD-02"],
+      "en": {
+        "measured": "ORNITH-PD-02 on the same Ornith-1.5-35B-A3B IQ4_XS pair as ORNITH-PD-01, adding fused DFlash speculative decode (--spec-type draft-dflash, n_max 6) and a unified KV pool (--kv-unified).",
+        "result": "Single-stream 1000 in / 128 out Prefill 4173.47 tok/s, Decode 114.86 tok/s, draft acceptance 107/114 (93.86%); after batch/ubatch 8196 and ctx 131072, Prefill 4123.15 and Decode 114.42. All three endpoints HTTP 200, no OOM; 3080 18661/20480 MiB, 395 Vulkan about 22678/65536 MiB.",
+        "conclusion": "Prefill holds above 4000 while single-stream Decode reaches 114 when draft acceptance is high. A prompt the head could not predict fell to 3665.3 / 37.2 (9.4% acceptance).",
+        "limit": "Decode follows draft acceptance; re-measure with the same prompt, fixed output length, and the same seed. Public tag v1.6 is the new main after the six documentation files; 2026-09-10 is the recatalog date, not a forged original publish time for old v2.26."
+      },
+      "zh": {
+        "measured": "ORNITH-PD-02：与 ORNITH-PD-01 同一对 Ornith-1.5-35B-A3B IQ4_XS 硬件，加上 DFlash 融合草稿推测解码（--spec-type draft-dflash，n_max 6）和统一 KV 池（--kv-unified）。",
+        "result": "1000 输入 / 128 输出单流 Prefill 4173.47 tok/s、Decode 114.86 tok/s、草稿接受 107/114（93.86%）；batch/ubatch 8196、ctx 131072 后为 Prefill 4123.15、Decode 114.42。",
+        "conclusion": "草稿接受率高时，Prefill 站上 4000 以上、单流 Decode 站上 114。",
+        "limit": "解码成绩跟着草稿接受率走。v1.6 指向六份文档更新后的新 main；2026-09-10 是编目日，不是把旧 v2.26 的首次发布时间改写成这一天。"
+      }
+    }
+  ]
+}
