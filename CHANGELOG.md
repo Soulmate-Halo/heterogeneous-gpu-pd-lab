@@ -2,208 +2,53 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
-## v2.28
+Public versions are the seven measured experiment milestones below. [VERSION_HISTORY.md](VERSION_HISTORY.md) maps them to older publication numbers.
 
-- Reframed configurations C and D of 27B-KV-01 as two decode routes instead of "Prefill-first / Decode-first": in configuration C the 3080 carries no draft head and spends all of its compute on Prefill while the 395 does the decoding (a DFlash head at 38.75 tok/s single-stream on that side, holding the full KV pool); in configuration D the DFlash draft head moves onto the 3080 and that card decodes for itself (measured single-stream on it: 42.7 tok/s on natural language, 67.4 tok/s on code, 2.2–2.3 times the 395 running the same head).
-- Rewrote why configuration D sits about ten percent below C on Prefill: it is not only about freeing VRAM. Decode takes a large share of the compute and VRAM on the 3080 — draft head weights of 1080 MiB plus roughly 500 MiB of verification-batch compute buffer, ubatch down from 1024 to 512 at ctx8192, slot count down from 2 to 1, and a per-step verification matmul costing +21 ms on a 4-token batch and +49 ms on an 8-token batch.
-- Replaced every claim that the 395 performs no compute at all with the accurate one: the 395 runs no dense Prefill compute, and Decode ownership is described by the two routes. This touched both README pages, both 27B records, the v2.8 timeline row, and the closing boundary notes.
-- Nothing new was measured in this release; all figures come from the existing benchmark records, and no file under `data/` or `assets/` changed.
+## v1.6
 
-## v2.27
+- Measured ORNITH-PD-02 on the same Ornith-1.5-35B-A3B IQ4_XS pair as ORNITH-PD-01, adding fused DFlash speculative decode (`--spec-type draft-dflash`, n_max 6) and a unified KV pool (`--kv-unified`).
+- Result: single-stream 1000 in / 128 out Prefill **4173.47 tok/s**, Decode **114.86 tok/s**, draft acceptance **107/114 (93.86%)**; after batch/ubatch 8196 and ctx 131072, Prefill **4123.15** and Decode **114.42**. All three endpoints HTTP 200, no OOM; 3080 18661/20480 MiB, 395 Vulkan about 22678/65536 MiB.
+- Conclusion: Prefill holds above 4000 while single-stream Decode reaches 114 when draft acceptance is high. A prompt the head could not predict fell to 3665.3 / 37.2 (9.4% acceptance); another gate in the same round reached only 3785/44 for the same reason.
+- Limit: Decode follows draft acceptance; re-measure with the same prompt, fixed output length, and the same seed. Record: [ornith-1.5-35b-a3b-fused-dflash-pd.md](results/ornith-1.5-35b-a3b-fused-dflash-pd.md).
 
-- Filled in the Prefill figure for configuration D of 27B-KV-01: that cell used to be empty (`—`) and now carries the single-stream range **1077–1090 tok/s**. The values were already in the original benchmark record (router v1.2 two-stage preemption, 1000 in / 128 out) and match the two configuration D tables in [qwen3.8-27b-dual-machine-pd.md](results/qwen3.8-27b-dual-machine-pd.md); this release measured nothing new.
-- Stated the measurement basis under the table: configuration D reads 1090 / 1081 / 1080 / 1077 / 1082 / 1082 tok/s from C1 to C6 single-stream, and the aggregate figures from the same run fall from 1079 to 1016 tok/s. Both Prefill columns are single-stream, so configuration D compares directly with the 1194.4–1210.6 of configuration C.
-- Explained why configuration D sits about ten percent below configuration C: it drops ubatch from 1024 to 512 to free VRAM for Decode.
-- No file under `results/`, `data/`, or `assets/` changed in this release.
+## v1.5
 
-## v2.26
+- Measured FLASH-SPLIT-01: one llama-server on RTX 3080 (CUDA0) and AI Max+ 395 (Vulkan1), Qwen3.8-Flash Q4, tensor split 0.38 / 0.62, ubatch 1024 / batch 4096, q4_0 KV, 6 slots at 131072 context; 3080 VRAM peaked at 19129 MiB.
+- Result: ~2077 in / 256 out, C1–C6 aggregate Prefill 569.892–633.685 tok/s (peak C4 **633.685**), aggregate Decode 35.204–71.185 tok/s (peak C4 **71.185**), total throughput C4 **338.270** tok/s; 21/21 scored requests succeeded. C1→C4 Prefill +11.2%, aggregate Decode +102.2%, total throughput +58.4%.
+- Conclusion: C4 is the best concurrency tier for this workload; C5 and C6 no longer rise.
+- Limit: an operating point, not a matched speed-up versus a standalone card; a different workload must be measured again. Record: [qwen3.8-flash-q4-layer-split.md](results/qwen3.8-flash-q4-layer-split.md).
 
-- Added the experiment ORNITH-PD-02: on top of the independent PD of ORNITH-PD-01, the 395 side now runs fused DFlash speculative decode (`--spec-type draft-dflash`, draft length n_max 6) and its six slots share one unified KV pool (`--kv-unified`). On a single-stream 1000 in / 128 out workload the measured figures are Prefill **4173.47 tok/s**, Decode **114.86 tok/s**, and DFlash draft acceptance **107/114 (93.86%)**; after raising 8082 batch/ubatch to 8196 and 8081 ctx to 131072 (the single-request maximum under the unified KV pool, not 128K reserved per slot), the re-measured figures are Prefill **4123.15 tok/s** and Decode **114.42 tok/s**. All of 8080/8081/8082 answered HTTP 200 with no OOM and no crash after start-up; the 3080 held 18661/20480 MiB and the 395 Vulkan side about 22678/65536 MiB. The figures come from the original records `r379_summary.md` and `r382_ctx_prefill.md`; this release measured nothing new.
-- Filed the negative control for the same recipe: with only the prompt changed, DFlash acceptance fell from 93.9% to 9.4% and Prefill/Decode came out at just 3665.3 / 37.2 tok/s; a separate performance gate in the same round reached only 3785/44 for the same reason, low acceptance on that prompt rather than a bad parameter change. Any quotation of the ORNITH-PD-02 Decode figure must therefore state the acceptance rate, and re-measurement needs the same prompt, a fixed output length, and the same seed.
-- Filled in the 1000-input Prefill figures of ORNITH-PD-01: the bilingual homepage table gains a row "Aggregate Prefill at 1000 input", C1 4017.46 → C6 3943.88 (-1.8%). Those values were already in `data/ornith35a3b-local-results.csv` and in the record; the homepage had shown only the 100K stage. That stage still has no separately timed 395 pure-Decode rate and remains not recorded.
-- Nothing derived from total wall-clock time was restored anywhere: v2.12 removed that aggregate Decode column, and `e2e_aggregate_primary_tok_s` stays NA.
-- Added the bilingual record [ornith-1.5-35b-a3b-fused-dflash-pd.md](results/ornith-1.5-35b-a3b-fused-dflash-pd.md) and its [Chinese version](results/ornith-1.5-35b-a3b-fused-dflash-pd.zh-CN.md), including the verbatim parameters of the 8080 / 8081 / 8082 processes; appended 2 rows to `data/ornith35a3b-local-results.csv` (the existing 12 data rows unchanged) and one ORNITH-PD-02 row to `data/experiment-index.csv`.
-- Updated both homepages accordingly: the Route 2 experiment IDs, the M2 cell of the six-cell matrix, one more entry under choosing a route by goal, Phase 4 of the timeline extended to v2.26 with a new v2.26 row, the "Runs" tier under how to read the data, and a new ORNITH-PD-02 row in the closing record table.
+## v1.4
 
-## v2.25
+- Measured ORNITH-PD-01: RTX 3080 full Prefill and AI Max+ 395 full Decode on Ornith-1.5-35B-A3B IQ4_XS with Qwen3.6-35B-A3B-DFlash Q4_K_M; 42/42 requests, `route=pd`, `n_reuse=0`.
+- Result: 1000 in / 128 out aggregate Prefill C1 **4017.46** to C6 **3943.88** (−1.8%); 100K aggregate Prefill C1 **2895.53** to C6 **2793.24** (−3.5%); 100K 395 pure-Decode aggregate C1 **23.33** to C6 **148.20** (6.35×).
+- Conclusion: MoE PD stays stable at 100K across six tiers, and Prefill versus Decode stays attributable.
+- Limit: the short stage has no separately timed 395 pure-Decode rate; no wall-clock-derived aggregate Decode is published. Record: [ornith-1.5-35b-a3b-dual-machine-pd.md](results/ornith-1.5-35b-a3b-dual-machine-pd.md).
 
-- Standardized every experiment-result heading on both homepages as "experiment ID · model · weight quantization · purpose." The 9B experiments identify Ornith 9B / Q6_K; the 27B headings use the exact CSV values UD-IQ3_XXS or Q4_K_M, Ornith-1.5-35B-A3B uses IQ4_XS, Flash uses Q4, and the DGX Spark reference identifies Qwen3.5 9B / TQ3_4S and Qwen3.8-27B / NVFP4 separately.
-- Completed the model and quantization lines below the headings while keeping weight quantization separate from KV-cache quantization; the Ornith entry now names both its IQ4_XS main model and Q4_K_M draft head.
-- Renamed the 9B tier's model to "Ornith 9B". The earlier "Ornith-1.5-9B" has no support in the experiment records, the CSV files, or any raw log; that 1.5 was carried over from Ornith-1.5-35B-A3B. The records `results/v1.0-independent-pd.md` and `results/v2.4-fused-layer-pipeline.md` label the tier only as "9B, Q6_K", and the configuration line now says so.
-- Added the model and weight quantization to every cell of the six-cell matrix, and changed the second column of the "Detailed Reports and Data" table from "Accelerator" to "Model · weight quantization · accelerator"; the table is still 5 columns.
-- No new measurements and no experimental value changed.
+## v1.3
 
-## v2.24
+- Measured 27B-KV-01 remote KV with two decode routes, and 27B-DRAFT-AUDIT-01, on Qwen3.8-27B Q4_K_M / KV q4_0. With the 524 MiB recurrent-state checkpoint copy off, 3080 serving Prefill rose from **1000.6** to **1210.6 tok/s** (98.5% of raw 1228.53) and the 395 solo control from **207.2** to **307.1**.
+- Result, route C (395 decodes, 3080 headless Prefill): Prefill **1194.4–1210.6**, aggregate Decode C1 **33.55** / C6 **63.84** (+90.3%). Result, route D (3080 decodes): Prefill **1077–1090** (C1–C6: 1090 / 1081 / 1080 / 1077 / 1082 / 1082; same-run aggregate 1079 → 1016), aggregate Decode C1 **63.2** / C6 **116.3** (+84.0%). 3080 with the head: natural language 42.7 tok/s, code 67.4 tok/s (2.2–2.3× the 395 with the same head); 395 with the head 38.75 tok/s single-stream. Draft-head weights 1080 MiB plus ~500 MiB verification buffer; ubatch 1024 → 512, slots 2 → 1; verification matmul +21 ms / +49 ms. Audit: repetitive text 35.0–38.5 tok/s at 100% acceptance; natural-language C1 **12.1 tok/s** at 17.7% (−68.6%).
+- Conclusion: take C when Prefill is the constraint, D when aggregate Decode is; the 395 never runs dense Prefill. A repetitive-text speculative-decode score does not stand in for real text.
+- Limit: D Prefill is about ten percent below C because Decode shares 3080 compute and VRAM; C and D are two routes of one experiment, not two experiments. Record: [qwen3.8-27b-dual-machine-pd.md](results/qwen3.8-27b-dual-machine-pd.md).
 
-- Reordered the homepage on reader feedback: the principle and architecture chapter ("How the System Works") now comes before any experiment data, followed by "Two Accelerator Routes and the Six Experiment Cells"; the data moves down into "Experiment Results: Measured and Verified". Chinese and English pages are in step.
-- Every figure is now stated as measured and verified. Removed the "0/6 finished, 4 cells with partial data, 2 cells untested" progress line from the six-cell matrix and the "What this route still lacks" row from the route table; the third matrix column is now "Verified so far". The former "experiments without a control" group is now the service-capability group, each item stating what it verified; the v2.11 and v2.14 timeline rows now state what those rounds verified. Controls still to be added are collected in the v3.0 row of the Roadmap.
-- Replaced the 8-column wide table with one small table per experiment (rows are configurations, columns are metrics, never more than 5 columns); the old "What it proves" column became a "What it verifies" paragraph under each experiment.
-- Redrew `assets/base-architecture.png` and `assets/base-architecture.zh-CN.png` as a 1600×1100 vertical layout with Chinese text no smaller than 40 px, replacing the roughly 1024×150 horizontal strip; the drawing script `make_base_architecture.py` is added to the repository.
-- No new measurements and no numeric value changed.
+## v1.2
 
-## v2.23
+- Measured 27B-PD-01 serving PD: RTX 3080 20GB Prefill and AI Max+ 395 Decode on Qwen3.8-27B Q4_K_M, six concurrency tiers C1–C6 on split and solo paths.
+- Result: C1 v1.0 method TTFT **1073 ms** / Prefill **1000.6** / Decode **38.75** versus 395 solo 4825 ms / 207.2 / 36.33 (−77.8% TTFT, Prefill +382.9% / 4.83×, Decode +6.7%). Removing per-ubatch RPC sync lifted Prefill from **683.2** to **1000.6** (+46%), about 82% of 3080 raw pp1024 **1228.53** (pp4096 1203.06, tg64 33.08). Serving Prefill held **1000–1015 tok/s** as concurrency rose. KV transfer 68–76 ms (the serving record also states 71 ms).
+- Conclusion: phase separation works while serving; Prefill does not fall off as concurrency rises; Decode is unharmed. 207.2 is the measured v1.0-method 395 solo C1, not a typo for 1207.2.
+- Limit: this verifies separated phases, not both devices computing the same phase. Record: [qwen3.8-27b-dual-machine-pd.md](results/qwen3.8-27b-dual-machine-pd.md).
 
-- Checked the 27B-tier Prefill figures. A reader took the AI Max+ 395 solo Prefill of 207.2 in the 27B-PD-01 row to be a typo for 1207.2. We went back to the original experiment log (`bench_3080_cuda_full.log`, about 1000 input tokens, 255 output tokens, six concurrency tiers C1–C6 each on the split and solo paths) and checked line by line: the 395 solo C1 Prefill is measured at 207.2 tok/s, and the TTFT of 4825 ms on the same row agrees with it (about 1000 tokens ÷ 4.825 s); 1207.2 does not appear anywhere in the original records. Every Prefill above 1200 belongs to the RTX 3080 side: raw pp1024 1228.53, and 1194.4–1210.6 across C1–C6 in serving once the checkpoint copy was switched off. Conclusion: 207.2 stays.
-- The homepage now states the three methods behind the 395's 27B-tier Prefill figures: 207.2 (v1.0 serving, with a 524 MiB recurrent-state checkpoint copied out on every prompt and a Vulkan read-back of about 0.8 s), 307.1 (v1.1 serving on the same machines with that copy switched off; kept in the solo control column of the configuration C table in the 27B-KV-01 record), and 313.28 (`llama-bench` pp4096 on the IQ3 quantization). The 395-alone and pair cells of the 27B-PD-01 row are labelled as the v1.0 method.
-- The v2.6 timeline row gains the Prefill step: with the checkpoint copy off, the 3080 side's serving Prefill went from 1000.6 to 1210.6 tok/s (98.5% of raw) and the 395 solo control went from 207.2 to 307.1 at the same time. The 3080 side's Prefill chain is now 683.2 (per-ubatch RPC sync) → 1000.6 (direct CUDA) → 1210.6 (checkpoint copy off) → 1228.53 (raw ceiling).
-- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION. No new measurement; no existing homepage value changed, only the explanatory figures 307.1, 524 MiB, 0.8 s, and 98.5% were added; zero changes to the results, data, and assets directories.
+## v1.1
 
-## v2.22
-
-- The homepage is trimmed and restructured. The same figures used to appear in "Two accelerator tracks", the timeline, the six cells, "The conclusions in a few lines", "The measurements", "Choosing a route", and the experiment registry. Complete data now appears once, in "Conclusions and Core Data": the controlled experiments (9B-PIPE-01, 9B-PD-01, 27B-LONG-01, 27B-PD-01) are laid out as card alone / 395 alone / pair / gain, so the lead over the card alone and the host alone is visible at a glance; the uncontrolled ones (27B-KV-01, 27B-DRAFT-AUDIT-01, ORNITH-PD-01, FLASH-SPLIT-01, EXT-DGX-01) only record how far they got.
-- Every other section keeps only intent, routes, and conclusions: base architecture, the two accelerator routes with the six-cell matrix and its progress, choosing a route by goal, the one-row-per-release timeline v1.0 → v2.22, what the data can prove, the v3.0 / v4.0 roadmap, and the record and data index. The timeline keeps just two sets of figures as evidence of progression: the Phase 1 Prefill climb and the Phase 2 683.2 → 1000.6 step.
-- Section order is now: Conclusions and Core Data → Base Architecture → Two Accelerator Routes and the Six Experiment Cells → Experiment Timeline → What the Data Can and Cannot Prove → Roadmap → Detailed Reports and Data.
-- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION. No new measurement, no changed value, and zero changes to the results, data, and assets directories.
-
-## v2.21
-
-- The architecture diagram at the top of the homepage is now a static image: `assets/base-architecture.zh-CN.png` on the Chinese page and `assets/base-architecture.png` on the English one. The mermaid source is folded underneath the image in a plain code block, so it can still be copied out and redrawn.
-- Why it changed: GitHub used to draw that diagram itself. As soon as a browser translates the whole page, the keywords inside the code block — `flowchart`, `subgraph`, `direction`, `end` — get translated too, GitHub no longer receives valid source, and all that appears in place of the diagram is a single "Unable to render rich display" line. An image is immune to that.
-- The source itself was verified to be fine: mermaid 11.16 both parses and renders it, and on a clean browser with translation off the original diagram displays correctly on GitHub.
-- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION; added assets/base-architecture.zh-CN.png and assets/base-architecture.png. No new measurement, no changed value, and zero changes to the results and data directories.
-
-## v2.20
-
-- This release is a prose rewrite: both homepages were rewritten sentence by sentence, with no new measurement, no changed value, and zero changes to the results, data, and assets directories.
-- Stacked jargon was removed. Phrases such as "route split", "baseline front-loaded", "numerical sources of truth", "decision-level slice", "serving envelope", "same envelope", and "canonical entry" were replaced with plain wording, and long sentences were broken into short ones with a clear subject and verb.
-- The opening release note is now three plain sentences: this release only changes wording, the two accelerators get separate chapters, and single-device numbers come before two-device results, with the exact figures pointed to `results/` and `data/`.
-- Section headings were reworded: "Decision summary" became "The conclusions in a few lines", "Results at a glance" became "The measurements", "Single-device baselines first" became "Start with what each device does alone", "Six-experiment matrix" became "Six experiment cells, with the 3060 and 3080 as the controls", "Matched-baseline results" became "Experiments with a control — gains can be calculated", "Serving envelopes and audits" became "Experiments without a control — how well they serve, not how much faster", "Evidence rules" became "What kind of data supports what kind of claim", "Route selector" became "Choosing a route", "Preserved future plan" became "The plan from here", and "Reading path" became "How to read this repository".
-- Every table header and every explanatory cell was rewritten as a natural sentence while numeric cells were kept verbatim. Timeline phase 4 now covers v2.15 → v2.20 and gained a v2.20 row.
-- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION.
-
-## v2.19
-
-- This release splits the accelerator tracks apart and puts single-device baselines first: no new measurement, no changed value, and zero changes to the results, data, and assets directories.
-- A new top-level chapter, "Two accelerator tracks: RTX 3060 12GB and RTX 3080 20GB", now sits after the base architecture and before the experiment timeline. It compares the tracks across seven rows: releases covered, VRAM and what fits, model sizes, experiment IDs, best result on this track, what this track proves, and the main gap. Track 1 is the RTX 3060 12GB across v1.0 → v2.4 (9B-PD-01, 9B-PIPE-01, 27B-LONG-01); track 2 is the RTX 3080 20GB across v2.5 → v2.14 (27B-PD-01, 27B-KV-01, ORNITH-PD-01, FLASH-SPLIT-01). The two tracks are explicitly never merged into one ranking.
-- Both homepages now state that the repository holds no RTX 3090 measurement of any kind; that card was ruled out during selection, so no published figure involves it.
-- Results at a glance gained a "Single-device baselines first" section ahead of every heterogeneous table, split into two tiers. The 9B Q6_K tier lists the RTX 3060 card at 1589.00 / 43.87 tok/s, the 395 host serving method at 861.55 / 30.24 tok/s, and the 395 host `llama-bench` method at 970.00 / 31.27 tok/s, with a note that the two 395 figures differ by method rather than conflicting. The 27B tier lists the 3080 raw compute at pp1024 1228.53 / pp4096 1203.06 / tg64 33.08 tok/s, the 395 host on IQ3 at pp4096 313.28 / pp65536 136.69 / pp98304 timeout at 900 s / tg64 18.26 tok/s, and the 395 host on Q4 serving at C1 TTFT 4825 ms / Prefill 207.2 / Decode 36.33 tok/s, noting that the 3060 cannot hold a full 27B model and therefore has no baseline in that tier.
-- The matched-baseline table now has six columns: experiment, accelerator, matched baseline measured, this route measured, measured change, and direct conclusion, so baseline and route values are shown separately. The serving-envelope table gained an accelerator column and a "baseline that is missing" column. Every cell of the six-experiment matrix names the card it measured, and both the route selector and the local experiment registry gained an accelerator column.
-- Each timeline phase heading now names its accelerator, phase 4 was extended to v2.15 → v2.19, and rows for v2.18 and v2.19 were added. The reading path now starts with the two tracks, then the single-device baselines, then the experiments.
-- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION.
-
-## v2.18
-
-- This release is a narrative-structure and readability revision: no new measurement, no changed value, and zero changes to the results, data, and assets directories.
-- Both homepages were reordered into: title and current version, base architecture, experiment timeline, six-experiment matrix, decision summary, results at a glance, route selector, evidence rules, local experiment registry, preserved future plan, and reading path. The timeline chapter moved from its old fourth-from-the-end position to directly after the architecture, was grouped into four phases, and now uses one row per version with the columns version, question at this step, what was measured, what the data shows, and how the conclusion advanced.
-- Five missing facts were added to the timeline: the v2.4 27B IQ3 validation with DGX Spark external context and the Chinese mirror; the v2.5 Prefill rise from 683.2 to 1000.6 tok/s after removing RPC sync, about 82% of the 3080 raw compute at 1228.53 tok/s; the dedicated DFlash2 acceleration-head category in v2.10; the v2.15 addition of data/experiment-index.csv and the restoration of the v2.4 Decode 50.73 into data/benchmark-results.csv; and explicit attributed rows for 27B-DRAFT-AUDIT-01 and EXT-DGX-01.
-- The prose was rewritten in short sentences and stiff wording was removed; the English and Chinese versions match in section structure, table row counts, and every value.
-- Files changed in this release: README_ZH.md, README.md, CHANGELOG_ZH.md, CHANGELOG.md, VERSION.
-
-## v2.17
-
-- Moved the base architecture to the top of both homepages, explaining the Prompt → async micro-batch → small-VRAM front stage → large-memory rear stage and state → Decode path before presenting results, together with Dense Region / Sparse Region boundaries.
-- Restored the six-experiment matrix under common RTX 3080 and RTX 3060 controls: Dense / MoE × fits easily / fills the card / does not fit; defined the working set, shared metrics, and a non-fit result as a valid capacity boundary.
-- Marked strict dual-control progress as 0/6 fully closed, four partial, and two planned. Existing values only reference canonical records and CSV files; unfinished measurements were not invented.
-- Restored the stepwise v2.1→v2.1X evolution (current v2.17) and preserved the v3.0 cross-platform six-cell plan plus the v4.0 one-accelerator-to-many-hosts plan.
-- This release restructures only the bilingual homepages and changelogs; no result record or CSV source value changed.
-
-## v2.16
-
-- Restored decision-level measurements to both homepages without copying the complete result matrices: each stable experiment now exposes one baseline or starting point, one selected result, the measured delta, and the conclusion it supports.
-- Split the overview into matched-baseline results and no-baseline service envelopes, so true acceleration percentages cannot be confused with concurrency scaling.
-- Added a route selector for controlled Dense Acceleration, independent PD, layered residency, remote-KV capacity, MoE PD stress, and fixed single-server layer split.
-- Promoted the central choices to the top of the page: 9B controlled Dense Acceleration reaches +34.0% Prefill / +15.6% Decode versus the faster standalone endpoint; 27B layered long-prompt Prefill reaches +133.4% at 64K versus the matched 395 path.
-- Kept full rows, metric definitions, and missing-field authority in the existing detailed records and CSV files; no benchmark source value was changed.
-
-## v2.15
-
-- Rebuilt the homepage as an experiment registry: every stable experiment now names one primary question, its control, changed factor, decision gate, allowed claim, and canonical data entry.
-- Removed repeated benchmark tables from both README files. Human-readable numbers now live in one detailed record per experiment, with CSV files kept as machine-readable mirrors.
-- Separated experimental work from publication history: v2.1–v2.4 are checkpoints inside one 9B pipeline experiment; 27B-C/D are profiles inside one remote-KV experiment; release and attribution edits are not counted as new experiments.
-- Corrected claim boundaries: 27B KV-only is a capacity/serving experiment, Ornith is a role-attribution and stability experiment, and the Flash layer-split run is a concurrency-envelope experiment because the latter two lack matched standalone speed controls.
-- Added `data/experiment-index.csv` to map stable IDs to legacy labels, evidence type, canonical record, machine data, and comparability limits.
-- Restored the already-published v2.4 Decode value and measurement label in `benchmark-results.csv`, so the machine-readable 9B final checkpoint matches its detailed record.
-
-## v2.14
-
-- Added the Qwen3.8-Flash Q4 dual-device layer-split record (r374): one llama-server on the RTX 3080 (CUDA0) and AI Max+ 395 (Vulkan1) with a 0.38 / 0.62 tensor split, ubatch 1024 / batch 4096, flash attention on, q4_0 KV cache, and 6 slots at 131072 context; 3080 VRAM peaked at 19129 MiB.
-- Published the final C1–C6 envelope (~2077 in / 256 out, temperature 0): aggregate Prefill 569.892–633.685 tok/s (peak at C4), aggregate Decode 35.204–71.185 tok/s (peak at C4), and total throughput up to 338.270 tok/s at C4.
-- All 21 scored requests returned HTTP 200 with complete timings; the warm-up C1 is excluded.
-- Added the bilingual detailed record [qwen3.8-flash-q4-layer-split.md](results/qwen3.8-flash-q4-layer-split.md) and the machine-readable [qwen38flash-q4-local-results.csv](data/qwen38flash-q4-local-results.csv); the Flash-Q4 envelope is independent of the 27B and Ornith tables.
-
-## v2.13
-
-- Locked the Ornith section to the requested r337 dual-machine PD experiment: RTX 3080 is pure Prefill, while AI Max+ 395 performs all Decode work.
-- Kept the measured short-task Prefill envelope at 4017.46–3943.88 tok/s and the 100K 395 pure-Decode aggregate at 23.33–148.20 tok/s; no single-node ROCmFP4 result is mixed in.
-- Set the non-pure whole-stage wall-clock derivative to NA in all 12 CSV rows and renamed the public metric labels to 3080 pure Prefill / 395 pure Decode. The separately timed short-task 395 pure-Decode rate remains not recorded.
-
-## v2.12
-
-- Removed the derived whole-stage aggregate Decode column and its C1–C6 display values from the Ornith bilingual README tables and detailed reports.
-- Kept the raw CSV unchanged for traceability; the published tables retain the 3080 aggregate Prefill and 395 decode-segment measurements.
-
-## v2.11
-
-- Added the Ornith-1.5-35B-A3B dual-machine PD experiment: the scored matrix used RTX 3080 CUDA full prefill (batch 4096 / ubatch 4096 / ctx 114688), KV migration via /dev/shm/kvxo, and 395 Vulkan1 full decode (ctx 655360) on the Ornith-1.5-35B-A3B-IQ4_XS main model with the Qwen3.6-35B-A3B-DFlash-Q4_K_M draft head (spec n_max 6); stress **42/42 passed, route=pd, n_reuse=0**. Online ctx was restored to 8192 / 32768 after the run.
-- Short task (1000 in / 128 out) C1–C6 aggregate Prefill: 4017.46 down to 3943.88 tok/s. 100K (100000 in / 128 out) aggregate Prefill: 2895.53 down to 2793.24 tok/s.
-- Published the independently attributable 395 decode-segment aggregate from 23.33 to 148.20 tok/s for the 100K tier.
-- Advanced all six dFlash draft slots to 100K before the scored long-context rows to maintain positional continuity; that warm-up is excluded from the measurements.
-- Marked Ornith-1.5-35B-A3B as a **MoE** (qwen35moe, 40 layers: 10 full attention + 30 Gated DeltaNet) that is not directly rankable against the existing 27B dense data.
-- Short-task 395-only decode-segment speed, 100K TTFT, 100K single-stream decode, KV migration milliseconds, and the dFlash acceptance rate are absent from the source record; the CSV and docs leave them empty or not recorded, with no extrapolation.
-- Added the bilingual detailed record [ornith-1.5-35b-a3b-dual-machine-pd.md](results/ornith-1.5-35b-a3b-dual-machine-pd.md) and the machine-readable [ornith35a3b-local-results.csv](data/ornith35a3b-local-results.csv); the v2.10 27B content and history remain unchanged.
-
-## v2.10
-
-- Consolidated 27B-C, 27B-D, and DGX Spark into one comparison table, with local results consistently shown in **C / D** order.
-- Filled the DGX Spark summary with **about 1000 tok/s Prefill, 25–30 tok/s single-stream Decode, 107 tok/s aggregate Decode, and C1–C6 concurrency**.
-- Added a dedicated **DFlash2 acceleration-head** category to both the homepage and detailed record, mirrored in English and Chinese.
-
-## v2.9
-
-- Corrected the latest 27B-D C6 aggregate Decode peak to **116.3 tok/s** across all eight target files (homepage, detailed record, changelog, and CSV).
-- Removed the sentence about the 3080 trading standalone Prefill/Decode speed for remote-KV communication overhead from the 27B-C homepage section; that statement belongs to 27B-D, where it is kept.
-- Fixed the wrong C6 figure in the v2.8 entry below.
-
-## v2.8
-
-- Corrected compute attribution: in the latest 27B-C and 27B-D the RTX 3080 performs all Prefill and Decode compute, while the AI Max+ 395 becomes a pure KV-only remote storage pool (in neither Prefill nor Decode) providing 1M context capacity per stream (1M context per stream).
-- Added the real C1–C6 compact table to the homepage (from C1 1210.6 / 38.50 / 33.55 to C6 1197.2 / 14.68 / 63.84, tok/s), and stated the real 27B-D C1 Prefill 1090 tok/s, C1 single-stream Decode 63.2 tok/s, and C6 aggregate Decode up to 116.3 tok/s.
-- Clarified the value narrative: the 3080 trades remote-KV communication overhead for the per-stream 1M long context; the old v1.0–v1.2 tables and the 395 natural-language audit are retained as historical scheduling records/controls and do not represent the latest C/D compute path.
-
-## v2.7
-
-- Reframed homepage experiments 27B-C and 27B-D as prefill-first and decode-first profiles, with each headline leading on its best measured result.
-- Moved implementation parameters, full concurrency detail, and envelope data out of the homepage narrative; the detailed records and CSV remain the source of record.
-
-## v2.6
-
-- Reorganized both READMEs into architecture and envelopes → research evolution → 9B experiment chain → unified 27B experiment area → external references → findings, and gave every local experiment a result-bearing “New experiment” heading.
-- Merged the RTX 3060 / IQ3 and RTX 3080 / Q4 27B records into one experiment area while preserving their distinct quantization, hardware, and measurement envelopes; cross-envelope ranking remains invalid.
-- Added router v1.1: serialized prefill holds **1194.4–1210.6 tok/s** for both single-request and service aggregate throughput. The **35–38.5 tok/s** single-stream decode figure is now explicitly limited to repetitive text with 100% draft acceptance; 1200+ is never labeled as decode.
-- Added the live v1.2 two-stage-preemption + RTX 3080 DFlash2-head C1–C6 table, long-prompt checks, and the 395 natural-language audit. Direct natural-language C1 measured **12.1 tok/s**, so repetitive-text figures no longer stand in for production prose.
-- Replaced the ambiguous “twelve tiers” wording with **six concurrency tiers × router/solo = twelve measured groups**, expanded the machine-readable CSV, and made unavailable baseline fields explicit `NA`.
-
-## v2.5
-
-- Migrated the experiment to an **RTX 3080 20GB** accelerator head and published the full Qwen3.8-27B Q4 dual-machine heterogeneous PD record.
-- Published six concurrency tiers across split/solo paths (twelve measured groups): TTFT 4.5× over solo, prefill holding **1000–1015 tok/s** regardless of concurrency, lossless decode (C1 38.75 tok/s), KV migration cost 71 ms.
-- Confirmed removing RPC per-ubatch sync lifted the same measurement from 683.2 to **1000.6 tok/s (+46%)**, about 82% of the 3080 raw 1228.
-- Added english/chinese detail records and machine-readable local CSVs for this line, plus a differences-vs-DGX-Spark comparison table with explicit non-comparability metadata.
-
-## v2.4
-
-- Named the final asynchronous layered-PD form **Dense Acceleration** and defined its concurrent compute window as the **Dense Region**.
-- Published the final Dense Acceleration checkpoint at 2129.69 tok/s, while keeping the v2.3-only 37.16 tok/s decode result explicitly separated.
-- Clarified that the Dense Region is micro-batch scheduling overlap, not duplicate same-layer compute, tensor parallelism, or duplicated weights.
-- Added the separate-envelope 27B IQ3 validation: 658.52 tok/s at pp4096, 319.10 tok/s at pp65536, 225.10 tok/s at pp98304, and 19.57 tok/s decode.
-- Made English the default repository language and added a complete Chinese mirror.
-- Added the Soulmate spirit mark and AI Max+ 395 acceleration to the project title.
-- Added two source-linked DGX Spark community controls with explicit non-comparability metadata.
-- Removed public layer-allocation ratios and replaced them with revision labels.
-
-## v2.3
-
-- Published the balance-refinement checkpoint at 1999.51 tok/s prefill and 37.16 tok/s decode.
-
-## v2.2
-
-- Published the overlap-refinement checkpoint at 1893.87 tok/s prefill.
-
-## v2.1
-
-- Published the first fused-pipeline checkpoint at 1865.08 tok/s prefill.
+- Measured the fused 9B asynchronous layered pipeline (four checkpoints now under this milestone) and the 27B IQ3 layer-split long-context check 27B-LONG-01. 9B Ornith Q6_K, RTX 3060 12GB + AI Max+ 395; 27B Qwen3.8-27B UD-IQ3_XXS.
+- Result, 9B-PIPE-01: pair Prefill **2129.69** / Decode **50.73** versus 3060 alone 1589.00 / 43.87 (+34.0% / +15.6%) and 395 `llama-bench` 970.00 / 31.27 (+119.6% / +62.2%). Checkpoint Prefill climb: **1865.08 → 1893.87 → 1999.51 → 2129.69**; the 37.16 tok/s decode belongs only to the 1999.51 checkpoint, not the final 50.73. Result, 27B-LONG-01: pair pp4096 **658.52**, pp65536 **319.10**, pp98304 **225.10**, tg64 **19.57** versus 395 alone 313.28 / 136.69 / timed out at 900 s / 18.26 (+110.2% / +133.4% / timeout → finished / +7.2%).
+- Conclusion: Dense Acceleration at 9B beats the fastest single card present; when the 3060 cannot hold 27B, the layer split finishes 98K and more than doubles Prefill at 4K and 64K.
+- Limit: 9B gains need the same controls on another model; 27B-LONG-01 is IQ3, not Q4. Pipeline record: [v2.4-fused-layer-pipeline.md](results/v2.4-fused-layer-pipeline.md). Long-context record: [qwen3.8-27b-dual-machine-pd.md](results/qwen3.8-27b-dual-machine-pd.md).
 
 ## v1.0
 
-- Published independent heterogeneous PD with four measured handoff nodes.
-- Documented the single-host 9B validation boundary.
+- Measured 9B-PD-01 independent heterogeneous PD: Ornith 9B Q6_K, RTX 3060 Prefill handing state to Vulkan Decode on the AI Max+ 395, 5064 in / 128 out, four measured handoff nodes, versus the single-host 9B boundary.
+- Result: pair TTFT **3.496 s** / Prefill **1452.29** / Decode **30.28** versus 395 serving 5.879 s / 861.55 / 30.24 (−40.5% TTFT, Prefill +68.6%, Decode +0.1%).
+- Conclusion: the CUDA-side state hands over in one piece; first token is sooner; Decode holds.
+- Limit: the two phases still run one after the other, so this is phase separation, not Dense Acceleration. Record: [v1.0-independent-pd.md](results/v1.0-independent-pd.md).
