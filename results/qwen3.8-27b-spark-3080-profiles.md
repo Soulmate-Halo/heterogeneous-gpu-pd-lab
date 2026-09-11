@@ -16,7 +16,7 @@ This record is the source of the local 3080 + Spark working profiles. Every Pref
 | Balanced profile | 8192-token cold prompt, 256 output tokens, DFlash2, six-slot serving, concurrency C1-C6. |
 | Matched control | RTX 3080 standalone at the same model, quantization, KV type, prompt length, and output length. Speculation settings on that control were tuned on that system and are not a one-variable change versus the pair. |
 | Not recorded | A 3080-only C1-C6 series on the balanced serving workload. |
-| Claim boundary | Prefill on the confirmed Prefill profile is faster than this 3080 standalone. The experiment does not claim a win over every standalone device, does not replace the 395-host matrix, and does not rank against community NVFP4 Spark rows. |
+| Claim boundary | Prefill on the confirmed Prefill profile is faster than this 3080 standalone. The experiment does not claim a win over every standalone device. It is already listed on the three-hardware-route D2 coverage map on the front page. Performance is compared only against same-condition baselines. It does not rank against community NVFP4 Spark rows. |
 
 ## What each profile gives up
 
@@ -71,7 +71,7 @@ The live retest is the same working profile as the Prefill-confirmed row, measur
 
 ## Boundaries
 
-- The 395-host 27B records stay in [qwen3.8-27b-dual-machine-pd.md](qwen3.8-27b-dual-machine-pd.md). This Spark line is a different hardware pair and is not spliced into that matrix.
+- The 395-host 27B records stay in [qwen3.8-27b-dual-machine-pd.md](qwen3.8-27b-dual-machine-pd.md). This Spark line is already listed on the three-hardware-route D2 coverage map; performance is compared only against same-condition baselines.
 - Community NVFP4 Spark figures stay in [dgx-spark-community-control.md](dgx-spark-community-control.md). Different quantization, engine, and method; they are not a third profile and are not ranked against these Q4_K_M rows.
 - Do not treat 1603.20 as a 3080-only Prefill. The 3080 standalone no-speculation Prefill at this 8K load is 1113.13.
 - Do not treat the balanced Decode column as the same quantity as the 128-output microbenchmark Decode.

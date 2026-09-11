@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-This repository studies how an NVIDIA card with plenty of compute but little VRAM (RTX 3060 12GB / RTX 3080 20GB) can team up with a large-memory partner to run large-model inference. The original matrix pairs those cards with an AMD AI Max+ 395 host. A later local line pairs an RTX 3080 20GB with a DGX Spark GB10; that line is not merged with the 395 matrix. Both devices can compute the same stage of the same model at the same time; this is **Dense Acceleration**. The hardest Dense Acceleration figure: on 9B, the 3060 + 395 pair reaches Prefill 2129.69 tok/s, 34.0% above the faster single card at 1589.00 and 119.6% above the 395 alone at 970.00. The 27B Spark pair only claims a faster Prefill than this 3080 standalone, not a win over every standalone device.
+This repository studies how an NVIDIA card with plenty of compute but little VRAM (RTX 3060 12GB / RTX 3080 20GB) can team up with a large-memory partner to run large-model inference. There are three hardware routes: RTX 3060 12GB + AMD AI Max+ 395, RTX 3080 20GB + 395, and RTX 3080 20GB + DGX Spark GB10. Both devices can compute the same stage of the same model at the same time; this is **Dense Acceleration**. The hardest Dense Acceleration figure with both standalone baselines: on 9B, the 3060 + 395 pair reaches Prefill 2129.69 tok/s, 34.0% above the faster single card at 1589.00 and 119.6% above the 395 alone at 970.00. Local 27B evidence on RTX 3080 20GB + DGX Spark GB10, Qwen3.8-27B Q4_K_M: pair Prefill **1603.20** tok/s versus this 3080 standalone 1113.13 (**+44.03%**). Only 9B has both a single-card and a single-host baseline; Spark has no Spark standalone baseline. The +44.03% is versus this 3080 standalone only and is not a claim of beating every standalone device.
 
 Current release **v1.6**, seven public milestones, plus a 2026-09-11 local Spark measurement addendum that is not a new version. Deployment commands, patches, endpoints, and the layer-allocation policy stay private.
 
@@ -26,13 +26,13 @@ Each row is one approach, one experiment: first how the two devices are combined
 
 Three advantages, one bound.
 
-1. Only Dense Acceleration lets the pair beat the fastest single device in the room. Prefill 2129.69 vs the 3060 alone at 1589.00 (+34.0%) and vs the 395 alone at 970.00 (+119.6%); Decode 50.73 vs 43.87 (+15.6%) and vs 31.27 (+62.2%). The extra is real compute from the 395.
+1. Only Dense Acceleration lets the pair beat the fastest single device in the room. Prefill 2129.69 vs the 3060 alone at 1589.00 (+34.0%) and vs the 395 alone at 970.00 (+119.6%); Decode 50.73 vs 43.87 (+15.6%) and vs 31.27 (+62.2%). The extra is real compute from the 395. A second local dense pair is on this page: RTX 3080 20GB + DGX Spark GB10 running Qwen3.8-27B Q4_K_M. Confirmed Prefill profile, 8K in / 128 out, no speculation: pair Prefill **1603.20** vs this 3080 standalone 1113.13 (**+44.03%**). Only 9B has both standalone baselines; Spark has no Spark standalone baseline, so +44.03% is not a win over every standalone device.
 
 2. The ceiling of phase-separated PD is the accelerator card's own raw compute. 27B-PD-01 pair Prefill 1000.6 reaches only 82% of the 3080 raw 1228.53, and 1210.6 with the checkpoint off is still only 98.5%; Decode barely moves under PD (9B: 30.28 vs 30.24; 27B: 38.75 vs 36.33). PD buys TTFT and capacity; it does not add the two devices' compute together.
 
 3. Dense Acceleration does not require the accelerator card to hold the whole model. The card holds the front-stage layers; the host holds the rear-stage layers and the intermediate state. How large a model runs is the two devices' memory together; how fast it runs is the card. Layer-split loading in 27B-LONG-01 shows the 3060 can take part even when 27B does not fit: pp4096 658.52 vs the 395 alone at 313.28, pp65536 319.10 vs 136.69, pp98304 from a 900 s timeout to 225.10.
 
-4. Bound: a full single-card plus single-host pair of controls exists only for the 9B Q6_K + RTX 3060 cell (D1); Dense Acceleration controls for the 27B and MoE cells are still on the roadmap. The dense region needs neighbouring micro-batches to run offset (an overlap window); whatever cannot enter the window belongs to the sparse region, which only has to hold the model.
+4. Bound: a full single-card plus single-host pair of controls exists only for the 9B Q6_K + RTX 3060 cell (D1). The 27B Spark pair has a matched 3080 standalone at the confirmed Prefill profile, but no Spark standalone baseline. Dense overlapping-pipeline controls on the 395 host for 27B and MoE remain on the roadmap. The dense region needs neighbouring micro-batches to run offset (an overlap window); whatever cannot enter the window belongs to the sparse region, which only has to hold the model.
 
 ## How the system works
 
@@ -65,7 +65,7 @@ What this is not: it is not running layers one after another, not tensor paralle
 
 ## How the devices divide work
 
-The 395-host experiments fall into the five splits below. 27B-SPARK-01 is a separate 3080 + Spark line, recorded as a sixth row, not folded into the 395 matrix.
+The 395-host experiments fall into the five splits below. The RTX 3080 20GB + DGX Spark GB10 pair is the same combination at three working profiles: Prefill-first with no speculation, Decode-first with DFlash2, and balanced serving with DFlash2. Both machines compute the same model together; the rows differ by the profile goal.
 
 | Division of work | Accelerator card | Partner device | Problem it solves | Experiment |
 | --- | --- | --- | --- | --- |
@@ -74,38 +74,40 @@ The 395-host experiments fall into the five splits below. 27B-SPARK-01 is a sepa
 | Phase-separated PD | Does all Prefill | AI Max+ 395 does Decode | Faster first token; Decode barely moves | 9B-PD-01, 27B-PD-01, ORNITH-PD-01, ORNITH-PD-02 |
 | Remote KV pool | Prefill; configuration D, the 3080 decodes | AI Max+ 395 remote KV; configuration C, the 395 decodes | Capacity and concurrent Decode | 27B-KV-01 |
 | Single-server split | Tensor split 0.38 inside one llama-server | AI Max+ 395 tensor split 0.62 | Find the best concurrency tier | FLASH-SPLIT-01 |
-| Dual-device pair | Computes together with Spark | DGX Spark GB10 computes together with the 3080 | Faster Prefill than this 3080 standalone at a confirmed working profile | 27B-SPARK-01 |
+| Prefill-first, no speculation | Computes the same model together with Spark | DGX Spark GB10 computes the same model together with the 3080 | Faster Prefill than this 3080 standalone: pair **1603.20** vs 1113.13 (**+44.03%**); Decode 17.62 vs 33.36 | 27B-SPARK-01 |
+| Decode-first, DFlash2 | Computes the same model together with Spark | DGX Spark GB10 computes the same model together with the 3080 | Higher Decode at this profile: 2K **63.97** vs 60.37; 8K 49.20 vs 58.36 (Prefill far below the Prefill-confirmed profile) | 27B-SPARK-01 |
+| Balanced serving, DFlash2 | Computes the same model together with Spark | DGX Spark GB10 computes the same model together with the 3080 | Serve C1–C6 together: aggregate Prefill 1086.44–1097.40, aggregate Decode 24.77–47.69; 126/126 succeeded | 27B-SPARK-01 |
 
-Only Dense Acceleration is both devices computing the same stage at once in the 395 matrix. 27B-SPARK-01 is a different hardware pair; its Prefill gain is versus this 3080 standalone only.
+Only Dense Acceleration is both devices computing the same stage at once in the 395 matrix. The Spark pair also has both devices computing the same model together; its Prefill gain is versus this 3080 standalone only, and there is no Spark standalone baseline.
 
-## Two hardware routes and the six experiment cells
+## Three hardware routes and the six experiment cells
 
-Every 395-host figure belongs to one of two hardware routes and one of six experiment cells. Those cells still use RTX 3060 or RTX 3080 with the same AI Max+ 395. A third local line, measured 2026-09-11, pairs the RTX 3080 20GB with a DGX Spark GB10 and is not a seventh cell in the 395 matrix. The six cells split by how much VRAM the running model needs versus the accelerator's VRAM into fits easily, fills the card, and does not fit; each 395-host cell targets five configurations: RTX 3060 alone, RTX 3080 alone, AI Max+ 395 alone, 3060 + 395, and 3080 + 395. Within a cell the model, quantization, prompt, context, concurrency, and metrics must match; a card that cannot hold the model is itself a valid result, and a smaller model or a harsher quantization may not be substituted to manufacture a baseline. The 395 lines cannot be ranked against the Spark line in one table. The repository holds no RTX 3090 measurements at all; that card was ruled out during selection.
+This is an experiment coverage map across three hardware routes, not a unified ranking under one load. Route 1 is RTX 3060 12GB + AMD AI Max+ 395. Route 2 is RTX 3080 20GB + 395. Route 3 is RTX 3080 20GB + DGX Spark GB10. The six cells split by how much VRAM the running model needs versus the accelerator's VRAM into fits easily, fills the card, and does not fit; each 395-host cell targets five configurations: RTX 3060 alone, RTX 3080 alone, AI Max+ 395 alone, 3060 + 395, and 3080 + 395. Within a cell the model, quantization, prompt, context, concurrency, and metrics must match; a card that cannot hold the model is itself a valid result, and a smaller model or a harsher quantization may not be substituted to manufacture a baseline. The repository holds no RTX 3090 measurements at all; that card was ruled out during selection.
 
-| Item | Route 1: RTX 3060 12GB | Route 2: RTX 3080 20GB + 395 | Route 3: RTX 3080 20GB + Spark |
+| Item | Route 1: RTX 3060 12GB + 395 | Route 2: RTX 3080 20GB + 395 | Route 3: RTX 3080 20GB + DGX Spark |
 | --- | --- | --- | --- |
 | Releases covered | v1.0 → v1.1 | v1.2 → v1.6 | 2026-09-11 addendum (still v1.6) |
 | VRAM and what fits | 12GB, only the 9B dense tier fits; 27B fits only as an IQ3 layer split | 20GB, 27B Q4 fits, and that is what makes the MoE layer splits possible | 20GB 3080 plus Spark GB10; 27B Q4 on this pair |
 | Models run | Ornith 9B dense Q6_K; Qwen3.8-27B IQ3 | Qwen3.8-27B dense Q4; two MoE models, Ornith-1.5-35B-A3B and Qwen3.8-Flash | Qwen3.8-27B dense Q4_K_M |
 | Experiment IDs | 9B-PD-01, 9B-PIPE-01, 27B-LONG-01 | 27B-PD-01, 27B-KV-01, 27B-DRAFT-AUDIT-01, ORNITH-PD-01, ORNITH-PD-02, FLASH-SPLIT-01 | 27B-SPARK-01 |
-| What this line verified | Two devices can prefill one model together and beat the fastest single card present; a layered split lets the small card finish a model it cannot hold alone, and finish it faster | A larger card lifts the model size, the context depth, and the concurrency all at once; phase separation and remote KV both hold up while serving | Pair Prefill at the confirmed profile is faster than this 3080 standalone; Decode and balanced serving are separate working points |
+| What this line verified | Two devices can prefill one model together and beat the fastest single card present; a layered split lets the small card finish a model it cannot hold alone, and finish it faster | A larger card lifts the model size, the context depth, and the concurrency all at once; phase separation and remote KV both hold up while serving | Prefill-first, 8K in / 128 out, no speculation: pair **1603.20** / 17.62 vs 3080 standalone 1113.13 / 33.36 (+44.03% Prefill). Decode-first, DFlash2: 2K 1153.95 / **63.97** vs 1042.97 / 60.37; 8K 1124.32 / 49.20 vs 1015.15 / 58.36. Balanced serving, DFlash2, 8K in / 256 out, C1–C6: aggregate Prefill 1086.44–1097.40, aggregate Decode 24.77–47.69; 126/126 succeeded. No Spark standalone baseline; no 3080 standalone C1–C6. |
 
-The six cells below remain the 395-host matrix. Route 3 is a different hardware line.
+Spark cells with no local measurement are marked not yet tested; 395 figures are not copied into those Spark cells, and community NVFP4 rows are not used as Spark-route evidence.
 
-| Cell | Question | Verified so far |
-| --- | --- | --- |
-| **D1 Dense · fits easily**<br>Ornith 9B · Q6_K · RTX 3060 | With the model held comfortably on the card, can a dense pipeline actually beat the faster card, rather than just add capacity? | **Verified**: 9B-PIPE-01 has both the 3060 single-card and the 395 single-host controls, and the pair beats both. [Record](results/v2.4-fused-layer-pipeline.md) |
-| **D2 Dense · fills the card**<br>Qwen3.8-27B · Q4_K_M · RTX 3080 | With VRAM nearly full, which wins: the whole model on one card, separated phases, or a layered dense route? | **Verified**: 27B-PD-01 runs the 3080 on Prefill and the 395 on Decode while serving, cuts the 395's time to first token by more than three quarters, and passes all six tiers C1–C6. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
-| **D3 Dense · does not fit**<br>Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 | When one card cannot finish the job, can splitting the model finish it and still beat the 395? | **Verified**: 27B-LONG-01 runs more than twice as fast as the 395 alone and turns the 98K timeout into a finished run. [Record](results/qwen3.8-27b-dual-machine-pd.md) |
-| **M1 MoE · fits easily**<br>model and quantization TBD | With few active parameters and VRAM to spare, does MoE routing overhead eat back the time the overlap saves? | Planned (see Roadmap). |
-| **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context under 1 to 6 concurrent streams, and keeps both stages attributable ([record](results/ornith-1.5-35b-a3b-dual-machine-pd.md)); ORNITH-PD-02 adds a fused draft head and a unified KV pool on the same pair of devices, reaching 3080 Prefill 4173.47 and 395 single-stream Decode 114.86 ([record](results/ornith-1.5-35b-a3b-fused-dflash-pd.md)). |
-| **M3 MoE · does not fit**<br>Qwen3.8-Flash · Q4 · RTX 3080 pilot | When the total footprint exceeds both control cards, can splitting by layer or by expert keep it running, keep throughput, and keep the output correct? | FLASH-SPLIT-01 is the pilot for this cell: it verified that a single-server split runs and found its best concurrency tier. The full experiment is planned (see Roadmap). [Pilot record](results/qwen3.8-flash-q4-layer-split.md) |
+| Cell | Question | 395 route measured | Spark route measured |
+| --- | --- | --- | --- |
+| **D1 Dense · fits easily**<br>Ornith 9B · Q6_K · RTX 3060 | With the model held comfortably on the card, can a dense pipeline actually beat the faster card, rather than just add capacity? | **Verified**: 9B-PIPE-01 has both the 3060 single-card and the 395 single-host controls, and the pair beats both. [Record](results/v2.4-fused-layer-pipeline.md) | Not yet tested locally. |
+| **D2 Dense · fills the card**<br>Qwen3.8-27B · Q4_K_M · RTX 3080 | With VRAM nearly full, which wins: the whole model on one card, separated phases, or a layered dense route? | **Verified**: 27B-PD-01 runs the 3080 on Prefill and the 395 on Decode while serving, cuts the 395's time to first token by more than three quarters, and passes all six tiers C1–C6. [Record](results/qwen3.8-27b-dual-machine-pd.md) | **27B-SPARK-01** three working profiles, 3080 + Spark. Prefill-first, 8K/128, no speculation: pair Prefill **1603.20** vs 3080 standalone 1113.13 (**+44.03%**), Decode 17.62 vs 33.36. Decode-first, DFlash2: 2K 1153.95 / **63.97** vs 1042.97 / 60.37; 8K 1124.32 / 49.20 vs 1015.15 / 58.36. Balanced, DFlash2, C1–C6. [Record](results/qwen3.8-27b-spark-3080-profiles.md) |
+| **D3 Dense · does not fit**<br>Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 | When one card cannot finish the job, can splitting the model finish it and still beat the 395? | **Verified**: 27B-LONG-01 runs more than twice as fast as the 395 alone and turns the 98K timeout into a finished run. [Record](results/qwen3.8-27b-dual-machine-pd.md) | Not yet tested locally. |
+| **M1 MoE · fits easily**<br>model and quantization TBD | With few active parameters and VRAM to spare, does MoE routing overhead eat back the time the overlap saves? | Planned (see Roadmap). | Not yet tested locally. |
+| **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 routes every request, stays stable at 100K context under 1 to 6 concurrent streams, and keeps both stages attributable ([record](results/ornith-1.5-35b-a3b-dual-machine-pd.md)); ORNITH-PD-02 adds a fused draft head and a unified KV pool on the same pair of devices, reaching 3080 Prefill 4173.47 and 395 single-stream Decode 114.86 ([record](results/ornith-1.5-35b-a3b-fused-dflash-pd.md)). | Not yet tested locally. |
+| **M3 MoE · does not fit**<br>Qwen3.8-Flash · Q4 · RTX 3080 pilot | When the total footprint exceeds both control cards, can splitting by layer or by expert keep it running, keep throughput, and keep the output correct? | FLASH-SPLIT-01 is the pilot for this cell: it verified that a single-server split runs and found its best concurrency tier. The full experiment is planned (see Roadmap). [Pilot record](results/qwen3.8-flash-q4-layer-split.md) | Not yet tested locally. |
 
 ## Experiment data
 
 One small table per experiment; this is the only place on the front page that holds complete figures. Figures are copied from `results/` and `data/`; if this page and a record disagree, the record and the CSV win. A gain is "pair result ÷ control result − 1", and TTFT is written as how much it dropped. In the tables, C1–C6 means 1 to 6 concurrent requests at once; C1 is single-stream. "Aggregate" is the combined speed of the streams that are running together, and "single-stream" is the speed of one stream on its own.
 
-**Dense Acceleration.** The direct evidence is only 9B-PIPE-01, with both a 3060 single-card control and a 395 single-host control.
+**Dense Acceleration.** Two local dense routes are on this page. 9B-PIPE-01 (3060 + 395) has both a 3060 single-card control and a 395 single-host control. 27B-SPARK-01 (3080 + Spark, Qwen3.8-27B Q4_K_M) has a matched 3080 standalone at the confirmed Prefill profile and no Spark standalone baseline. Highest Prefill is +44.03% versus this 3080 standalone only.
 
 ### 9B-PIPE-01 · Ornith 9B · Q6_K · asynchronous layered Dense Acceleration
 
@@ -120,6 +122,45 @@ Accelerator RTX 3060 12GB; model Ornith 9B, weight quantization Q6_K (the record
 | Pair vs 395 alone | +119.6% | +62.2% |
 
 What it verifies: both devices are genuinely working inside the dense region, and the pair beats the fastest single card present. This is the core Dense Acceleration evidence in the repository.
+
+### 27B-SPARK-01 · Qwen3.8-27B · Q4_K_M · RTX 3080 20GB + DGX Spark GB10
+
+Local measurement on the RTX 3080 20GB + DGX Spark GB10 route, listed on the D2 coverage map. Model Qwen3.8-27B, weight quantization Q4_K_M, KV cache q4_0. "Highest" means the working profile confirmed after this search, not a global optimum. Pair scores are combination scores, not 3080-only. Data from [qwen27b-spark-3080-profiles.csv](data/qwen27b-spark-3080-profiles.csv). Record: [qwen3.8-27b-spark-3080-profiles.md](results/qwen3.8-27b-spark-3080-profiles.md).
+
+| Profile | Workload | 3080 + Spark Prefill / Decode (tok/s) | 3080 standalone Prefill / Decode (tok/s) | What it trades away |
+| --- | --- | --- | --- | --- |
+| Highest Prefill confirmed | 8K in / 128 out, no speculation | **1603.20** / 17.62 | 1113.13 / 33.36 | Decode is slower than the 3080 standalone |
+| Highest Decode confirmed | 8K in / 128 out, DFlash2 | 1124.32 / 49.20 | 1015.15 / 58.36 (own DFlash2 tuning) | Prefill far below the Prefill-confirmed profile |
+| Highest Decode confirmed | 2K in / 128 out, DFlash2 | 1153.95 / 63.97 | 1042.97 / 60.37 (own DFlash2 tuning) | Same profile as the 8K Decode row; 2K and 8K are not mixed |
+| Balanced | 8K in / 256 out, DFlash2, C1–C6 | C1–C6 in the two tables below | Not recorded | Decode uses a whole-batch window that includes other-stream Prefill |
+
+A later live retest of the Prefill-confirmed profile, three repeats at 8K, is 1601.05 / 17.41. Do not quote 1700. Speculation settings on the Decode-confirmed control were tuned on the 3080 standalone and are not a one-variable change.
+
+**Throughput, RTX 3080 20GB + Spark balanced C1–C6**
+
+Speeds below are in tok/s. Prefill comes from separate Prefill waves; Decode and end-to-end output come from complete-request waves generating 256 tokens. The two wave types are summarized by concurrency tier. See the profile record for the timing definitions.
+
+| C | Aggregate Prefill | Aggregate Decode | End-to-end output |
+| --- | ---: | ---: | ---: |
+| C1 | 1097.40 | 47.69 | 19.91 |
+| C2 | 1094.21 | 31.18 | 19.49 |
+| C3 | 1089.37 | 28.04 | 20.47 |
+| C4 | 1086.44 | 24.90 | 19.86 |
+| C5 | 1087.57 | 24.77 | 20.53 |
+| C6 | 1088.06 | 25.55 | 21.62 |
+
+**Latency, RTX 3080 20GB + Spark balanced C1–C6**
+
+| C | TTFT p95 (s) | Batch time (s) |
+| --- | ---: | ---: |
+| C1 | 7.489 | 12.857 |
+| C2 | 19.145 | 26.273 |
+| C3 | 28.990 | 37.524 |
+| C4 | 38.932 | 51.564 |
+| C5 | 48.471 | 62.336 |
+| C6 | 58.317 | 71.048 |
+
+36 official waves, 126/126 official requests. No standalone C1–C6 control. What it verifies: pair Prefill at the confirmed Prefill profile is **+44.03%** versus this 3080 standalone. It does not claim a win over every standalone device.
 
 **It runs even when it does not fit.** 27B-LONG-01 is layer-split loading: a dense model split by layer across two devices, to solve "does not fit". It is not evidence of overlapping micro-batch pipelining.
 
@@ -211,45 +252,6 @@ A single llama-server using the RTX 3080 20GB and the AI Max+ 395 together; mode
 
 C1–C6 aggregate Prefill ran 569.892–633.685 tok/s and aggregate Decode 35.204–71.185 tok/s. 21/21 scored requests succeeded on a workload of about 2077 in / 256 out. What it verifies: the best tier for this configuration is C4, and C5 and C6 no longer rise. It is an operating point, and a different workload must be measured again.
 
-### 27B-SPARK-01 · Qwen3.8-27B · Q4_K_M · RTX 3080 20GB + DGX Spark GB10
-
-Local measurement on a different hardware line from the 395 matrix. Model Qwen3.8-27B, weight quantization Q4_K_M, KV cache q4_0. "Highest" means the working profile confirmed after this search, not a global optimum. Pair scores are combination scores, not 3080-only. Data from [qwen27b-spark-3080-profiles.csv](data/qwen27b-spark-3080-profiles.csv). Record: [qwen3.8-27b-spark-3080-profiles.md](results/qwen3.8-27b-spark-3080-profiles.md).
-
-| Profile | Workload | Pair Prefill / Decode (tok/s) | 3080 standalone Prefill / Decode (tok/s) | What it trades away |
-| --- | --- | --- | --- | --- |
-| Highest Prefill confirmed | 8K in / 128 out, no speculation | **1603.20** / 17.62 | 1113.13 / 33.36 | Decode is slower than the 3080 standalone |
-| Highest Decode confirmed | 8K in / 128 out, DFlash2 | 1124.32 / 49.20 | 1015.15 / 58.36 (own DFlash2 tuning) | Prefill far below the Prefill-confirmed profile |
-| Highest Decode confirmed | 2K in / 128 out, DFlash2 | 1153.95 / 63.97 | 1042.97 / 60.37 (own DFlash2 tuning) | Same profile as the 8K Decode row; 2K and 8K are not mixed |
-| Balanced | 8K in / 256 out, DFlash2, C1–C6 | C1–C6 in the two tables below | Not recorded | Decode uses a whole-batch window that includes other-stream Prefill |
-
-A later live retest of the Prefill-confirmed profile, three repeats at 8K, is 1601.05 / 17.41. Do not quote 1700. Speculation settings on the Decode-confirmed control were tuned on the 3080 standalone and are not a one-variable change.
-
-**Throughput, balanced C1–C6**
-
-Speeds below are in tok/s. Prefill comes from separate Prefill waves; Decode and end-to-end output come from complete-request waves generating 256 tokens. The two wave types are summarized by concurrency tier. See the profile record for the timing definitions.
-
-| C | Aggregate Prefill | Aggregate Decode | End-to-end output |
-| --- | ---: | ---: | ---: |
-| C1 | 1097.40 | 47.69 | 19.91 |
-| C2 | 1094.21 | 31.18 | 19.49 |
-| C3 | 1089.37 | 28.04 | 20.47 |
-| C4 | 1086.44 | 24.90 | 19.86 |
-| C5 | 1087.57 | 24.77 | 20.53 |
-| C6 | 1088.06 | 25.55 | 21.62 |
-
-**Latency, balanced C1–C6**
-
-| C | TTFT p95 (s) | Batch time (s) |
-| --- | ---: | ---: |
-| C1 | 7.489 | 12.857 |
-| C2 | 19.145 | 26.273 |
-| C3 | 28.990 | 37.524 |
-| C4 | 38.932 | 51.564 |
-| C5 | 48.471 | 62.336 |
-| C6 | 58.317 | 71.048 |
-
-36 official waves, 126/126 official requests. No standalone C1–C6 control. What it verifies: pair Prefill at the confirmed Prefill profile is **+44.03%** versus this 3080 standalone. It does not claim a win over every standalone device.
-
 **Audit and external reference.** 27B-DRAFT-AUDIT-01 is a data audit; EXT-DGX-01 is an external reference, background only. Local Spark Q4_K_M rows above are not merged with those NVFP4 community figures.
 
 ### 27B-DRAFT-AUDIT-01 · Qwen3.8-27B · Q4_K_M · speculative-decode audit
@@ -295,6 +297,7 @@ Seven releases map onto seven experiments that have data. 27B-SPARK-01 is a 2026
 | v1.4 | ORNITH-PD-01 | MoE stress test with 3080 doing all Prefill and 395 all Decode; two workloads × six concurrency tiers, 42/42 requests. 1000 input tokens: 3080 Prefill aggregate 1 stream 4017.46 → 6 streams 3943.88; 100K input: 2895.53 → 2793.24; 395 Decode aggregate (100K tier) 1 stream 23.33 → 6 streams 148.20 |
 | v1.5 | FLASH-SPLIT-01 | Single-server split (3080 at 0.38, 395 at 0.62), 21/21 scored requests succeeded. Best tier is 4 streams (C4): Prefill 633.685, aggregate Decode 71.185, total throughput 338.270; 1 to 6 streams Prefill 569.892–633.685 |
 | **v1.6** | ORNITH-PD-02 | 3080 Prefill 4173.47, 395 with DFlash draft single-stream Decode 114.86, draft acceptance 107/114 (93.86%). Decode follows acceptance: at 9.4% only 3665.3 / 37.2 |
+| 2026-09-11 addendum (still v1.6) | 27B-SPARK-01 | RTX 3080 20GB + DGX Spark GB10, Qwen3.8-27B Q4_K_M. Prefill-first 8K/128 no speculation: pair 1603.20 / 17.62 vs 3080 standalone 1113.13 / 33.36 (+44.03%). Decode-first DFlash2: 2K 1153.95 / 63.97, 8K 1124.32 / 49.20. Balanced DFlash2 C1–C6 126/126. Not a new version. |
 
 Version numbers are experiment milestones, not a count of documentation edits; how they map onto older publication numbers is in [VERSION_HISTORY.md](VERSION_HISTORY.md).
 
@@ -318,6 +321,7 @@ The controls that are still missing.
 | Stage | Question raised by current results | Plan and completion criteria |
 | --- | --- | --- |
 | **Matched controls and remaining MoE cells** | Cell D1 already has both the single-card and the single-host control at 9B on the 3060; the other cells need their controls filled in under one workload standard, and two MoE cells have not started. | 1. Re-run the RTX 3080 under the same 9B Q6_K conditions. 2. Add matched single-card controls on the 3060 and 3080 for the 27B and MoE cells, and a same-round "3080 without remote KV" control for 27B-KV-01. 3. Run the full experiments for M1 (MoE, fits easily) and M3 (MoE, does not fit). 4. Carry one-to-one Dense Acceleration to more large-memory hosts and more small-VRAM cards. Done when the dense region lines up, the Prefill and Decode gains hold, and scheduling is stable. |
+| **Spark pair follow-ups** | Measured versus still missing on RTX 3080 20GB + DGX Spark GB10. | **Measured:** 27B-SPARK-01 three working profiles versus this 3080 standalone microbenchmark (Prefill-first, no speculation; Decode-first DFlash2 at 2K and 8K; balanced DFlash2 C1–C6). **Not yet measured:** Spark standalone at the same model, quantization, and load; 3080 standalone balanced C1–C6; unified speculation settings on the pair versus the control; more models on this pair. |
 | **One accelerator to many hosts** | Once one-to-one is stable, can one accelerator serve several large-memory hosts at once? | Study one-to-many scheduling, resource isolation, fair sharing, failure recovery, and the scaling limit. Done when the gain reproduces as hosts are added and the per-host slowdown stays acceptable. |
 
 ## Detailed reports and data

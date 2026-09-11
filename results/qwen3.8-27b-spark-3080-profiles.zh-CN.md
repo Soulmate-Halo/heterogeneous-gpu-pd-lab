@@ -16,7 +16,7 @@
 | 均衡档 | 8192 token 冷输入、256 输出、DFlash2、六槽服务，并发 C1-C6。 |
 | 匹配对照 | 同一模型、量化、KV、输入长度、输出长度下的 RTX 3080 单机。单机上的投机参数按那套系统自己调，和组合不是只改一个变量。 |
 | 未记录 | 均衡服务负载下的 3080 单机 C1-C6。 |
-| 结论边界 | 最高Prefill确认档的 Prefill 快于本次 3080 单机。不宣称超过所有单机，不替代 395 主机矩阵，不和社区 NVFP4 Spark 成绩排名。 |
+| 结论边界 | 最高Prefill确认档的 Prefill 快于本次 3080 单机。不宣称超过所有单机。已列入首页三条硬件路线的 D2 覆盖图。性能只对同条件基线比较。不和社区 NVFP4 Spark 成绩排名。 |
 
 ## 三档各自牺牲什么
 
@@ -71,7 +71,7 @@ live 复测是 Prefill 确认档的再次测量，不是第四档。
 
 ## 边界
 
-- 395 主机上的 27B 记录仍在 [qwen3.8-27b-dual-machine-pd.zh-CN.md](qwen3.8-27b-dual-machine-pd.zh-CN.md)。这条 Spark 线是另一对硬件，不拼进那张矩阵。
+- 395 主机上的 27B 记录仍在 [qwen3.8-27b-dual-machine-pd.zh-CN.md](qwen3.8-27b-dual-machine-pd.zh-CN.md)。这条 Spark 线已列入三条硬件路线的 D2 覆盖图；性能只对同条件基线比较。
 - 社区 NVFP4 Spark 数字仍在 [dgx-spark-community-control.zh-CN.md](dgx-spark-community-control.zh-CN.md)。量化、引擎、方法都不同；不并入三档，也不和这些 Q4_K_M 行排名。
 - 不要把 1603.20 写成 3080 自己的 Prefill。这次 8K、无投机的 3080 单机 Prefill 是 1113.13。
 - 不要把均衡档 Decode 列和 128 输出微基准的 Decode 当成同一个量。
