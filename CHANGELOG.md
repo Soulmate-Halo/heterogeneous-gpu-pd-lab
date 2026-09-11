@@ -2,7 +2,17 @@
 
 [简体中文](CHANGELOG_ZH.md)
 
-Public versions are the seven measured experiment milestones below. [VERSION_HISTORY.md](VERSION_HISTORY.md) maps them to older publication numbers.
+Public versions are the seven measured experiment milestones below. [VERSION_HISTORY.md](VERSION_HISTORY.md) maps them to older publication numbers. The 2026-09-11 Spark addendum is experiment data, not a new public version.
+
+## 2026-09-11 experiment data addendum
+
+Not a new public version. Public version remains **v1.6**.
+
+- Added 27B-SPARK-01 on Qwen3.8-27B Q4_K_M / KV q4_0, RTX 3080 20GB + DGX Spark GB10: three confirmed working profiles after search (Highest Prefill confirmed, Highest Decode confirmed, Balanced). Highest means this search's confirmed working point, not a global optimum.
+- Highest Prefill confirmed, 8K in / 128 out, no speculation, median of three warm repeats: pair Prefill **1603.20** tok/s and Decode **17.62**, versus 3080 standalone 1113.13 / 33.36 (Prefill **+44.03%**). Later live retest of the same profile: 8K 1601.05 / 17.41. Do not quote 1700. Pair scores are combination scores, not 3080-only.
+- Highest Decode confirmed, DFlash2 on: 2K 1153.95 / 63.97 and 8K 1124.32 / 49.20. 3080 standalone with its own DFlash2 tuning: 2K 1042.97 / 60.37 and 8K 1015.15 / 58.36. Speculation settings differ; this is a system-to-system control, not a one-variable change.
+- Balanced, 8K cold in / 256 out, DFlash2, six-slot serving, C1-C6: aggregate Prefill 1097.40, 1094.21, 1089.37, 1086.44, 1087.57, 1088.06; aggregate Decode 47.69, 31.18, 28.04, 24.90, 24.77, 25.55 (whole-batch window, includes other-stream Prefill). 36 official waves, 126/126 official requests. No standalone C1-C6 control.
+- Record: [qwen3.8-27b-spark-3080-profiles.md](results/qwen3.8-27b-spark-3080-profiles.md). CSV: [qwen27b-spark-3080-profiles.csv](data/qwen27b-spark-3080-profiles.csv). Community NVFP4 Spark rows stay external and are not ranked with these three profiles.
 
 ## v1.6
 

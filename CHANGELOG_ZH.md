@@ -2,7 +2,17 @@
 
 [English](CHANGELOG.md)
 
-公开版本就是下面七个实测实验里程碑。与旧发布号的对应见 [VERSION_HISTORY.md](VERSION_HISTORY.md)。
+公开版本就是下面七个实测实验里程碑。与旧发布号的对应见 [VERSION_HISTORY.md](VERSION_HISTORY.md)。2026-09-11 的 Spark 补录是实验数据，不是新的公开版本。
+
+## 2026-09-11 实验数据补录
+
+不是新的公开版本。公开版本仍是 **v1.6**。
+
+- 补了 27B-SPARK-01：Qwen3.8-27B Q4_K_M / KV q4_0，RTX 3080 20GB + DGX Spark GB10；搜索后确认三档工作档（最高Prefill确认档、最高Decode确认档、均衡档）。最高只指本次搜索后确认的工作点，不宣称全局最优。
+- 最高Prefill确认档，8K 输入 / 128 输出、无投机、三次预热重复中位数：组合 Prefill **1603.20** tok/s、Decode **17.62**，对照 3080 单机 1113.13 / 33.36（Prefill **+44.03%**）。后来同档 live 复测 8K 为 1601.05 / 17.41。不要写成 1700。组合成绩不是 3080 单机成绩。
+- 最高Decode确认档，开 DFlash2：2K 1153.95 / 63.97，8K 1124.32 / 49.20。3080 单机用它自己那套 DFlash2 调参：2K 1042.97 / 60.37，8K 1015.15 / 58.36。投机参数不同，是系统对系统对照，不是只改一个变量。
+- 均衡档，8K 冷输入 / 256 输出、DFlash2、六槽服务、C1-C6：聚合 Prefill 1097.40、1094.21、1089.37、1086.44、1087.57、1088.06；聚合 Decode 47.69、31.18、28.04、24.90、24.77、25.55（整批生成窗口，含他路 Prefill）。36 个正式波次，126/126 正式请求。无单机 C1-C6 对照。
+- 详档：[qwen3.8-27b-spark-3080-profiles.zh-CN.md](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md)。CSV：[qwen27b-spark-3080-profiles.csv](data/qwen27b-spark-3080-profiles.csv)。社区 NVFP4 Spark 行仍是外部参考，不和这三档排名。
 
 ## v1.6
 
