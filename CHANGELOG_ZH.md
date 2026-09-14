@@ -4,6 +4,13 @@
 
 公开版本就是下面七个实测实验里程碑。与旧发布号的对应见 [VERSION_HISTORY.md](VERSION_HISTORY.md)。2026-09-11 的 Spark 补录是实验数据，不是新的公开版本。
 
+## 2026-09-14 实验数据补录
+
+- 测了 FLASH-SPARK-01：Qwen3.8-Flash-Next NVFP4，RTX 6000D + DGX Spark 双机容量配平与特殊配比分层 PP2。
+- 容量配平：8K Prefill 8157.74 tok/s、C6 聚合输出 414.90 tok/s；PP2：8696.94 / 284.56。聚合含 TTFT；不同负载分别测量；每方案 C1–C6 63/63 请求完成。
+- 首页前置算力与显存配比的研究发现、完整实验参数、同机不同配方的取舍；这是可复用的选配方法，尚无跨模型通用比例公式。
+- 版本仍是 **v1.6**；不公开具体层数。 [Record](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) · [CSV](data/qwen3.8-flash-next-spark-6000d.csv)
+
 ## 2026-09-11 实验数据补录
 
 不是新的公开版本。公开版本仍是 **v1.6**。

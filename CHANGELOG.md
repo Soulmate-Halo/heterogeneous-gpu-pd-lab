@@ -4,6 +4,13 @@
 
 Public versions are the seven measured experiment milestones below. [VERSION_HISTORY.md](VERSION_HISTORY.md) maps them to older publication numbers. The 2026-09-11 Spark addendum is experiment data, not a new public version.
 
+## 2026-09-14 experimental addendum
+
+- Measured FLASH-SPARK-01: Qwen3.8-Flash-Next NVFP4 on RTX 6000D + DGX Spark, with capacity balancing and specially proportioned PP2 layer splitting.
+- Capacity profile: 8K Prefill 8157.74 tok/s, C6 aggregate output 414.90 tok/s; PP2: 8696.94 / 284.56. Aggregate includes TTFT; workloads are separate; each profile completes 63/63 requests over C1–C6.
+- The opening now presents compute/memory allocation findings, experimental parameters and same-hardware trade-offs: a reusable selection method, not a universal cross-model ratio formula.
+- Version remains **v1.6**; exact layer counts stay private. [Record](results/qwen3.8-flash-next-spark-6000d.md) · [CSV](data/qwen3.8-flash-next-spark-6000d.csv)
+
 ## 2026-09-11 experiment data addendum
 
 Not a new public version. Public version remains **v1.6**.

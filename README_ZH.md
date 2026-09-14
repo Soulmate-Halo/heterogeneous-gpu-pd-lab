@@ -2,13 +2,29 @@
 
 [English](README.md)
 
+## 最新研究发现 · 2026-09-14
+
+**最快的组合，取决于算力与显存怎样配比。** 连续实验表明，算力配比和显存配比存在相关性：容量决定能放多少，计算与传输耗时决定怎么放才快。不同模型、不同加速卡的最快已测方案存在可分析的逻辑，选配方法可以**计算、推理、复用**；具体比例仍需实测校准，尚无跨模型通用公式。
+
+**最新突破：Qwen3.8-Flash-Next NVFP4，RTX 6000D + DGX Spark，8K Prefill 8157.74 tok/s，C6 聚合输出 414.90 tok/s。** 这两个成绩来自同一容量配平配置的不同负载。研究也进行了**特殊配比分层（PP2）**：8K Prefill **8696.94**，C6 聚合输出 **284.56**，说明最高 Prefill 与最高生成吞吐各有适合的配比。
+
+| 指标 / 条件 | 6000D 单机 | Spark 单机 | 双机容量配平 | 双机特殊配比分层（PP2） |
+| --- | --- | --- | --- | --- |
+| 4K Prefill · C1 | 未测 | 未测 | **8016.63** | 7538.10 |
+| 8K Prefill · C1 | 未测 | 未测 | **8157.74** | **8696.94** |
+| C6 聚合输出（含 TTFT） | 未测 | 未测 | **414.90** | 284.56 |
+
+**最新参数：** vLLM nightly；MoE 权重 NVFP4 / KV fp8_e4m3；上下文 65536；并发上限 6；Prefill chunk 2048；MTP 3 + 全词表草稿；容量配平档 GMU 0.99、KV 池 198332 tokens。Prefill 为 C1、4K–32K；生成压测每请求输出 256 tokens、3 轮计分 + 1 轮预热，C1–C6 合计 **63/63 成功**。PP2 两端 KV 各 8 GiB，具体分层比例不公开。
+
+6000D 负责计算、Spark 承担 PLE 常驻与查表的是 **8157.74 / 414.90** 档；两端分层计算的是 **8696.94 / 284.56** 档。聚合输出包含 TTFT，不能当纯 Decode 阶段吞吐；4K 的 8016.63 取第 2 次稳态。[完整参数与数据](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) · [CSV](data/qwen3.8-flash-next-spark-6000d.csv)
+
 **让小显卡与大内存主机一起算，把已有设备的算力用起来。**
 
 - **9B：组合 Prefill 比 3060 单卡快 34.0%，比 395 单主机快 119.6%。**
 - **27B：3080 + DGX Spark 的 Prefill 比本次 3080 单卡快 44.03%。** 8K 输入 / 128 输出，无投机。
 - **27B 长上下文：组合的 64K Prefill 达到 395 单机的 2.33 倍，98K 从超时到跑完。**
 
-一张算力强但显存小的 NVIDIA 显卡（RTX 3060 12GB / RTX 3080 20GB）配一台大内存伙伴，可以一起跑大模型推理。三条路线：RTX 3060 12GB + AMD AI Max+ 395，RTX 3080 20GB + 395，以及 RTX 3080 20GB + DGX Spark GB10。**稠密加速**指两台设备同时算同一个模型的同一个阶段。当前版本 **v1.6**，七个公开里程碑，另有 2026-09-11 的本地 Spark 实测补录（不是新版本）。不公开部署命令、代码补丁、服务地址和切层策略。
+一张算力强但显存小的 NVIDIA 显卡（RTX 3060 12GB / RTX 3080 20GB）配一台大内存伙伴，可以一起跑大模型推理。四条路线：RTX 3060 12GB + AMD AI Max+ 395，RTX 3080 20GB + 395，RTX 3080 20GB + DGX Spark GB10，以及 RTX 6000D + DGX Spark GB10。**稠密加速**指两台设备同时算同一个模型的同一个阶段。当前版本 **v1.6**，七个公开里程碑，另有 2026-09-11 与 2026-09-14 的本地 Spark 实测补录（不是新版本）。不公开部署命令、代码补丁、服务地址和切层策略。
 
 C1–C6 指同时发 1 到 6 路请求，C1 是单流；聚合是同时在跑的几路加起来的速度。速度单位为 tok/s，除非该行写的是 TTFT。
 
@@ -67,6 +83,7 @@ C1–C6 指同时发 1 到 6 路请求，C1 是单流；聚合是同时在跑的
 | MoE 融合草稿 | ORNITH-PD-02 · Ornith-1.5-35B-A3B · IQ4_XS · 3080 + 395 | 3080 Prefill **4173.47**；395 + DFlash 单流 Decode **114.86** tok/s；107/114（93.86%） | [详档](results/ornith-1.5-35b-a3b-fused-dflash-pd.zh-CN.md) |
 | 单服务切层 | FLASH-SPLIT-01 · Qwen3.8-Flash · Q4 · 3080 + 395 | 最好 C4：Prefill 633.685、Decode 71.185、总吞吐 338.270 tok/s | [详档](results/qwen3.8-flash-q4-layer-split.zh-CN.md) |
 | 双机组合 | 27B-SPARK-01 · Qwen3.8-27B · Q4_K_M · 3080 + Spark | Prefill **1603.20** 对 3080 1113.13（**+44.03%**）；2K Decode **63.97** | [详档](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) |
+| 双机配平 / 特殊配比分层 | FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · 6000D + Spark | 8K Prefill **8157.74**；C6 聚合输出 **414.90**；另测 PP2 **8696.94 / 284.56** | [详档](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) |
 | 外部参考 | EXT-DGX-01 · Qwen3.5 9B / TQ3_4S；Qwen3.8-27B / NVFP4 | 社区 Spark 数字，只当背景 | [详档](results/dgx-spark-community-control.zh-CN.md) |
 
 ## 为什么稠密加速是这个仓库的重点
@@ -124,20 +141,21 @@ flowchart LR
 | Prefill 优先，无投机 | 与 Spark 一起算同一个模型 | DGX Spark GB10 与 3080 一起算 | Prefill **1603.20** 对 1113.13（**+44.03%**）；Decode 17.62 对 33.36 | [27B-SPARK-01](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) |
 | Decode 优先，DFlash2 | 与 Spark 一起算同一个模型 | DGX Spark GB10 与 3080 一起算 | 2K Decode **63.97** 对 60.37；8K 49.20 对 58.36 | [27B-SPARK-01](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) |
 | 均衡服务，DFlash2 | 与 Spark 一起算同一个模型 | DGX Spark GB10 与 3080 一起算 | C1–C6 聚合 Prefill 1086.44–1097.40，Decode 24.77–47.69；126/126；无单机 C1–C6 | [27B-SPARK-01](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) |
+| Flash 双机容量配平 / 特殊配比分层 | RTX 6000D 主体计算；PP2 档参与分层计算 | DGX Spark 常驻 PLE 并查表；PP2 档也承担计算 | 8K Prefill / C6 聚合输出：容量档 **8157.74 / 414.90**；PP2 **8696.94 / 284.56** | [FLASH-SPARK-01](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) |
 
 395 矩阵里只有第一种是两台设备同时算同一阶段。Spark 组合也是两机一起算同一个模型；Prefill 提升只对照本次 3080 单机，没有 Spark 单机基线。
 
-## 三条硬件路线与六类实验矩阵
+## 四条硬件路线与六类实验矩阵
 
-这是三条硬件路线上的实验覆盖地图，不是同一套负载下的统一排名。路线一是 RTX 3060 12GB + AMD AI Max+ 395。路线二是 RTX 3080 20GB + 395。路线三是 RTX 3080 20GB + DGX Spark GB10。六格按「模型跑起来占多少显存 vs 加速卡显存」分为轻松装、装满、装不下；395 主机每格五种目标配置：RTX 3060 单卡、RTX 3080 单卡、AI Max+ 395 单机、3060 + 395、3080 + 395。同一格内模型、量化、prompt、上下文、并发、指标必须一致；单卡装不下本身是有效结果，不能换小模型或更狠量化去凑基线。仓库里没有任何 RTX 3090 的实测数据，这张卡在选型阶段就被排除了。
+这是四条硬件路线上的实验覆盖地图，不是同一套负载下的统一排名。路线一是 RTX 3060 12GB + AMD AI Max+ 395。路线二是 RTX 3080 20GB + 395。路线三是 RTX 3080 20GB + DGX Spark GB10。路线四是 RTX 6000D + DGX Spark GB10。六格按「模型跑起来占多少显存 vs 加速卡显存」分为轻松装、装满、装不下；395 主机每格五种目标配置：RTX 3060 单卡、RTX 3080 单卡、AI Max+ 395 单机、3060 + 395、3080 + 395。同一格内模型、量化、prompt、上下文、并发、指标必须一致；单卡装不下本身是有效结果，不能换小模型或更狠量化去凑基线。仓库里没有任何 RTX 3090 的实测数据，这张卡在选型阶段就被排除了。
 
-| 对比项 | 路线一：RTX 3060 12GB + 395 | 路线二：RTX 3080 20GB + 395 | 路线三：RTX 3080 20GB + DGX Spark |
-| --- | --- | --- | --- |
-| 覆盖版本 | v1.0 → v1.1 | v1.2 → v1.6 | 2026-09-11 补录（仍是 v1.6） |
-| 显存与能装什么 | 12GB，只装得下 9B 这一档稠密模型；27B 只能靠 IQ3 分层装 | 20GB，27B Q4 装得下，MoE 切层也因此成立 | 3080 20GB 加 Spark GB10；这条线上跑 27B Q4 |
-| 跑过的模型 | Ornith 9B 稠密 Q6_K；Qwen3.8-27B IQ3 | Qwen3.8-27B 稠密 Q4；Ornith-1.5-35B-A3B 和 Qwen3.8-Flash | Qwen3.8-27B 稠密 Q4_K_M |
-| 实验编号 | 9B-PD-01、9B-PIPE-01、27B-LONG-01 | 27B-PD-01、27B-KV-01、27B-DRAFT-AUDIT-01、ORNITH-PD-01、ORNITH-PD-02、FLASH-SPLIT-01 | 27B-SPARK-01 |
-| 短结果 | 组合 Prefill 2129.69 tok/s 对 3060 1589.00 / 395 970.00；27B-LONG 对 395 pp4096 **+110.2%** | 服务态 PD TTFT 1073 毫秒对 395 4825 毫秒；远端 KV 与 MoE C1–C6 | Prefill **1603.20** 对 3080 1113.13（**+44.03%**）；2K Decode **63.97**；C1–C6 126/126；Spark 单机未测 |
+| 对比项 | 路线一：RTX 3060 12GB + 395 | 路线二：RTX 3080 20GB + 395 | 路线三：RTX 3080 20GB + DGX Spark | 路线 4：RTX 6000D + DGX Spark |
+| --- | --- | --- | --- | --- |
+| 覆盖版本 | v1.0 → v1.1 | v1.2 → v1.6 | 2026-09-11 补录（仍是 v1.6） | 2026-09-14 补录（仍是 v1.6） |
+| 显存与能装什么 | 12GB，只装得下 9B 这一档稠密模型；27B 只能靠 IQ3 分层装 | 20GB，27B Q4 装得下，MoE 切层也因此成立 | 3080 20GB 加 Spark GB10；这条线上跑 27B Q4 | 6000D 承担计算；Spark 容纳 PLE 表；另测 PP2 特殊配比分层 |
+| 跑过的模型 | Ornith 9B 稠密 Q6_K；Qwen3.8-27B IQ3 | Qwen3.8-27B 稠密 Q4；Ornith-1.5-35B-A3B 和 Qwen3.8-Flash | Qwen3.8-27B 稠密 Q4_K_M | Qwen3.8-Flash-Next NVFP4 |
+| 实验编号 | 9B-PD-01、9B-PIPE-01、27B-LONG-01 | 27B-PD-01、27B-KV-01、27B-DRAFT-AUDIT-01、ORNITH-PD-01、ORNITH-PD-02、FLASH-SPLIT-01 | 27B-SPARK-01 | FLASH-SPARK-01 |
+| 短结果 | 组合 Prefill 2129.69 tok/s 对 3060 1589.00 / 395 970.00；27B-LONG 对 395 pp4096 **+110.2%** | 服务态 PD TTFT 1073 毫秒对 395 4825 毫秒；远端 KV 与 MoE C1–C6 | Prefill **1603.20** 对 3080 1113.13（**+44.03%**）；2K Decode **63.97**；C1–C6 126/126；Spark 单机未测 | 8K Prefill **8157.74**；C6 聚合输出 **414.90**；PP2 为 **8696.94 / 284.56** |
 
 Spark 格没有本地实测就写尚未测试；不把 395 数字填进那些 Spark 格，也不用社区 NVFP4 行当 Spark 路线证据。
 
@@ -148,13 +166,28 @@ Spark 格没有本地实测就写尚未测试；不把 395 数字填进那些 Sp
 | **D3 稠密 · 装不下**<br>Qwen3.8-27B · UD-IQ3_XXS · RTX 3060 | 一张卡干不完这个活时，分层装能不能跑完，而且比 395 快？ | **已验证**：27B-LONG-01 对 395 在 4K / 64K 为 **+110.2%** / **+133.4%**；98K 超时 → 225.10。[详档](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) | 本地尚未测试。 |
 | **M1 MoE · 轻松装**<br>模型与量化待定 | 激活参数不大、显存也有余量时，MoE 的路由开销会不会把重叠省下来的时间吃回去？ | 列入后续规划。 | 本地尚未测试。 |
 | **M2 MoE · 装满**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | MoE 快把 3080 装满时，阶段分离稳不稳；再往上做稠密重叠还有没有收益？ | **已验证**：ORNITH-PD-01 42/42，100K Decode 23.33 → 148.20（[详档](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)）；ORNITH-PD-02 Prefill 4173.47、Decode 114.86（[详档](results/ornith-1.5-35b-a3b-fused-dflash-pd.zh-CN.md)）。 | 本地尚未测试。 |
-| **M3 MoE · 装不下**<br>Qwen3.8-Flash · Q4 · RTX 3080 先导 | 模型总占用超过两张基准卡时，按层或按专家分开装，能不能同时保住能跑、吞吐和输出正确？ | FLASH-SPLIT-01 先导：C4 Prefill 633.685、Decode 71.185 tok/s。完整实验列入后续规划。[先导记录](results/qwen3.8-flash-q4-layer-split.zh-CN.md) | 本地尚未测试。 |
+| **M3 MoE · 装不下**<br>Qwen3.8-Flash · Q4 · RTX 3080 先导 | 模型总占用超过两张基准卡时，按层或按专家分开装，能不能同时保住能跑、吞吐和输出正确？ | FLASH-SPLIT-01 先导：C4 Prefill 633.685、Decode 71.185 tok/s。完整实验列入后续规划。[先导记录](results/qwen3.8-flash-q4-layer-split.zh-CN.md) | **FLASH-SPARK-01**：6000D + Spark，Flash-Next NVFP4；容量配平 **8157.74 / 414.90**，PP2 特殊配比分层 **8696.94 / 284.56**（8K Prefill / C6 聚合输出）。与 3080 Q4 先导是不同模型版本与量化。[详档](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) |
 
 ## 实验数据
 
 每个实验一张小表，这是首页唯一放完整数据的地方。数字抄自 `results/` 与 `data/`；首页和详档如果有出入，以详档和 CSV 为准。提升幅度按「组合成绩 ÷ 对照成绩 − 1」算，TTFT 写的是降了多少。llama-bench 裸算和服务端到端不当同一口径比赛。
 
 **稠密加速。** 9B-PIPE-01 有 3060 单卡与 395 单机两组对照。27B-SPARK-01 在最高 Prefill 确认档上有匹配的 3080 单机对照，没有 Spark 单机基线。最高 Prefill 只比本次 3080 单机 +44.03%。
+
+### FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark
+
+双机已完成容量配平与**特殊配比分层（PP2）**两类实验。8K Prefill 分别 **8157.74 / 8696.94 tok/s**，C6 聚合输出分别 **414.90 / 284.56 tok/s**；两项测试的输入负载不同。容量配平档 C1–C6 聚合输出如下，完整每流 Decode、TTFT 与参数见[详档](results/qwen3.8-flash-next-spark-6000d.zh-CN.md)。
+
+| 并发 | 容量配平：聚合输出 | 容量配平：每流 Decode 均值 | PP2：聚合输出 | 计分请求（每方案） |
+| --- | --- | --- | --- | --- |
+| C1 | **94.82** | 108.13 | 81.79 | 3/3 |
+| C2 | **172.68** | 97.07 | 138.66 | 6/6 |
+| C3 | **232.38** | 87.77 | 166.21 | 9/9 |
+| C4 | **296.14** | 82.91 | 205.31 | 12/12 |
+| C5 | **315.92** | 79.15 | 251.35 | 15/15 |
+| C6 | **414.90** | 76.89 | 284.56 | 18/18 |
+
+每方案 **63/63 个计分请求**成功；C6 单档为 18/18。统计包含 TTFT，固定输出 256 tokens；输出完成不等于全部语义评测通过。
 
 ### 9B-PIPE-01 · Ornith 9B · Q6_K · 异步分层稠密加速
 
@@ -335,6 +368,7 @@ C1–C6 Prefill 聚合为 569.892–633.685 tok/s，聚合 Decode 为 35.204–7
 | v1.5 | FLASH-SPLIT-01 | 单服务切层（3080 占 0.38、395 占 0.62）21/21 计分请求成功。最好用的档是 4 路（C4）：Prefill 633.685、聚合 Decode 71.185、总吞吐 338.270；1 到 6 路 Prefill 569.892–633.685 |
 | **v1.6** | ORNITH-PD-02 | 3080 Prefill 4173.47，395 带 DFlash 草稿单流 Decode 114.86，草稿接受 107/114（93.86%）。解码跟着接受率走：9.4% 时只有 3665.3 / 37.2 |
 | 2026-09-11 补录（仍是 v1.6） | 27B-SPARK-01 | RTX 3080 20GB + DGX Spark GB10，Qwen3.8-27B Q4_K_M。Prefill 优先 8K/128 无投机：组合 1603.20 / 17.62 对 3080 单机 1113.13 / 33.36（**+44.03%**）。Decode 优先 DFlash2：2K 1153.95 / 63.97，8K 1124.32 / 49.20。均衡 DFlash2 C1–C6 126/126。不创造新版本。 |
+| 2026-09-14 补录（仍是 v1.6） | FLASH-SPARK-01 | Qwen3.8-Flash-Next NVFP4，6000D + Spark 完整双机；容量配平 8K Prefill 8157.74、C6 聚合输出 414.90；特殊配比分层 PP2 8696.94 / 284.56；各 63/63。 |
 
 版本号是实验里程碑，不是文档维护次数；与旧发布号的对应见 [VERSION_HISTORY.md](VERSION_HISTORY.md)。
 
@@ -359,6 +393,7 @@ C1–C6 Prefill 聚合为 569.892–633.685 tok/s，聚合 Decode 为 35.204–7
 | --- | --- | --- |
 | **补齐匹配对照与其余 MoE 格** | D1 这一格已经在 9B + 3060 上做齐了单卡与单机两组对照；其余几格要按同一套负载标准把对照补齐，两格 MoE 实验还没有开始。 | 一、9B Q6_K 同样条件下补 RTX 3080 的复测；二、27B 与 MoE 各格补 3060、3080 的同条件单卡对照，27B-KV-01 补同一轮「3080 不接远端 KV」的对照；三、做 M1（MoE 轻松装）和 M3（MoE 装不下）两格的完整实验；四、把一对一的稠密加速搬到更多大内存主机和更多小显存显卡上。做完的标准：稠密区能对得上、Prefill 和 Decode 的收益不打折、调度稳定。 |
 | **Spark 组合后续** | 3080 + Spark 上已测与待测要分开写。 | **已测：** 27B-SPARK-01 三档，对照本次 3080 单机微基准（Prefill 优先无投机；Decode 优先 DFlash2 的 2K 与 8K；均衡 DFlash2 C1–C6）。**尚未测试：** 同模型、同量化、同负载的 Spark 单机基线；3080 单机均衡 C1–C6；组合与对照统一投机参数；这条线上的更多模型。 |
+| **算力与显存配比** | 从可装载性与阶段耗时推导候选配置，再用实测验证。 | FLASH-SPARK-01 已验证容量配平与特殊配比分层的不同取舍；后续跨模型、跨加速卡校准配比方法，同时考虑 Prefill、Decode、并发、上下文与输出。 |
 | **一卡对多主机** | 一对一跑稳之后，一张加速卡能不能同时带多台大内存主机？ | 研究一对多的调度、资源隔离、公平分配、故障恢复和扩展上限。做完的标准：主机数量增加后收益还能复现，单台主机的性能下降在可接受范围内。 |
 
 ## 详档与数据
@@ -374,6 +409,7 @@ C1–C6 Prefill 聚合为 569.892–633.685 tok/s，聚合 Decode 为 35.204–7
 | ORNITH-PD-02 | Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 20GB | 在独立 PD 之上加融合草稿和统一 KV 池，Prefill 和单流 Decode 能不能一起上台阶？ | [Ornith 融合草稿 PD](results/ornith-1.5-35b-a3b-fused-dflash-pd.zh-CN.md) | [CSV](data/ornith35a3b-local-results.csv) |
 | FLASH-SPLIT-01 | Qwen3.8-Flash · Q4 · RTX 3080 20GB | 一个服务同时用 CUDA 和 Vulkan 切层，吞吐在哪一档到顶？ | [Qwen3.8-Flash Q4 切层](results/qwen3.8-flash-q4-layer-split.zh-CN.md) | [CSV](data/qwen38flash-q4-local-results.csv) |
 | 27B-SPARK-01 | Qwen3.8-27B · Q4_K_M · RTX 3080 20GB + DGX Spark GB10 | 这套组合相对 3080 单机，Prefill、Decode、均衡服务档分别能站住什么？ | [Qwen3.8-27B Spark + 3080 三档](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) | [CSV](data/qwen27b-spark-3080-profiles.csv) |
+| FLASH-SPARK-01 | Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark | 算力与容量如何配平；特殊配比分层如何影响 Prefill 与生成吞吐？ | [Flash 双机完整实验](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) | [CSV](data/qwen3.8-flash-next-spark-6000d.csv) |
 | EXT-DGX-01 | Qwen3.5 9B · TQ3_4S 与 Qwen3.8-27B · NVFP4 · 外部 DGX Spark | DGX Spark 的公开成绩，只当背景 | [DGX Spark 社区对照](results/dgx-spark-community-control.zh-CN.md) | [CSV](data/dgx-spark-community-controls.csv) |
 
 实验编号和旧标签的对应关系在 [data/experiment-index.csv](data/experiment-index.csv)；全部详档在 [results/](results/) 目录。[更新记录](CHANGELOG_ZH.md)记录每一版公开实验版本测了什么。版本对照：[VERSION_HISTORY.md](VERSION_HISTORY.md)。
