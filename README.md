@@ -18,20 +18,20 @@ The first row divides input tokens by engine Prefill time. P processes the initi
 
 ### Observed peaks: six GPUs, standalone TP4 and eight H20 GPUs
 
-**All systems use successful batch input tokens / complete wall time.** This input rate includes generation time. Every row takes the **best formal individual batch** within the explicitly defined sweep below.
+**The six-GPU row shows its P-stage Prefill peak of 16698.30 tok/s; standalone TP4 and eight H20 GPUs show their measured full-wall input peaks.** Each row states its workload and timing scope.
 
-| Hardware / runtime | Peak workload: input / output / concurrency | Peak full-wall input tok/s | Six GPUs / this peak | Peak batch success |
-| --- | --- | ---: | ---: | ---: |
-| Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | **1.62×** | 4/4 |
-| **Dual 6000D + four Sparks / vLLM PD** | **32768 / 512 / C12** | **8165.19** | **1.00×** | **12/12** |
-| Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **1.66×** | 64/64 |
-| Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **1.17×** | 64/64 |
+| Hardware / runtime | Peak workload: input / output / concurrency | Measured peak tok/s | Timing scope | Peak batch success |
+| --- | --- | ---: | --- | ---: |
+| Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | Full wall time, including generation | 4/4 |
+| **Dual 6000D + four Sparks / vLLM PD** | **32768 / 128 / C1** | **16698.30** | **P-stage Prefill** | **1/1** |
+| Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | Full wall time, including generation | 64/64 |
+| Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | Full wall time, including generation | 64/64 |
 
-**Within these sweeps, the six-GPU peak full-wall input rate is 17.07% above the eight-H20 vLLM core-matrix peak.** These are observed-peak comparisons across different workloads, input/output lengths, concurrency and speculation settings; they are not matched hardware speedups or H20 hardware limits. **16698.30 measures the P stage and must not be divided by H20 full-wall input rates.**
+**The six-GPU peak measures only the P stage; TP4 and H20 input rates include generation time, so these rows cannot be used to calculate hardware speedup ratios.** Input/output lengths, concurrency and speculation settings also differ. These are measured results, not hardware performance limits.
 
-Scope: TP4 has 12 formal Prefill batches across chunk sizes 2048 / 4096 / 8192, excluding warmup; six-GPU V7 has 16 formal code-matrix batches; H20 has 36 [core rounds per engine](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/), excluding warmup, historical-length and arrival-rate experiments. The TP4 peak batch contains 8194 + 8018 + 8019 + 7895 = **32126 input tokens**. Its earlier 5033.37 was a two-batch C1 mean; this table uses the best formal batch, 5037.39.
+Scope: the six-GPU value is the **P-stage peak from the 2026-09-17 tuning records**, with **zero** additional P-side prefix-cache hits; TP4 has 12 formal Prefill batches across chunk sizes 2048 / 4096 / 8192, excluding warmup; H20 has 36 [core rounds per engine](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/), excluding warmup, historical-length and arrival-rate experiments. The TP4 peak batch contains 8194 + 8018 + 8019 + 7895 = **32126 input tokens**.
 
-[Peak CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Six GPUs = 393216 / 48.157599. Failed requests remain in wall time.
+[Peak CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). Six-GPU P-stage peak = 32768 / 1.962356 ≈ **16698.30 tok/s**. H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Failed requests remain in the full-wall denominator.
 
 ### Matched verification: complete C8 input-serving interval
 
@@ -232,7 +232,7 @@ One small table per experiment; this is the only place on the front page that ho
 
 ### DS41-6GPU-01 · DeepSeek-V4.1-Flash · four Sparks + dual 6000Dpro
 
-**Measured P-stage peak: 16698.30 tok/s (32768 / 128 / C1); see the opening tables for full-wall peak comparisons.** Matched C8 Prefill input throughput: **7812.43 versus 1720.90 tok/s (4.54×)** at 8K and **13300.06 versus 1699.75 tok/s (7.82×)** at 32K. Mean 32K TTFT drops from **86.541 to 11.596 seconds**. Formal matrix: 100/100; latest deployment V7. [Evolution, settings, H20 reference and correctness limits](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
+**Measured P-stage peak: 16698.30 tok/s (32768 / 128 / C1); see the opening tables for measured hardware peaks and their timing scopes.** Matched C8 Prefill input throughput: **7812.43 versus 1720.90 tok/s (4.54×)** at 8K and **13300.06 versus 1699.75 tok/s (7.82×)** at 32K. Mean 32K TTFT drops from **86.541 to 11.596 seconds**. Formal matrix: 100/100; latest deployment V7. [Evolution, settings, H20 reference and correctness limits](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
 
 ### FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark
 
