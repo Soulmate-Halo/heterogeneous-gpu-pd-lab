@@ -28,16 +28,21 @@
 
 **六卡展示 Prefill 峰值 16698.30 tok/s、C12、12/12 完成；下表同时列出纯 TP4、八卡 H20 社区成绩和当前整机采购价格。** 价格查询日期：2026-09-18；海外价格保留原币种。
 
-| 机组 / 引擎 | 峰值负载：输入 / 输出 / 并发 | 已测峰值 tok/s | 当前机器售价（含主机、内存） | 峰值批成功 |
+| 机组 / 引擎 | 峰值负载：输入 / 输出 / 并发 | 已测峰值 tok/s | 当前系统价格（USD；主机、内存计入总价） | 峰值批成功 |
 | --- | --- | ---: | --- | ---: |
 | 纯四 Spark TP4 / SGLang | 约 8K / 1 / C4；分块 8192 | 5037.39 | **US$18,796**（4 台整机） | 4/4 |
-| **双 6000D＋四 Spark / vLLM PD** | **32768 / 128 / C12** | **16698.30** | **海外同级配置参考 US$69,394**；6000D 实际整机价待询 | **12/12** |
-| 八卡 H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **¥1,300,000**（国内 H20 96GB×8 整机参考） | 64/64 |
-| 八卡 H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **¥1,300,000**（同一 H20 96GB×8 采购口径） | 64/64 |
+| **双 6000D＋四 Spark / vLLM PD** | **32768 / 128 / C12** | **16698.30** | **US$38,146＋主机及内存（待补）** | **12/12** |
+| 八卡 H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **海外约 US$256,816 起**；国内折合 **US$193,499** | 64/64 |
+| 八卡 H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **海外约 US$256,816 起**；国内折合 **US$193,499** | 64/64 |
 
-**价格来源与配置：** 四台 Spark 按[官方现价 US$4,699/台](https://forums.developer.nvidia.com/t/2-23-2026-price-change-announcement/361713)计算，整机含 128GB 统一内存、4TB SSD。六卡海外参考合计 **US$69,394 = US$18,796 + US$50,598**；其中[双卡工作站公开报价](https://gear-up.me/usd/trd-dual-workstation-pc-threadripper-pro-9995wx-2x-nvidia-rtx-pro-6000-blackwell-256gb-ddr5-ram-4tb-nvme-ssd-20tb-hdd-2050w-80-plus-psu-win-11-pro.html)含 Threadripper PRO 9995WX、双 RTX PRO 6000 Blackwell、256GB DDR5、4TB NVMe、20TB HDD 及 2050W 电源。该工作站为海外 6000 型号参考，并非本实验 6000D 原机报价；不据此承诺相同性能。机组互联设备、线材、税费及运输未统一计入，金额为列明整机的标价合计，不是交钥匙集群总价。
+**计价基准（2026-09-18）：** 价格列统一为美元。[俄罗斯央行当日汇率](https://www.cbr.ru/currency_base/daily/?UniDbQuery.Posted=True&UniDbQuery.To=18.09.2026)为 1 USD = 84.5093 RUB、1 CNY = 12.5788 RUB，交叉折算 1 USD ≈ 6.718391 CNY；使用未舍入汇率计算，展示金额四舍五入至美元。国内报价折算与海外商家报价分别标注；税费、运输及集群互联设备未统一到同一口径。
 
-**H20 按 96GB×8 整机计价：¥1,300,000 为实验者提供的当前国内报价，包含服务器和内存，内存容量及税费口径未提供。** 本轮未核实到同时明确 96GB×8、主机和内存配置的海外现售整机报价。[社区测速硬件](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/)实际为 H20-3e（每卡报告 143,771 MiB）；表中 96GB 采购参考价不代表该测速机型售价。
+**六卡成本拆分：** 四台 Spark 按[官方 US$4,699/台](https://forums.developer.nvidia.com/t/2-23-2026-price-change-announcement/361713)计，共 **US$18,796**，每台整机含 128GB 统一内存、4TB SSD。6000D 按实验者提供的当前单卡人民币 65,000 元计，折合约 **US$9,675/张**，两张约 **US$19,350**。因此六卡系统应为 **US$38,146＋双卡主机及内存成本**；后者包括 CPU、主板、RAM、存储、机箱、电源及散热，当前实际报价尚缺，**US$38,146 只是已知部分小计，不是含主机、内存的完整总价**。
+
+**H20 海外整机与架构：** [ServerICT 的 Dell PowerEdge XE9680](https://serverict.com/servers-gpu/dell/dell-h20-nvidia/)公开起价 RUB 21,703,313，折合约 **US$256,816 起**。页面列出 **8×H20 96GB（合计 768GB）、双路 Xeon、16×64GB DDR5 RDIMM（合计 1TB）**；起价 SKU 为 D-XE9680-H20-1-64GB，列有 2×7.68TB SAS SSD。[Dell 官方规格](https://www.delltechnologies.com/asset/en-ai/products/servers/technical-support/poweredge-xe9680-spec-sheet.pdf)确认 6U、H20 SXM5 500W、NVLink 全互连；[官方 NVSwitch 支持表](https://docs.nvidia.com/ai-enterprise/release-7/latest/infra-software/vgpu/features/nvswitch.html)确认 H20 96GB 属于 Hopper 架构并支持 NVSwitch。商家页面为系列配置，最终 CPU 型号及交付配置以书面报价为准。实验者提供的国内 H20 96GB×8 含服务器、内存报价人民币 1,300,000 元，折合约 **US$193,499**，不视为与海外机器完全同配。
+
+**测速与采购型号：** [社区测速](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/)使用 H20-3e（每卡报告 143,771 MiB）；表中价格按要求对应 H20 96GB×8 采购参考，不代表该测速机型的售价。
+
 
 **六卡峰值只计 P 阶段，TP4 与 H20 的全程输入吞吐包含生成时间，不能据此直接计算机组间提速倍数。** 输入长度、输出长度、并发和投机设置也不同；这些是已测成绩，不代表硬件性能上限。
 
