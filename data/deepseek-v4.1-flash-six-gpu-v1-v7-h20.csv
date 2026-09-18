@@ -1,0 +1,7 @@
+input_tokens,output_tokens,concurrency,engine,output_tok_s,successful,requests,source_url,metric,matched_local_control
+8192,128,8,SGLang,63.64,48,48,https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/,full-wall-output; median-of-three,False
+8192,128,8,vLLM,97.63,48,48,https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/,full-wall-output; median-of-three,False
+24576,128,32,SGLang,22.79,192,192,https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/,full-wall-output; median-of-three,False
+24576,128,32,vLLM,36.3,192,192,https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/,full-wall-output; median-of-three,False
+1024,512,32,SGLang,824.7,192,192,https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/,full-wall-output; median-of-three,False
+1024,512,32,vLLM,1219.46,191,192,https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/,full-wall-output; median-of-three,False

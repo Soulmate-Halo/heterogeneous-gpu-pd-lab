@@ -4,6 +4,13 @@
 
 Public versions are the seven measured experiment milestones below. [VERSION_HISTORY.md](VERSION_HISTORY.md) maps them to older publication numbers. The 2026-09-11 Spark addendum is experiment data, not a new public version.
 
+## 2026-09-18 six-GPU experiment addendum
+
+- Add DS41-6GPU-01: DeepSeek-V4.1-Flash on four DGX Sparks and dual RTX 6000Dpro, deployment V1–V7. Public release remains v1.6.
+- Formal code matrix 100/100. Matched C8 aggregate Decode: 160.27 versus 80.32 at 8K; 123.25 versus 27.71 tok/s at 32K.
+- Keep historical TP4 and same-model eight-H20 context separate. The owner's 1200 tok/s report awaits raw evidence; no cross-workload hardware superiority claim.
+- Include readiness checks, rejected 4096 settings, unresolved correctness limits, parameters, CSV and sanitized timing/provenance. [Report](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
+
 ## 2026-09-14 experimental addendum
 
 - Measured FLASH-SPARK-01: Qwen3.8-Flash-Next NVFP4 on RTX 6000D + DGX Spark, with capacity balancing and specially proportioned PP2 layer splitting.

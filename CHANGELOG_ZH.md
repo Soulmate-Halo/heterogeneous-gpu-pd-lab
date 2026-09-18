@@ -4,6 +4,13 @@
 
 公开版本就是下面七个实测实验里程碑。与旧发布号的对应见 [VERSION_HISTORY.md](VERSION_HISTORY.md)。2026-09-11 的 Spark 补录是实验数据，不是新的公开版本。
 
+## 2026-09-18 六卡实验补录
+
+- 新增 DS41-6GPU-01：DeepSeek-V4.1-Flash，4×DGX Spark＋2×RTX 6000Dpro；记录部署 V1–V7，仓库公开版保持 v1.6。
+- 正式代码矩阵 100/100；同配置 C8 聚合 Decode：8K 160.27 对 80.32、32K 123.25 对 27.71 tok/s。
+- 保留旧纯 TP4 和同模型八卡 H20 外部参考；不同负载不作硬件胜负结论；1200 tok/s 用户补充成绩等待原始批次证据。
+- 记录预热门禁、4096 被否决与未定位的正确性问题；补充参数、CSV、脱敏逐请求计时及来源哈希。[详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
+
 ## 2026-09-14 实验数据补录
 
 - 测了 FLASH-SPARK-01：Qwen3.8-Flash-Next NVFP4，RTX 6000D + DGX Spark 双机容量配平与特殊配比分层 PP2。
