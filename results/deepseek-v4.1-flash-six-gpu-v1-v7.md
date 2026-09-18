@@ -6,15 +6,7 @@
 
 ## Peak Prefill: 16698.30 tok/s
 
-**Four DGX Sparks plus two RTX 6000Dpro GPUs reach a Prefill peak of 16698.30 tok/s. Per the experimenter’s September 18 correction, the displayed workload is 32768 input / 128 output / C12, with 12/12 requests completed.** The existing machine archive records the same numerical rate at C1; the C12 raw batch is pending. The historical C1 control below retains its original timings, TTFT and ratios.
-
-| Historical single-request control (archived C1): 32768 input / 128 output | Four Spark TP4 | Dual 6000D + four Sparks | Ratio |
-| --- | ---: | ---: | ---: |
-| Engine Prefill rate (combination counts P only) | 1921.12 | **16698.30** | **8.69×** |
-| Complete request input rate through first text | 1917.41 | **11348.86** | **5.92×** |
-| Time to first text, seconds | 17.089707 | **2.887339** | **83.10% shorter** |
-
-The first row divides input tokens by engine Prefill time. P processes the initial input stage; four Sparks still replay the tail, so **8.69× is a stage-rate ratio**. The second row includes handoff, replay and queuing through first text and measures this request's **5.92× input-processing gain**. Transport and text smoke checks passed with zero failed KV transfers; this is not a full accuracy evaluation.
+**Four DGX Sparks plus two RTX 6000Dpro GPUs reach a Prefill peak of 16698.30 tok/s. Per the experimenter’s September 18 correction, the displayed workload is 32768 input / 128 output / C12, with 12/12 requests completed.** The existing machine archive records the same numerical rate at C1; the C12 raw batch is pending.
 
 ## Primary results: Prefill throughput and time to first text
 
