@@ -8,6 +8,69 @@
 
 **Four DGX Sparks plus two RTX 6000Dpro GPUs reach a Prefill peak of 16698.30 tok/s. Per the experimenter’s September 18 correction, the displayed workload is 32768 input / 128 output / C12, with 12/12 requests completed.** The existing machine archive records the same numerical rate at C1; the C12 raw batch is pending.
 
+## Why two 6000D GPUs can handle Prefill: PP2 with a TP2 front stage and TP4 back stage
+
+**The six GPUs form a two-stage PP2 pipeline: two RTX 6000D GPUs use TP2 for long-input Prefill, and four DGX Sparks use TP4 to receive context and generate the response. DS4.1's dedicated Prefill path does not require the accelerator side to load the full model. Both 6000D GPUs can therefore cooperate on the entire long-input encoding path, concentrating compute where acceleration matters most.**
+
+**Why does the model allow this?** DeepSeek-V4.1-Flash uses a causal encoder-decoder (CED). Long prompts pass through the encoder, and the decoder's global KV is projected from the encoder's final hidden states. The decoder therefore need not process the entire long prompt again. The official active-parameter counts are **8B** per Prefill token and **16B** per Decode token; generation still requires the complete encoder-and-decoder path. [Official model description](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash#introduction) · [Inference framework explanation](https://github.com/vllm-project/recipes/blob/main/models/deepseek-ai/DeepSeek-V4.1-Flash.yaml)
+
+**Figure 1 · Two-stage topology across six GPUs**
+
+```mermaid
+flowchart LR
+    IN["Long-input request"] --> P
+    subgraph FRONT["PP2 front stage · TP2 · two RTX 6000D GPUs"]
+        P["Dedicated Prefill path<br/>Complete long-input encoding"]
+        G0["6000D 1<br/>Tensor shard"] <--> G1["6000D 2<br/>Tensor shard"]
+        P --- G0
+        P --- G1
+    end
+    P -->|"Context cache · NIXL handoff"| D
+    subgraph BACK["PP2 back stage · TP4 · four DGX Sparks"]
+        D["Receive context<br/>Replay the tail"] --> GEN["Full-model generation<br/>DSpark speculation"]
+        POOL["Spark 1 · Spark 2 · Spark 3 · Spark 4<br/>Four-way tensor parallelism"] --- GEN
+    end
+    GEN --> OUT["Output tokens"]
+```
+
+TP2 means that two GPUs cooperate on the front stage; TP4 means that four Sparks cooperate on the back stage. **PP2 counts stages, while TP counts devices within each stage: 2 + 4 = 6 GPUs.** PP2 here describes the experimenter's two-stage organization. The archived implementation connects P/D services through NIXL; generation runs the full model on the back stage without sending each new token back to the front stage.
+
+**Figure 2 · Why Prefill can use the encoder path**
+
+```mermaid
+flowchart LR
+    subgraph INPUTPATH["Long-prompt Prefill path"]
+        PROMPT["All input tokens"] --> ENC["Causal encoder<br/>Accelerated by front-stage TP2"]
+        ENC --> H["Final hidden states"] --> KV["Project context KV"]
+        KV --> REPLAY["Receive cache on back stage<br/>Reconstruct bounded tail state"]
+    end
+    subgraph OUTPUTPATH["Decode path for new tokens"]
+        NEW["New token"] --> FULL["Back-stage TP4<br/>Encoder + decoder"] --> NEXT["Predict next token"]
+    end
+    REPLAY --> FULL
+    KV -.->|"Reuse context"| FULL
+```
+
+The 6000D pair carries the main computation over the full input. The Sparks reuse the prepared context and perform the implementation's required tail replay before generation. Large-memory hosts hold the complete generation path while compute GPUs handle the long-input matrix work.
+
+**Figure 3 · Weight placement and memory roles**
+
+```mermaid
+flowchart TB
+    MODEL["Complete DS4.1 model"] --> PW["Dedicated front-stage Prefill instance<br/>Encoder and required shared components"]
+    MODEL --> DW["Back-stage generation instance<br/>Weights required for full generation"]
+    PW --> P0["6000D 1<br/>TP2 shard 1"]
+    PW --> P1["6000D 2<br/>TP2 shard 2"]
+    DW --> DPOOL["Four Sparks · TP4<br/>Model shards + KV + generation workspace"]
+    OMIT["Decoder weights unused by front-stage Prefill<br/>Need not reside on the 6000D pair"] -.-> PW
+    E["Engram<br/>On-demand lookup and GPU staging"] -.-> PW
+    E -.-> DW
+```
+
+**Fully using the pair for Prefill means assigning long-input encoding to both 6000D GPUs, without splitting that main path back onto the Sparks merely to fit the complete model.** Actual speed still depends on intra-stage communication, Engram lookup, chunking and cache handoff; this is not a measured claim of 100% GPU utilization. The 8B / 16B figures describe active parameters per token, not resident weight memory. TP sharding, external Engram storage and KV budgeting remain necessary in this experiment.
+
+**The acceleration chain is: CED enables a specialized Prefill path → TP2 fits and computes the required weights jointly → the 6000D pair handles long-input batches → the large-memory TP4 back stage receives context and generates.** This explains why Prefill is the main improvement; measured peaks and matched controls follow below.
+
 ## Primary results: Prefill throughput and time to first text
 
 Both paths reuse the same four-Spark D service with budget 1536, DSpark K=5 and identical Engram/CUDA Graph settings. Each path and input length has two C8 batches with 512 output tokens per request. Tables use batch means; code templates match but random prefixes differ.
@@ -31,7 +94,7 @@ Both paths reuse the same four-Spark D service with budget 1536, DSpark K=5 and 
 | Hardware / runtime | Peak workload: input / output / concurrency | Measured peak tok/s | Current system price (USD; host and RAM in total) | Peak batch success |
 | --- | --- | ---: | --- | ---: |
 | Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | **US$18,796** (four complete systems) | 4/4 |
-| **Dual 6000D + four Sparks / vLLM PD** | **32768 / 128 / C12** | **16698.30** | **US$38,146 + host and RAM (quote pending)** | **12/12** |
+| **Dual 6000D + four Sparks / PP2 (TP2→TP4)** | **32768 / 128 / C12** | **16698.30** | **US$38,146 + host and RAM (quote pending)** | **12/12** |
 | Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **Overseas from ~US$256,816**; China equivalent **US$193,499** | 64/64 |
 | Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **Overseas from ~US$256,816**; China equivalent **US$193,499** | 64/64 |
 
@@ -82,7 +145,7 @@ These are deployment stages, separate from public research release **v1.6**. V1 
 | **V6** | 2026-09-16–17 | Switch to PD: dual 6000D Prefill plus four-Spark TP4 Decode; repair P2P, GPU gather and NIXL | P single-request stage rate about 13K–16.5K tok/s; end-to-end input still pays handoff and tail replay; golden checkpoint frozen. |
 | **V7** | 2026-09-17–18 | Select code-serving settings, D prefetch/GPU staging and tail=1280; package images and add a watchdog | 100/100 requests in the 8K/32K × C1/C4/C8/C12 matrix; matched C8 Prefill input throughput is 4.54×/7.82× direct TP4; mean 32K TTFT falls 86.6%. |
 
-Adding compute first required removing lookup, interconnect and pipeline stalls. In V7, **the dual 6000D handles input Prefill; four Sparks replay the tail and perform full-model generation**. P does not perform the first half of every subsequent Decode step. Special layer allocation belongs to the earlier PP experiments; V7 is a PD deployment.
+Adding compute first required removing lookup, interconnect and pipeline stalls. With the experimenter's current clarification, the six-GPU organization is described as **PP2: a dual-6000D TP2 front stage and four-Spark TP4 back stage**. The diagrams above explain how this organization uses CED; the V6/V7 archive retains P/D and NIXL as the actual service roles and handoff mechanism. **The 6000D pair handles long-input encoding; four Sparks replay the tail and perform full-model generation**, including subsequent Decode steps.
 
 ## V7 code matrix: 8K / 32K × C1 / C4 / C8 / C12
 
@@ -126,7 +189,7 @@ One additional 32K/2048-output/C12 batch measured input **13485.39**, batch Deco
 | --- | --- |
 | Model / weights | Original DeepSeek-V4.1-Flash checkpoint; MXFP4 experts / FP8 main dense weights |
 | Compute hardware | 4×DGX Spark GB10 + 2×RTX 6000Dpro, with proxy and Engram shard services |
-| Runtime | vLLM; TP2 P and TP4 D, NIXL handoff |
+| Runtime | PP2 organization: TP2 front stage, TP4 back stage; vLLM P/D services with NIXL handoff |
 | Shared per-step token budget | P=4096; D=1536 |
 | Request / context limits | 12 / 153600; configured limits are not a full workload validation |
 | KV | auto, native fp8_ds_mla; block=128; P 1.5 GiB and D 6 GiB per rank |

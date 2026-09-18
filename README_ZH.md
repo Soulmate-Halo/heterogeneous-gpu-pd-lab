@@ -8,6 +8,69 @@
 
 **四台 DGX Spark 加两张 RTX 6000Dpro，Prefill 峰值 16698.30 tok/s；按实验者 2026-09-18 校正，展示条件为 32768 输入 / 128 输出 / C12，12/12 请求完成。** 现有机器归档中的同数值记录为 C1，C12 原始批次待补充同步。
 
+### 为什么两张 6000D 能接住 Prefill：PP2，首段 TP2、尾段 TP4
+
+**六卡按 PP2 两段流水组织：首段由两张 RTX 6000D 组成 TP2，集中承担长输入 Prefill；尾段由四台 DGX Spark 组成 TP4，承接上下文并完成后续生成。关键在于 DS4.1 的 Prefill 专用路径不需要在加速侧加载完整模型权重，两张 6000D 因而可以共同承接整条长输入编码路径，把算力用在最需要提速的环节。**
+
+**模型结构为什么允许这样做？** DeepSeek-V4.1-Flash 采用因果编码器—解码器（CED）：长提示词先经过编码器，解码器所需的全局 KV 由编码器最终隐藏状态投影得到。因此，长输入不必在解码器中再完整计算一遍。官方给出的每 token 激活参数为 Prefill **8B**、Decode **16B**；生成时仍需完整的编码器与解码器路径。[模型官方说明](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash#introduction) · [推理框架原理说明](https://github.com/vllm-project/recipes/blob/main/models/deepseek-ai/DeepSeek-V4.1-Flash.yaml)
+
+**图 1 · 六卡的两段拓扑**
+
+```mermaid
+flowchart LR
+    IN["长输入请求"] --> P
+    subgraph FRONT["PP2 首段 · TP2 · 双 RTX 6000D"]
+        P["Prefill 专用路径<br/>完整的长输入编码计算"]
+        G0["6000D 1<br/>张量分片"] <--> G1["6000D 2<br/>张量分片"]
+        P --- G0
+        P --- G1
+    end
+    P -->|"上下文缓存 · NIXL 交接"| D
+    subgraph BACK["PP2 尾段 · TP4 · 四台 DGX Spark"]
+        D["接收上下文<br/>尾部补算"] --> GEN["完整模型生成<br/>DSpark 投机解码"]
+        POOL["Spark 1 · Spark 2 · Spark 3 · Spark 4<br/>段内四路张量并行"] --- GEN
+    end
+    GEN --> OUT["输出 token"]
+```
+
+TP2 表示两张卡共同计算同一首段，TP4 表示四台 Spark 共同计算同一尾段。**PP2 数的是两段，TP 数的是各段参与张量并行的设备数，总计 2＋4＝6 个 GPU。** 这里用 PP2 表示实验者补充的两段组织；归档实现以 P/D 服务和 NIXL 连接，输出阶段由尾段执行完整模型，不将每个新 token 送回首段。
+
+**图 2 · Prefill 为什么可以只运行编码器主路径**
+
+```mermaid
+flowchart LR
+    subgraph INPUTPATH["长提示词的 Prefill 路径"]
+        PROMPT["全部输入 token"] --> ENC["因果编码器<br/>首段 TP2 加速"]
+        ENC --> H["最终隐藏状态"] --> KV["投影生成上下文 KV"]
+        KV --> REPLAY["尾段接收缓存<br/>补齐有限尾部状态"]
+    end
+    subgraph OUTPUTPATH["新 token 的 Decode 路径"]
+        NEW["新 token"] --> FULL["尾段 TP4<br/>编码器＋解码器"] --> NEXT["预测下一个 token"]
+    end
+    REPLAY --> FULL
+    KV -.->|"复用上下文"| FULL
+```
+
+完整输入的主要计算集中在双 6000D，Spark 复用已建立的上下文，仅按实现要求完成尾部补算后开始生成。由此，大显存主机可以承接完整生成路径，而长输入的矩阵计算交给算力卡处理。
+
+**图 3 · 权重与显存怎样分工**
+
+```mermaid
+flowchart TB
+    MODEL["DS4.1 完整模型"] --> PW["首段 Prefill 专用实例<br/>编码器及所需共享组件"]
+    MODEL --> DW["尾段生成实例<br/>完整生成路径所需权重"]
+    PW --> P0["6000D 1<br/>TP2 分片 1"]
+    PW --> P1["6000D 2<br/>TP2 分片 2"]
+    DW --> DPOOL["四台 Spark · TP4<br/>模型分片＋KV＋生成工作区"]
+    OMIT["不参与首段 Prefill 的解码器权重<br/>不必在两张 6000D 上常驻"] -.-> PW
+    E["Engram<br/>按需取表与 GPU stage"] -.-> PW
+    E -.-> DW
+```
+
+**“吃满 Prefill 加速”的含义是：两张 6000D 一起承担长输入编码计算，不必为了装下完整模型而把这条主路径拆回 Spark。** 实际速度仍取决于段内通信、Engram 取表、分块和缓存交接；本报告没有把它写成 GPU 利用率达到 100% 的实测结论。8B / 16B 是每 token 的激活参数量，不能据此直接计算权重驻留显存；本实验仍需结合 TP 分片、Engram 外置与 KV 预算才能装下。
+
+**加速链条：CED 让 Prefill 路径可以独立裁剪 → TP2 双卡容纳并协同计算所需权重 → 大批输入集中到 6000D → TP4 大显存尾段承接缓存与生成。** 这解释了为什么本次最显著的收益出现在 Prefill；峰值和同条件收益见下方实测表。
+
 ### 峰值对比：六卡、纯 TP4、八卡 H20
 
 **六卡展示 Prefill 峰值 16698.30 tok/s、C12、12/12 完成；下表同时列出纯 TP4、八卡 H20 社区成绩和当前整机采购价格。** 价格查询日期：2026-09-18；海外价格保留原币种。
@@ -15,7 +78,7 @@
 | 机组 / 引擎 | 峰值负载：输入 / 输出 / 并发 | 已测峰值 tok/s | 当前系统价格（USD；主机、内存计入总价） | 峰值批成功 |
 | --- | --- | ---: | --- | ---: |
 | 纯四 Spark TP4 / SGLang | 约 8K / 1 / C4；分块 8192 | 5037.39 | **US$18,796**（4 台整机） | 4/4 |
-| **双 6000D＋四 Spark / vLLM PD** | **32768 / 128 / C12** | **16698.30** | **US$38,146＋主机及内存（待补）** | **12/12** |
+| **双 6000D＋四 Spark / PP2（TP2→TP4）** | **32768 / 128 / C12** | **16698.30** | **US$38,146＋主机及内存（待补）** | **12/12** |
 | 八卡 H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **海外约 US$256,816 起**；国内折合 **US$193,499** | 64/64 |
 | 八卡 H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **海外约 US$256,816 起**；国内折合 **US$193,499** | 64/64 |
 
@@ -50,7 +113,7 @@
 
 **12K＋已在三档并发实现：** 另一组正式代码矩阵中，32K 输入、512 输出的 C4 / C8 / C12 分别达到 **12804.59 / 13173.51 / 13814.56 tok/s**。该矩阵共 **100/100 请求完成**；以上 C8 直接对照来自独立批次。
 
-**最新参数：** 原版 MXFP4/FP8 权重、原生 FP8 KV；vLLM，P TP2 / D TP4；P 分块 **4096**、D **1536**；DSpark **K=5**、probabilistic/block；CUDA Graph、Engram 预取/GPU stage；tail **1280**。启动至少预热 **90 秒**，连续两次内容烟测通过后放行。
+**最新参数：** 原版 MXFP4/FP8 权重、原生 FP8 KV；PP2（首段 TP2 / 尾段 TP4），vLLM P/D 服务与 NIXL 交接；P 分块 **4096**、D **1536**；DSpark **K=5**、probabilistic/block；CUDA Graph、Engram 预取/GPU stage；tail **1280**。启动至少预热 **90 秒**，连续两次内容烟测通过后放行。
 
 [**V1–V7 演进、完整对照与运行边界**](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [完整数据](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [脱敏证据](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)。解码数据与失败记录保留在详档。
 
@@ -232,7 +295,7 @@ Spark 格没有本地实测就写尚未测试；不把 395 数字填进那些 Sp
 
 ### DS41-6GPU-01 · DeepSeek-V4.1-Flash · 4 Spark＋双 6000Dpro
 
-**Prefill 峰值 16698.30 tok/s（32768 / 128 / C12，12/12 完成；实验者校正）；机组峰值及整机采购参考价见首页对照表。** 同配置 C8 Prefill 输入吞吐：8K **7812.43 对 1720.90 tok/s（4.54×）**，32K **13300.06 对 1699.75 tok/s（7.82×）**；32K 平均首字等待由 **86.541 秒降至 11.596 秒**。100/100 正式矩阵请求通过；最新部署版 V7。完整 V1–V7、参数、H20 外部参考、正确性边界见[六卡详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
+**Prefill 峰值 16698.30 tok/s（32768 / 128 / C12，12/12 完成；实验者校正）；机组峰值及整机采购参考价见首页对照表。** 同配置 C8 Prefill 输入吞吐：8K **7812.43 对 1720.90 tok/s（4.54×）**，32K **13300.06 对 1699.75 tok/s（7.82×）**；32K 平均首字等待由 **86.541 秒降至 11.596 秒**。100/100 正式矩阵请求通过；最新部署版 V7，结构为 **PP2（首段 TP2 / 尾段 TP4）**。完整 V1–V7、参数、H20 外部参考、正确性边界见[六卡详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
 
 ### FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark
 
