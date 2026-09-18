@@ -2,20 +2,44 @@
 
 [English](README.md)
 
-## 最新进展 · 2026-09-18 · DeepSeek-V4.1-Flash 六卡初步成功
+## 最新进展 · 2026-09-18 · 六卡让 DeepSeek-V4.1-Flash 的 Prefill 提升至 7.82 倍
 
-**用两张 RTX 6000Dpro 加速四台 DGX Spark：同配置长输入服务的聚合 Decode 最高达到纯 TP4 的 4.45 倍。** 最新 V7 采用 PD 分离：双 6000D 做输入预填充，四 Spark 做尾部补算和完整模型输出；正式 8K/32K 代码矩阵 **100/100** 请求完成。
+**给四台 DGX Spark 加上两张 RTX 6000Dpro，最显著的收益是更快处理长输入：同配置 C8 下，8K 输入吞吐提升至 4.54 倍，32K 提升至 7.82 倍。** V7 采用 PD 分离：双 6000D 负责输入预填充，四 Spark 负责尾部补算和完整模型解码；32K 的平均首字等待从 **86.541 秒缩短到 11.596 秒**。
 
-| 输入 / 输出 / 并发 | 纯四 Spark TP4 | 双 6000D＋四 Spark | 加速倍数 |
+### Prefill 直接对照：四台 Spark，加两张算力卡后提高多少
+
+| 输入 / 输出 / 并发 | 纯四 Spark TP4：输入 tok/s | 双 6000D＋四 Spark：输入 tok/s | 提升至 |
 | --- | ---: | ---: | ---: |
-| 8192 / 512 / C8 | 80.32 | **160.27** | **2.00×** |
-| 32768 / 512 / C8 | 27.71 | **123.25** | **4.45×** |
+| 8192 / 512 / C8 | 1720.90 | **7812.43** | **4.54×** |
+| 32768 / 512 / C8 | 1699.75 | **13300.06** | **7.82×** |
 
-表中为 tok/s，都是 **512 输出、同一 D 配置、两批均值**；统计整批生成窗口，并非纯 Decode 内核速度。V7 在 **32K/C12** 的聚合输入为 **13814.56 tok/s**，同档聚合 Decode **135.73**、含首字全程输出 **126.59**；最高值不跨档拼接。
+表中衡量 **Prefill 服务阶段的聚合输入吞吐**：全批输入 token ÷（最晚首字 − 最早请求开始），包含预填充、传输、补算和排队。两条路径复用同一 D 服务，均为 **512 输出、C8、各两批取均值**；代码模板一致、随机前缀不同。这是用户等待输入处理的整段性能，不是 GPU 内核裸算速度。
+
+| 输入 / 输出 / 并发 | 纯 TP4 平均首字等待 | 六卡平均首字等待 | 等待缩短 |
+| --- | ---: | ---: | ---: |
+| 8192 / 512 / C8 | 21.711 s | **5.103 s** | **76.5%** |
+| 32768 / 512 / C8 | 86.541 s | **11.596 s** | **86.6%** |
+
+**12K＋已在三档并发实现：** 另一组正式代码矩阵中，32K 输入、512 输出的 C4 / C8 / C12 分别达到 **12804.59 / 13173.51 / 13814.56 tok/s**。该矩阵共 **100/100 请求完成**；以上 C8 直接对照来自独立批次。
+
+### 六卡、纯 TP4 与八卡 H20：长输入实测并排看
+
+| 机组 / 引擎 | 输入 / 输出 / 并发 | Prefill 聚合输入 tok/s | 首字等待（注明统计量） |
+| --- | --- | ---: | --- |
+| 纯四 Spark TP4 / vLLM | 8192 / 512 / C8 | 1720.90 | 平均 21.711 s |
+| **双 6000D＋四 Spark / vLLM PD** | 8192 / 512 / C8 | **7812.43** | **平均 5.103 s** |
+| 八卡 H20-3e / SGLang | 8192 / 128 / C8 | 原报告未提供 | P95 13.650 s |
+| 八卡 H20-3e / vLLM | 8192 / 128 / C8 | 原报告未提供 | P95 9.194 s |
+| 纯四 Spark TP4 / vLLM | 32768 / 512 / C8 | 1699.75 | 平均 86.541 s |
+| **双 6000D＋四 Spark / vLLM PD** | 32768 / 512 / C8 | **13300.06** | **平均 11.596 s** |
+| 八卡 H20-3e / SGLang | 24576 / 128 / C32 | 原报告未提供 | P95 154.683 s |
+| 八卡 H20-3e / vLLM | 24576 / 128 / C32 | 原报告未提供 | P95 102.401 s |
+
+[H20 社区原始报告](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/)记录的是全程输出吞吐与 TTFT，未提供同口径 Prefill 聚合输入；其 63.64 / 97.63 tok/s 是输出速度。上表保留各自实测条件，本地为两批平均，H20 为三轮 P95 的中位数；输出长度、并发、投机设置和统计量不同，不据此计算对 H20 的加速倍数。
 
 **最新参数：** 原版 MXFP4/FP8 权重、原生 FP8 KV；vLLM，P TP2 / D TP4；P 分块 **4096**、D **1536**；DSpark **K=5**、probabilistic/block；CUDA Graph、Engram 预取/GPU stage；tail **1280**。启动至少预热 **90 秒**，连续两次内容烟测通过后放行。
 
-[**V1–V7 演进、纯 TP4 与八卡 H20 对照**](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [完整数据](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [脱敏证据](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)。H20 的外部负载不同；“12K＋1200”中的 **1200 聚合 Decode 尚缺原始批次证据**，暂不宣称超过八卡 H20。六卡仍有正确性问题待定位，详档保留失败记录。
+[**V1–V7 演进、完整对照与运行边界**](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [完整数据](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [脱敏证据](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)。解码数据与失败记录保留在详档。
 
 ## 最新研究发现 · 2026-09-14
 
@@ -89,7 +113,7 @@ C1–C6 指同时发 1 到 6 路请求，C1 是单流；聚合是同时在跑的
 
 | 做法 | 实验 | 短结果 | 详档 |
 | --- | --- | --- | --- |
-| 六卡 PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · 双 6000D＋四 Spark | 同配置 C8：8K **2.00×**、32K **4.45×** 聚合 Decode；V1–V7 演进 | [详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) |
+| 六卡 PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · 双 6000D＋四 Spark | 同配置 C8 Prefill 输入吞吐：8K **4.54×**、32K **7.82×**；V1–V7 演进 | [详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) |
 | 稠密加速 | 9B-PIPE-01 · Ornith 9B · Q6_K · 3060 + 395 | 组合 Prefill **2129.69** / Decode **50.73** tok/s；比 3060 和 395 都快 | [详档](results/v2.4-fused-layer-pipeline.zh-CN.md) |
 | 分层装 | 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · 3060 + 395 | 对 395：pp4096 **658.52** 对 313.28（**+110.2%**） | [详档](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) |
 | 阶段分离 PD | 9B-PD-01 · Ornith 9B · Q6_K · 3060 + 395 | 对 395 服务态：TTFT **3.496 秒** 对 5.879 秒（**-40.5%**） | [详档](results/v1.0-independent-pd.zh-CN.md) |
@@ -157,7 +181,7 @@ flowchart LR
 | Prefill 优先，无投机 | 与 Spark 一起算同一个模型 | DGX Spark GB10 与 3080 一起算 | Prefill **1603.20** 对 1113.13（**+44.03%**）；Decode 17.62 对 33.36 | [27B-SPARK-01](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) |
 | Decode 优先，DFlash2 | 与 Spark 一起算同一个模型 | DGX Spark GB10 与 3080 一起算 | 2K Decode **63.97** 对 60.37；8K 49.20 对 58.36 | [27B-SPARK-01](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) |
 | 均衡服务，DFlash2 | 与 Spark 一起算同一个模型 | DGX Spark GB10 与 3080 一起算 | C1–C6 聚合 Prefill 1086.44–1097.40，Decode 24.77–47.69；126/126；无单机 C1–C6 | [27B-SPARK-01](results/qwen3.8-27b-spark-3080-profiles.zh-CN.md) |
-| 六卡 PD | 双 RTX 6000Dpro 做输入预填充 | 四 DGX Spark TP4 补算并生成输出 | 同配置 C8 聚合 Decode：8K 2.00×；32K 4.45× | [DS41-6GPU-01](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) |
+| 六卡 PD | 双 RTX 6000Dpro 做输入预填充 | 四 DGX Spark TP4 补算并生成输出 | 同配置 C8 Prefill 输入吞吐：8K 4.54×；32K 7.82× | [DS41-6GPU-01](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) |
 | Flash 双机容量配平 / 特殊配比分层 | RTX 6000D 主体计算；PP2 档参与分层计算 | DGX Spark 常驻 PLE 并查表；PP2 档也承担计算 | 8K Prefill / C6 聚合输出：容量档 **8157.74 / 414.90**；PP2 **8696.94 / 284.56** | [FLASH-SPARK-01](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) |
 
 395 矩阵里只有第一种是两台设备同时算同一阶段。Spark 组合也是两机一起算同一个模型；Prefill 提升只对照本次 3080 单机，没有 Spark 单机基线。
@@ -195,7 +219,7 @@ Spark 格没有本地实测就写尚未测试；不把 395 数字填进那些 Sp
 
 ### DS41-6GPU-01 · DeepSeek-V4.1-Flash · 4 Spark＋双 6000Dpro
 
-同配置 C8：8K 聚合 Decode **160.27 对 80.32**，32K **123.25 对 27.71 tok/s**。100/100 正式矩阵请求通过；最新部署版 V7。完整 V1–V7、参数、H20 外部参考、正确性边界见[六卡详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
+同配置 C8 Prefill 输入吞吐：8K **7812.43 对 1720.90 tok/s（4.54×）**，32K **13300.06 对 1699.75 tok/s（7.82×）**；32K 平均首字等待由 **86.541 秒降至 11.596 秒**。100/100 正式矩阵请求通过；最新部署版 V7。完整 V1–V7、参数、H20 外部参考、正确性边界见[六卡详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
 
 ### FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark
 

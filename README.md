@@ -2,20 +2,44 @@
 
 [中文](README_ZH.md)
 
-## Latest result · 2026-09-18 · DeepSeek-V4.1-Flash on six GPUs
+## Latest result · 2026-09-18 · Six GPUs deliver up to 7.82× Prefill for DeepSeek-V4.1-Flash
 
-**Two RTX 6000Dpro GPUs accelerate four DGX Spark systems: matched long-input aggregate Decode reaches up to 4.45× direct TP4.** V7 separates PD: the 6000D pair prefills input, while four Sparks replay the tail and generate with the full model. The formal 8K/32K code matrix completed **100/100** requests.
+**Adding two RTX 6000Dpro GPUs to four DGX Spark systems primarily accelerates long-input processing: matched C8 input throughput reaches 4.54× at 8K and 7.82× at 32K.** V7 separates PD: dual 6000D handles input Prefill, while four Sparks replay the tail and perform full-model Decode. Mean time to first text at 32K falls from **86.541 to 11.596 seconds**.
 
-| Input / output / concurrency | Four Spark TP4 alone | 2×6000D + 4×Spark | Ratio |
+### Direct Prefill comparison: what two compute GPUs add to four Sparks
+
+| Input / output / concurrency | Four Spark TP4: input tok/s | Dual 6000D + four Sparks: input tok/s | Speedup |
 | --- | ---: | ---: | ---: |
-| 8192 / 512 / C8 | 80.32 | **160.27** | **2.00×** |
-| 32768 / 512 / C8 | 27.71 | **123.25** | **4.45×** |
+| 8192 / 512 / C8 | 1720.90 | **7812.43** | **4.54×** |
+| 32768 / 512 / C8 | 1699.75 | **13300.06** | **7.82×** |
 
-Rates are tok/s, **512 output tokens, the same D settings and means of two batches**. The metric covers the batch generation window, not isolated Decode kernels. At **32K/C12**, V7 delivers aggregate input **13814.56**, aggregate Decode **135.73** and full-wall output **126.59**; different operating points are not combined.
+This is **aggregate input throughput across the Prefill serving stage**: all input tokens / (latest first text − earliest request start), including Prefill, transfer, replay and queuing. Both paths reuse the same D service with **512 output tokens, C8 and two-batch means**; code templates match but random prefixes differ. This measures the complete input-serving interval, not isolated GPU kernels.
+
+| Input / output / concurrency | TP4 mean TTFT | Six-GPU mean TTFT | Wait reduction |
+| --- | ---: | ---: | ---: |
+| 8192 / 512 / C8 | 21.711 s | **5.103 s** | **76.5%** |
+| 32768 / 512 / C8 | 86.541 s | **11.596 s** | **86.6%** |
+
+**12K+ is verified at three concurrency levels:** a separate formal code matrix with 32K input and 512 output reaches **12804.59 / 13173.51 / 13814.56 tok/s** at C4 / C8 / C12. The matrix completed **100/100 requests**; the matched C8 comparison above uses independent batches.
+
+### Six GPUs, standalone TP4 and eight H20 GPUs: long-input reference table
+
+| Hardware / runtime | Input / output / concurrency | Prefill aggregate input tok/s | Time to first text (statistic) |
+| --- | --- | ---: | --- |
+| Four Spark TP4 / vLLM | 8192 / 512 / C8 | 1720.90 | Mean 21.711 s |
+| **Dual 6000D + four Sparks / vLLM PD** | 8192 / 512 / C8 | **7812.43** | **Mean 5.103 s** |
+| Eight H20-3e / SGLang | 8192 / 128 / C8 | Not reported | P95 13.650 s |
+| Eight H20-3e / vLLM | 8192 / 128 / C8 | Not reported | P95 9.194 s |
+| Four Spark TP4 / vLLM | 32768 / 512 / C8 | 1699.75 | Mean 86.541 s |
+| **Dual 6000D + four Sparks / vLLM PD** | 32768 / 512 / C8 | **13300.06** | **Mean 11.596 s** |
+| Eight H20-3e / SGLang | 24576 / 128 / C32 | Not reported | P95 154.683 s |
+| Eight H20-3e / vLLM | 24576 / 128 / C32 | Not reported | P95 102.401 s |
+
+The [H20 source](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/) reports full-wall output and TTFT, not matching Prefill input throughput; its 63.64 / 97.63 tok/s figures are output rates. Local values are two-batch means; H20 latency is the median of three per-round P95s. Output lengths, concurrency, speculation and statistics differ, so no H20 speedup ratio is inferred.
 
 **Current settings:** original MXFP4/FP8 weights, native FP8 KV; vLLM P TP2 / D TP4; P budget **4096**, D **1536**; DSpark **K=5**, probabilistic/block; CUDA Graph and Engram prefetch/GPU stage; tail **1280**. Readiness requires at least **90 seconds** and two consecutive content smoke checks.
 
-[**V1–V7 evolution, standalone TP4 and eight-H20 reference**](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) · [Data](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Sanitized evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json). H20 workloads differ; the owner's **1200 aggregate Decode** report lacks matching raw evidence, so superiority over eight H20 GPUs is not established. Correctness issues remain under investigation; failure records are retained in the report.
+[**V1–V7 evolution, full comparisons and operating limits**](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) · [Data](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Sanitized evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json). Decode results and failure records remain in the detailed report.
 
 ## Latest research finding · 2026-09-14
 
@@ -89,7 +113,7 @@ Each row is one experiment: short headline, then the record. Full figures sit in
 
 | Approach | Experiment | Headline | Record |
 | --- | --- | --- | --- |
-| Six-GPU PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · dual 6000D + four Sparks | Matched C8 aggregate Decode: **2.00× at 8K / 4.45× at 32K**; V1–V7 | [Report](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) |
+| Six-GPU PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · dual 6000D + four Sparks | Matched C8 Prefill input throughput: **4.54× at 8K / 7.82× at 32K**; V1–V7 | [Report](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) |
 | Dense Acceleration | 9B-PIPE-01 · Ornith 9B · Q6_K · 3060 + 395 | Pair Prefill **2129.69** / Decode **50.73** tok/s; beats 3060 and 395 | [Record](results/v2.4-fused-layer-pipeline.md) |
 | Layer-split loading | 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · 3060 + 395 | vs 395: pp4096 **658.52** vs 313.28 (**+110.2%**) | [Record](results/qwen3.8-27b-dual-machine-pd.md) |
 | Phase-separated PD | 9B-PD-01 · Ornith 9B · Q6_K · 3060 + 395 | vs 395 serving: TTFT **3.496 s** vs 5.879 s (**-40.5%**) | [Record](results/v1.0-independent-pd.md) |
@@ -196,7 +220,7 @@ One small table per experiment; this is the only place on the front page that ho
 
 ### DS41-6GPU-01 · DeepSeek-V4.1-Flash · four Sparks + dual 6000Dpro
 
-Matched C8 aggregate Decode: **160.27 versus 80.32** at 8K, **123.25 versus 27.71 tok/s** at 32K. Formal matrix: 100/100; latest deployment V7. [Evolution, settings, H20 reference and correctness limits](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
+Matched C8 Prefill input throughput: **7812.43 versus 1720.90 tok/s (4.54×)** at 8K and **13300.06 versus 1699.75 tok/s (7.82×)** at 32K. Mean 32K TTFT drops from **86.541 to 11.596 seconds**. Formal matrix: 100/100; latest deployment V7. [Evolution, settings, H20 reference and correctness limits](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
 
 ### FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark
 

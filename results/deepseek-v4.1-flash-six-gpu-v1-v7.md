@@ -1,12 +1,43 @@
-# DeepSeek-V4.1-Flash: six-GPU deployment V1–V7 and TP4 / H20 comparisons
+# DeepSeek-V4.1-Flash: up to 7.82× Prefill with six GPUs, V1–V7 and TP4 / H20 comparisons
 
 [中文](deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [Home](../README.md) · [Local CSV](../data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Sanitized evidence](../data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)
 
-**Four DGX Spark systems plus two RTX 6000Dpro GPUs have reached an initial working deployment. The clearest benefit is long-input serving: at matched C8, aggregate Decode is 2.00× direct TP4 for 8K input and 4.45× for 32K.** The V7 code matrix completed 100/100 requests on September 17; controls and a longer-output diagnostic completed 76/76 on September 18. These checks cover completion, token counts and basic text validity, not generated-code tests or full model accuracy.
+**Adding two RTX 6000Dpro GPUs to four DGX Sparks primarily accelerates Prefill: matched C8 input throughput rises from 1720.90 to 7812.43 tok/s at 8K (4.54×), and from 1699.75 to 13300.06 at 32K (7.82×).** Dual 6000D handles Prefill; four Sparks replay the tail and Decode. Mean 32K time to first text falls **86.6%**. The September 17 formal matrix completed 100/100 requests; September 18 controls and the longer-output diagnostic completed 76/76. Completion checks are not full model-accuracy or generated-code evaluations.
 
-## Six GPUs versus the same four-Spark TP4 service
+## Primary results: Prefill throughput and time to first text
 
-Rates are tok/s. Both paths use the same D service, 1536-token budget, DSpark K=5, Engram and CUDA Graph settings. Each input length has two batches per path, C8, 512 output tokens/request and the same code template with different random prefixes. Generated content is not guaranteed to match token for token.
+Both paths reuse the same four-Spark D service with budget 1536, DSpark K=5 and identical Engram/CUDA Graph settings. Each path and input length has two C8 batches with 512 output tokens per request. Tables use batch means; code templates match but random prefixes differ.
+
+| Input / output / concurrency | Four Spark TP4: input tok/s | Dual 6000D + four Sparks: input tok/s | Speedup |
+| --- | ---: | ---: | ---: |
+| 8192 / 512 / C8 | 1720.90 | **7812.43** | **4.54×** |
+| 32768 / 512 / C8 | 1699.75 | **13300.06** | **7.82×** |
+
+**Timing:** Prefill aggregate input = all input tokens / (latest first text − earliest request start), including Prefill, transfer, replay and waiting. This measures input-serving performance, not isolated kernels.
+
+| Input / output / concurrency | TP4 mean TTFT | Six-GPU mean TTFT | Wait reduction |
+| --- | ---: | ---: | ---: |
+| 8192 / 512 / C8 | 21.711 s | **5.103 s** | **76.5%** |
+| 32768 / 512 / C8 | 86.541 s | **11.596 s** | **86.6%** |
+
+## Six GPUs, standalone TP4 and eight H20 GPUs: long-input comparison
+
+| Hardware / runtime | Input / output / concurrency | Prefill aggregate input tok/s | Time to first text (statistic) |
+| --- | --- | ---: | --- |
+| Four Spark TP4 / vLLM | 8192 / 512 / C8 | 1720.90 | Mean 21.711 s |
+| **Dual 6000D + four Sparks / vLLM PD** | 8192 / 512 / C8 | **7812.43** | **Mean 5.103 s** |
+| Eight H20-3e / SGLang | 8192 / 128 / C8 | Not reported | P95 13.650 s |
+| Eight H20-3e / vLLM | 8192 / 128 / C8 | Not reported | P95 9.194 s |
+| Four Spark TP4 / vLLM | 32768 / 512 / C8 | 1699.75 | Mean 86.541 s |
+| **Dual 6000D + four Sparks / vLLM PD** | 32768 / 512 / C8 | **13300.06** | **Mean 11.596 s** |
+| Eight H20-3e / SGLang | 24576 / 128 / C32 | Not reported | P95 154.683 s |
+| Eight H20-3e / vLLM | 24576 / 128 / C32 | Not reported | P95 102.401 s |
+
+The [H20 source](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/) reports full-wall output and TTFT, not matching Prefill input throughput; its 63.64 / 97.63 tok/s figures are output rates. Local values are two-batch means; H20 latency is the median of three per-round P95s. Output lengths, concurrency, speculation and statistics differ, so no H20 speedup ratio is inferred.
+
+## Secondary results: Decode and full-wall output
+
+The original Decode results below describe overall delivery gains; Prefill acceleration and shorter first-text waiting are the primary findings. Rates are tok/s.
 
 | Input / output / concurrency | Four Spark TP4 alone | 2×6000D + 4×Spark | Ratio |
 | --- | ---: | ---: | ---: |
@@ -34,7 +65,7 @@ These are deployment stages, separate from public research release **v1.6**. V1 
 | **V4** | 2026-09-15 | Disable DSpark, reduce chunk size and reserve KV memory for long context | 12×149437-token inputs completed; C1 Prefill 5062 and Decode 35.0 tok/s; observed running peak only 5. |
 | **V5** | 2026-09-16 | Cross-stage KV mirroring and revised placement restore DSpark and 8192-token chunks | 12 long-input requests with 512 output tokens each completed in 215.19 s; C1 150K Prefill about 3860 tok/s. |
 | **V6** | 2026-09-16–17 | Switch to PD: dual 6000D Prefill plus four-Spark TP4 Decode; repair P2P, GPU gather and NIXL | P single-request stage rate about 13K–16.5K tok/s; end-to-end input still pays handoff and tail replay; golden checkpoint frozen. |
-| **V7** | 2026-09-17–18 | Select code-serving settings, D prefetch/GPU staging and tail=1280; package images and add a watchdog | 100/100 requests in the 8K/32K × C1/C4/C8/C12 matrix; matched C8 aggregate Decode 2.00×/4.45× direct TP4. |
+| **V7** | 2026-09-17–18 | Select code-serving settings, D prefetch/GPU staging and tail=1280; package images and add a watchdog | 100/100 requests in the 8K/32K × C1/C4/C8/C12 matrix; matched C8 Prefill input throughput is 4.54×/7.82× direct TP4; mean 32K TTFT falls 86.6%. |
 
 Adding compute first required removing lookup, interconnect and pipeline stalls. In V7, **the dual 6000D handles input Prefill; four Sparks replay the tail and perform full-model generation**. P does not perform the first half of every subsequent Decode step. Special layer allocation belongs to the earlier PP experiments; V7 is a PD deployment.
 
