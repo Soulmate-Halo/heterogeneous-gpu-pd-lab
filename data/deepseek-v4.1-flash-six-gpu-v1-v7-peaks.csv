@@ -1,0 +1,6 @@
+hardware,engine,metric,input_tokens_per_request,output_tokens_per_request,concurrency,successful,requests,total_input_tokens,seconds,tokens_per_second,source
+4 Spark TP4,sglang,full_wall_input,8194;8018;8019;7895,1,4,4,4,32126,6.377509385987651,5037.3896854759105,.tmp-dsv41-chunk-restart-20260913/run/chunk-8192/prefill-c4.json
+2 RTX 6000Dpro + 4 Spark,vllm PD,full_wall_input,32768,512,12,12,12,393216,48.157598550998955,8165.191202040189,data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json#/code_matrix_batches/14
+8 H20-3e TP8/EP8,sglang,full_wall_input,8192,128,32,64,64,524288,106.58817696105689,4918.819468988142,sglang/core/sglang-prefill-c32-r3.json
+8 H20-3e TP8/EP8,vllm,full_wall_input,24576,128,32,64,64,1572864,225.51247313199565,6974.620863119089,vllm/core/vllm-long-c32-r2.json
+2 RTX 6000Dpro in six-GPU PD,vllm,P_stage_prefill,32768,128,1,1,1,32768,1.9623557680024533,16698.297288547034,dsv41-pp3-6node-20260914/results/spec-tune-20260917/gs-k5-b1536.json#/1

@@ -1,8 +1,20 @@
-# DeepSeek-V4.1-Flash: up to 7.82× Prefill with six GPUs, V1–V7 and TP4 / H20 comparisons
+# DeepSeek-V4.1-Flash: peak Prefill 16698.30 tok/s, V1–V7 and TP4 / H20 comparisons
 
 [中文](deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [Home](../README.md) · [Local CSV](../data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Sanitized evidence](../data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)
 
-**Adding two RTX 6000Dpro GPUs to four DGX Sparks primarily accelerates Prefill: matched C8 input throughput rises from 1720.90 to 7812.43 tok/s at 8K (4.54×), and from 1699.75 to 13300.06 at 32K (7.82×).** Dual 6000D handles Prefill; four Sparks replay the tail and Decode. Mean 32K time to first text falls **86.6%**. The September 17 formal matrix completed 100/100 requests; September 18 controls and the longer-output diagnostic completed 76/76. Completion checks are not full model-accuracy or generated-code evaluations.
+**The six-GPU P stage reaches a measured peak of 16698.30 tok/s; this report also compares formal individual-batch peaks for standalone TP4 and eight H20 GPUs.** P-stage and complete-request timings are separated. The matched C8 controls at 4.54× / 7.82×, V1–V7 evolution and original batch links remain below.
+
+## Peak Prefill: 16698.30 tok/s
+
+**Adding two RTX 6000Dpro GPUs to four DGX Sparks delivers 16698.30 tok/s in the P stage on a single 32K request.** The September 17 tuning record uses **32768 input / 128 output / C1**, with **1.962356 seconds** recorded for dual-6000D Prefill and **zero** additional P prefix-cache hits. This is the earlier roughly 16K result; 13300.06 on the previous front page was a two-batch mean for the complete C8 input-serving interval.
+
+| Same peak configuration: 32768 input / 128 output / C1 | Four Spark TP4 | Dual 6000D + four Sparks | Ratio |
+| --- | ---: | ---: | ---: |
+| Engine Prefill rate (combination counts P only) | 1921.12 | **16698.30** | **8.69×** |
+| Complete request input rate through first text | 1917.41 | **11348.86** | **5.92×** |
+| Time to first text, seconds | 17.089707 | **2.887339** | **83.10% shorter** |
+
+The first row divides input tokens by engine Prefill time. P processes the initial input stage; four Sparks still replay the tail, so **8.69× is a stage-rate ratio**. The second row includes handoff, replay and queuing through first text and measures this request's **5.92× input-processing gain**. Transport and text smoke checks passed with zero failed KV transfers; this is not a full accuracy evaluation.
 
 ## Primary results: Prefill throughput and time to first text
 
@@ -20,20 +32,22 @@ Both paths reuse the same four-Spark D service with budget 1536, DSpark K=5 and 
 | 8192 / 512 / C8 | 21.711 s | **5.103 s** | **76.5%** |
 | 32768 / 512 / C8 | 86.541 s | **11.596 s** | **86.6%** |
 
-## Six GPUs, standalone TP4 and eight H20 GPUs: long-input comparison
+## Observed peaks: six GPUs, standalone TP4 and eight H20 GPUs
 
-| Hardware / runtime | Input / output / concurrency | Prefill aggregate input tok/s | Time to first text (statistic) |
-| --- | --- | ---: | --- |
-| Four Spark TP4 / vLLM | 8192 / 512 / C8 | 1720.90 | Mean 21.711 s |
-| **Dual 6000D + four Sparks / vLLM PD** | 8192 / 512 / C8 | **7812.43** | **Mean 5.103 s** |
-| Eight H20-3e / SGLang | 8192 / 128 / C8 | Not reported | P95 13.650 s |
-| Eight H20-3e / vLLM | 8192 / 128 / C8 | Not reported | P95 9.194 s |
-| Four Spark TP4 / vLLM | 32768 / 512 / C8 | 1699.75 | Mean 86.541 s |
-| **Dual 6000D + four Sparks / vLLM PD** | 32768 / 512 / C8 | **13300.06** | **Mean 11.596 s** |
-| Eight H20-3e / SGLang | 24576 / 128 / C32 | Not reported | P95 154.683 s |
-| Eight H20-3e / vLLM | 24576 / 128 / C32 | Not reported | P95 102.401 s |
+**All systems use successful batch input tokens / complete wall time.** This input rate includes generation time. Every row takes the **best formal individual batch** within the explicitly defined sweep below.
 
-The [H20 source](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/) reports full-wall output and TTFT, not matching Prefill input throughput; its 63.64 / 97.63 tok/s figures are output rates. Local values are two-batch means; H20 latency is the median of three per-round P95s. Output lengths, concurrency, speculation and statistics differ, so no H20 speedup ratio is inferred.
+| Hardware / runtime | Peak workload: input / output / concurrency | Peak full-wall input tok/s | Six GPUs / this peak | Peak batch success |
+| --- | --- | ---: | ---: | ---: |
+| Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | **1.62×** | 4/4 |
+| **Dual 6000D + four Sparks / vLLM PD** | **32768 / 512 / C12** | **8165.19** | **1.00×** | **12/12** |
+| Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **1.66×** | 64/64 |
+| Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **1.17×** | 64/64 |
+
+**Within these sweeps, the six-GPU peak full-wall input rate is 17.07% above the eight-H20 vLLM core-matrix peak.** These are observed-peak comparisons across different workloads, input/output lengths, concurrency and speculation settings; they are not matched hardware speedups or H20 hardware limits. **16698.30 measures the P stage and must not be divided by H20 full-wall input rates.**
+
+Scope: TP4 has 12 formal Prefill batches across chunk sizes 2048 / 4096 / 8192, excluding warmup; six-GPU V7 has 16 formal code-matrix batches; H20 has 36 [core rounds per engine](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/), excluding warmup, historical-length and arrival-rate experiments. The TP4 peak batch contains 8194 + 8018 + 8019 + 7895 = **32126 input tokens**. Its earlier 5033.37 was a two-batch C1 mean; this table uses the best formal batch, 5037.39.
+
+[Peak CSV](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Six GPUs = 393216 / 48.157599. Failed requests remain in wall time.
 
 ## Secondary results: Decode and full-wall output
 
