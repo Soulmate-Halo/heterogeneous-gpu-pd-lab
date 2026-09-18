@@ -6,9 +6,9 @@
 
 ## Peak Prefill: 16698.30 tok/s
 
-**Adding two RTX 6000Dpro GPUs to four DGX Sparks delivers 16698.30 tok/s in the P stage on a single 32K request.** The September 17 tuning record uses **32768 input / 128 output / C1**, with **1.962356 seconds** recorded for dual-6000D Prefill and **zero** additional P prefix-cache hits. This is the earlier roughly 16K result; 13300.06 on the previous front page was a two-batch mean for the complete C8 input-serving interval.
+**Four DGX Sparks plus two RTX 6000Dpro GPUs reach a Prefill peak of 16698.30 tok/s. Per the experimenter’s September 18 correction, the displayed workload is 32768 input / 128 output / C12, with 12/12 requests completed.** The existing machine archive records the same numerical rate at C1; the C12 raw batch is pending. The historical C1 control below retains its original timings, TTFT and ratios.
 
-| Same peak configuration: 32768 input / 128 output / C1 | Four Spark TP4 | Dual 6000D + four Sparks | Ratio |
+| Historical single-request control (archived C1): 32768 input / 128 output | Four Spark TP4 | Dual 6000D + four Sparks | Ratio |
 | --- | ---: | ---: | ---: |
 | Engine Prefill rate (combination counts P only) | 1921.12 | **16698.30** | **8.69×** |
 | Complete request input rate through first text | 1917.41 | **11348.86** | **5.92×** |
@@ -34,20 +34,24 @@ Both paths reuse the same four-Spark D service with budget 1536, DSpark K=5 and 
 
 ## Observed peaks: six GPUs, standalone TP4 and eight H20 GPUs
 
-**The six-GPU row shows its P-stage Prefill peak of 16698.30 tok/s; standalone TP4 and eight H20 GPUs show their measured full-wall input peaks.** Each row states its workload and timing scope.
+**The six-GPU row shows a Prefill peak of 16698.30 tok/s at C12 with 12/12 completions; the table adds standalone TP4, community H20 results and current complete-system purchase prices.** Prices checked on 2026-09-18, in their listed currencies.
 
-| Hardware / runtime | Peak workload: input / output / concurrency | Measured peak tok/s | Timing scope | Peak batch success |
+| Hardware / runtime | Peak workload: input / output / concurrency | Measured peak tok/s | Current system price (host and RAM included) | Peak batch success |
 | --- | --- | ---: | --- | ---: |
-| Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | Full wall time, including generation | 4/4 |
-| **Dual 6000D + four Sparks / vLLM PD** | **32768 / 128 / C1** | **16698.30** | **P-stage Prefill** | **1/1** |
-| Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | Full wall time, including generation | 64/64 |
-| Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | Full wall time, including generation | 64/64 |
+| Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | **US$18,796** (four complete systems) | 4/4 |
+| **Dual 6000D + four Sparks / vLLM PD** | **32768 / 128 / C12** | **16698.30** | **Overseas comparable configuration: US$69,394**; actual 6000D system requires a quote | **12/12** |
+| Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **CNY 1,300,000** (China reference: complete 8×96GB H20 server) | 64/64 |
+| Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **CNY 1,300,000** (same 8×96GB H20 purchase reference) | 64/64 |
+
+**Price sources and included hardware:** Four Sparks use the [current official US$4,699 unit price](https://forums.developer.nvidia.com/t/2-23-2026-price-change-announcement/361713), including 128GB unified memory and a 4TB SSD per complete system. The six-GPU overseas reference totals **US$69,394 = US$18,796 + US$50,598**. The [listed dual-GPU workstation](https://gear-up.me/usd/trd-dual-workstation-pc-threadripper-pro-9995wx-2x-nvidia-rtx-pro-6000-blackwell-256gb-ddr5-ram-4tb-nvme-ssd-20tb-hdd-2050w-80-plus-psu-win-11-pro.html) includes a Threadripper PRO 9995WX, two RTX PRO 6000 Blackwell GPUs, 256GB DDR5, 4TB NVMe, a 20TB HDD and a 2050W PSU. It is an overseas 6000 reference configuration, not a quote for the tested 6000D system or a promise of identical performance. Cluster networking, cables, taxes and shipping are not consistently included; these are sums of the listed complete systems, not turnkey cluster totals.
+
+**H20 pricing uses a complete 8×96GB system: CNY 1,300,000 is the experimenter’s current China quote, including the server and RAM; RAM capacity and tax treatment were not provided.** No current overseas offer specifying all of 8×96GB H20, host and installed RAM was verified in this search. The [community benchmark](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/) used H20-3e reporting 143,771 MiB per GPU; the 96GB purchase reference is not a price for that benchmark hardware.
 
 **The six-GPU peak measures only the P stage; TP4 and H20 input rates include generation time, so these rows cannot be used to calculate hardware speedup ratios.** Input/output lengths, concurrency and speculation settings also differ. These are measured results, not hardware performance limits.
 
-Scope: the six-GPU value is the **P-stage peak from the 2026-09-17 tuning records**, with **zero** additional P-side prefix-cache hits; TP4 has 12 formal Prefill batches across chunk sizes 2048 / 4096 / 8192, excluding warmup; H20 has 36 [core rounds per engine](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/), excluding warmup, historical-length and arrival-rate experiments. The TP4 peak batch contains 8194 + 8018 + 8019 + 7895 = **32126 input tokens**.
+Scope: C12 and 12/12 in the six-GPU row follow the experimenter’s 2026-09-18 correction. The same numerical rate in the old archive is a **C1 P-stage record from 2026-09-17**, with **zero** additional P-side prefix-cache hits; TP4 has 12 formal Prefill batches across chunk sizes 2048 / 4096 / 8192, excluding warmup; H20 has 36 [core rounds per engine](https://aik8s.run/ai-k8s/practices/deepseek-v41-flash-h20-day0/), excluding warmup, historical-length and arrival-rate experiments. The TP4 peak batch contains 8194 + 8018 + 8019 + 7895 = **32126 input tokens**.
 
-[Peak CSV](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). Six-GPU P-stage peak = 32768 / 1.962356 ≈ **16698.30 tok/s**. H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Failed requests remain in the full-wall denominator.
+[Peak CSV](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). Historical C1 archive calculation: 32768 / 1.962356 ≈ **16698.30 tok/s**; this single-request formula does not recompute the corrected C12 result. H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Failed requests remain in the full-wall denominator.
 
 ## Secondary results: Decode and full-wall output
 
