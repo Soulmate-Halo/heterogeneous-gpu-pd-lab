@@ -2,9 +2,37 @@
 
 [中文](README_ZH.md)
 
-## Latest result · 2026-09-18 · DeepSeek-V4.1-Flash peak Prefill: 16698.30 tok/s
+## Latest result · 2026-09-20 · V8: 16000+ tok/s Prefill, 442.02 tok/s aggregate Decode at C32
 
-### Peak Prefill: 16698.30 tok/s
+### V8: 16000+ tok/s Prefill across three concurrency levels, 442.02 tok/s aggregate Decode at C32
+
+**The latest V8 seq32 run sustains over 16000 tok/s of P-stage batch Prefill throughput at C16, C24 and C32 with 32K inputs. Short-code C32 reaches 442.02 tok/s over the active Decode interval and 436.40 tok/s of end-to-end aggregate output.** These are separate workloads. Consistency here means one batch at each of three concurrency levels, not a repeated long-duration stability test.
+
+**32K-input Prefill:**
+
+| Input tokens | Concurrency | Success | Approximate P-stage batch Prefill, tok/s |
+|---|---:|---:|---:|
+| 32768 | C16 | 16/16 | **16326.03** |
+| 32768 | C24 | 24/24 | **16297.20** |
+| 32768 | C32 | 32/32 | **16297.81** |
+
+**Short-code output:**
+
+| Concurrency | Success | Aggregate active-Decode tok/s | End-to-end aggregate output tok/s |
+|---|---:|---:|---:|
+| C16 | 16/16 | **211.29** | 208.24 |
+| C24 | 24/24 | **396.87** | 391.82 |
+| C32 | 32/32 | **442.02** | 436.40 |
+
+P-stage batch throughput includes P queuing: total input tokens divided by time from batch launch to the first telemetry sample confirming all P requests complete. It excludes D Decode and covers only the specialized Prefill front stage. Sampling every 0.5 seconds plus collection time makes this an approximate metric. Active-Decode throughput excludes the batch's initial first-text wait; end-to-end output includes waiting, handoff and generation. Neither is a sum of individual stream rates.
+
+**What changed from V7:** the dual-6000D front stage remains vLLM TP2; the back stage changes from vLLM to **SGLang TP4/EP4**, with cross-engine NIXL cache-page and state adaptation. The tail-replay parameter drops from **1280 to 256 tokens**. This V8 follow-up also raises D running slots and Decode CUDA Graph `max_bs` from **12 to 32**, retaining DSpark 5, `flashinfer_cutlass`, disabled shared-expert fusion and D chunks of 2048. The original frozen V8 snapshot remains seq12; this section records the subsequently tested seq32 configuration.
+
+All cases use an output budget of **1024 tokens**, allowing natural EOS; long inputs are exactly 8192 / 32768 tokens and the short-code prompt has 36 input tokens. Every request uses a unique cache salt. **All 216/216 requests across nine cases passed, plus four correctness gates and 16 post-warmup requests.** Earlier V7 and H20 records use different workloads, output budgets and timing, so this run supplies no matched cross-version or cross-system speedup ratio.
+
+[V8 matrix CSV](data/deepseek-v4.1-flash-six-gpu-v8-seq32.csv) · [V8 sanitized timing evidence](data/deepseek-v4.1-flash-six-gpu-v8-seq32-evidence.json)
+
+### Historical Prefill peak: 16698.30 tok/s (2026-09-18)
 
 **Four DGX Sparks plus two RTX 6000Dpro GPUs reach a Prefill peak of 16698.30 tok/s. Per the experimenter’s September 18 correction, the displayed workload is 32768 input / 128 output / C12, with 12/12 requests completed.** The existing machine archive records the same numerical rate at C1; the C12 raw batch is pending.
 
@@ -33,7 +61,7 @@ flowchart LR
     GEN --> OUT["Output tokens"]
 ```
 
-TP2 means that two GPUs cooperate on the front stage; TP4 means that four Sparks cooperate on the back stage. **PP2 counts stages, while TP counts devices within each stage: 2 + 4 = 6 GPUs.** PP2 here describes the experimenter's two-stage organization. The archived implementation connects P/D services through NIXL; generation runs the full model on the back stage without sending each new token back to the front stage.
+TP2 means that two GPUs cooperate on the front stage; TP4 means that four Sparks cooperate on the back stage. **PP2 counts stages, while TP counts devices within each stage: 2 + 4 = 6 GPUs.** PP2 here describes the experimenter's two-stage organization. V7 connects same-engine P/D services through NIXL, while V8 adapts NIXL between vLLM and SGLang; generation runs the full model on the back stage without sending each new token back to the front stage.
 
 **Figure 2 · Why Prefill can use the encoder path**
 
@@ -71,16 +99,19 @@ flowchart TB
 
 **The acceleration chain is: CED enables a specialized Prefill path → TP2 fits and computes the required weights jointly → the 6000D pair handles long-input batches → the large-memory TP4 back stage receives context and generates.** This explains why Prefill is the main improvement; measured peaks and matched controls follow below.
 
-### Observed peaks: six GPUs, standalone TP4 and eight H20 GPUs
+### System comparison: V8 and historical six-GPU, TP4 and H20 peaks
 
-**The six-GPU row shows a Prefill peak of 16698.30 tok/s at C12 with 12/12 completions; the table adds standalone TP4, community H20 results and current complete-system purchase prices.** Prices checked on 2026-09-18, in their listed currencies.
+**The six-GPU entries include the new V8 32K/C32 result and the historical 16698.30 tok/s Prefill peak, alongside standalone TP4 and eight-H20 references.** All prices are USD references checked or converted on 2026-09-18; this update does not refresh quotations.
 
-| Hardware / runtime | Peak workload: input / output / concurrency | Measured peak tok/s | Current system price (USD; host and RAM in total) | Peak batch success |
+| Hardware / runtime | Workload: input / output / concurrency | Input throughput at this workload, tok/s | System price reference (USD; 2026-09-18) | Batch success |
 | --- | --- | ---: | --- | ---: |
 | Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | **US$18,796** (four complete systems) | 4/4 |
-| **Dual 6000D + four Sparks / PP2 (TP2→TP4)** | **32768 / 128 / C12** | **16698.30** | **US$38,146 + host and RAM (quote pending)** | **12/12** |
+| **Dual 6000D + four Sparks / V8 seq32** | **32768 / up to 1024 / C32** | **16297.81** | **US$38,146 + host and RAM (quote pending)** | **32/32** |
+| **Dual 6000D + four Sparks / historical PP2 (TP2→TP4)** | **32768 / 128 / C12** | **16698.30** | **US$38,146 + host and RAM (quote pending)** | **12/12** |
 | Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **Overseas from ~US$256,816**; China equivalent **US$193,499** | 64/64 |
 | Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **Overseas from ~US$256,816**; China equivalent **US$193,499** | 64/64 |
+
+V8 uses sampled P-stage batch throughput; the historical H20 entries use input throughput over complete-request wall time, with different workloads. These are individual measured references, not a common-metric performance ranking.
 
 **Pricing basis (2026-09-18):** All prices in the table are USD. The [Bank of Russia daily rates](https://www.cbr.ru/currency_base/daily/?UniDbQuery.Posted=True&UniDbQuery.To=18.09.2026) are 1 USD = 84.5093 RUB and 1 CNY = 12.5788 RUB, implying 1 USD ≈ 6.718391 CNY. Calculations use the unrounded cross rate; displayed amounts are rounded to whole dollars. Converted China quotes and overseas seller listings are identified separately. Taxes, shipping and cluster networking are not normalized.
 
@@ -97,7 +128,7 @@ Scope: C12 and 12/12 in the six-GPU row follow the experimenter’s 2026-09-18 c
 
 [Peak CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). Historical C1 archive calculation: 32768 / 1.962356 ≈ **16698.30 tok/s**; this single-request formula does not recompute the corrected C12 result. H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Failed requests remain in the full-wall denominator.
 
-### Matched verification: complete C8 input-serving interval
+### Matched V7 verification: complete C8 input-serving interval
 
 | Input / output / concurrency | Four Spark TP4: input tok/s | Dual 6000D + four Sparks: input tok/s | Speedup |
 | --- | ---: | ---: | ---: |
@@ -113,9 +144,9 @@ This is **aggregate input throughput across the Prefill serving stage**: all inp
 
 **12K+ is verified at three concurrency levels:** a separate formal code matrix with 32K input and 512 output reaches **12804.59 / 13173.51 / 13814.56 tok/s** at C4 / C8 / C12. The matrix completed **100/100 requests**; the matched C8 comparison above uses independent batches.
 
-**Current settings:** original MXFP4/FP8 weights, native FP8 KV; vLLM P TP2 / D TP4; P budget **4096**, D **1536**; DSpark **K=5**, probabilistic/block; CUDA Graph and Engram prefetch/GPU stage; tail **1280**. Readiness requires at least **90 seconds** and two consecutive content smoke checks.
+**V8 seq32 settings:** PP2 organization with vLLM TP2 Prefill and SGLang TP4/EP4 Decode; cross-engine NIXL; D running slots and Decode Graph `max_bs` **32**, D chunks **2048**, tail-replay parameter **256**; DSpark **5**, `flashinfer_cutlass`, shared-expert fusion disabled. V7 settings and failures remain in the historical report sections.
 
-[**V1–V7 evolution, full comparisons and operating limits**](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) · [Data](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Sanitized evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json). Decode results and failure records remain in the detailed report.
+[**V1–V8 evolution, full comparisons and operating limits**](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) · [Data](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Sanitized evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json). Decode results and failure records remain in the detailed report.
 
 ## Latest research finding · 2026-09-14
 
@@ -189,7 +220,7 @@ Each row is one experiment: short headline, then the record. Full figures sit in
 
 | Approach | Experiment | Headline | Record |
 | --- | --- | --- | --- |
-| Six-GPU PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · dual 6000D + four Sparks | Matched C8 Prefill input throughput: **4.54× at 8K / 7.82× at 32K**; V1–V7 | [Report](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) |
+| Six-GPU PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · dual 6000D + four Sparks | V8: 32K Prefill **16000+ tok/s**; short-code C32 aggregate Decode **442.02 tok/s**; V1–V8 | [Report](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) |
 | Dense Acceleration | 9B-PIPE-01 · Ornith 9B · Q6_K · 3060 + 395 | Pair Prefill **2129.69** / Decode **50.73** tok/s; beats 3060 and 395 | [Record](results/v2.4-fused-layer-pipeline.md) |
 | Layer-split loading | 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · 3060 + 395 | vs 395: pp4096 **658.52** vs 313.28 (**+110.2%**) | [Record](results/qwen3.8-27b-dual-machine-pd.md) |
 | Phase-separated PD | 9B-PD-01 · Ornith 9B · Q6_K · 3060 + 395 | vs 395 serving: TTFT **3.496 s** vs 5.879 s (**-40.5%**) | [Record](results/v1.0-independent-pd.md) |
@@ -286,7 +317,7 @@ Spark cells with no local measurement are marked not yet tested; 395 figures are
 | **M2 MoE · fills the card**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | With MoE nearly filling the 3080, is phase separation stable, and would a dense overlap on top add anything? | **Verified**: ORNITH-PD-01 42/42, 100K Decode 23.33 → 148.20 ([record](results/ornith-1.5-35b-a3b-dual-machine-pd.md)); ORNITH-PD-02 Prefill 4173.47, Decode 114.86 ([record](results/ornith-1.5-35b-a3b-fused-dflash-pd.md)). | Not yet tested locally. |
 | **M3 MoE · does not fit**<br>Qwen3.8-Flash · Q4 · RTX 3080 pilot | When the total footprint exceeds both control cards, can splitting by layer or by expert keep it running, keep throughput, and keep the output correct? | FLASH-SPLIT-01 pilot: C4 Prefill 633.685, Decode 71.185 tok/s. Full experiment planned. [Pilot record](results/qwen3.8-flash-q4-layer-split.md) | **FLASH-SPARK-01**: 6000D + Spark, Flash-Next NVFP4; capacity **8157.74 / 414.90**, special PP2 **8696.94 / 284.56** (8K Prefill / C6 output). Different model revision and quantization from the 3080 Q4 pilot. [Record](results/qwen3.8-flash-next-spark-6000d.md) |
 
-**New fifth route: 2×RTX 6000Dpro + 4×DGX Spark, DeepSeek-V4.1-Flash, V7 PD.** Matched direct-TP4 controls, an 8K/32K code matrix and a longer-output diagnostic extend the large-capacity MoE (M3) evidence. This is separate from the Flash-Next pair. [Six-GPU results](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
+**New fifth route: 2×RTX 6000Dpro + 4×DGX Spark, DeepSeek-V4.1-Flash, V8 cross-engine PD.** The matched V7 TP4 controls and new V8 seq32 matrix extend the large-capacity MoE (M3) evidence. [Six-GPU results](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
 
 ## Experiment data
 
@@ -296,7 +327,7 @@ One small table per experiment; this is the only place on the front page that ho
 
 ### DS41-6GPU-01 · DeepSeek-V4.1-Flash · four Sparks + dual 6000Dpro
 
-**Prefill peak: 16698.30 tok/s (32768 / 128 / C12, 12/12 completed; experimenter correction); see the opening table for hardware peaks and complete-system purchase references.** Matched C8 Prefill input throughput: **7812.43 versus 1720.90 tok/s (4.54×)** at 8K and **13300.06 versus 1699.75 tok/s (7.82×)** at 32K. Mean 32K TTFT drops from **86.541 to 11.596 seconds**. Formal matrix: 100/100; latest deployment V7, organized as **PP2 (TP2 front stage / TP4 back stage)**. [Evolution, settings, H20 reference and correctness limits](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
+**The latest deployment is V8 seq32, organized as PP2 with vLLM TP2 at the front and SGLang TP4/EP4 at the back.** See the opening tables for Prefill consistency across three concurrency levels, C32 output and system references. [V1–V8 evolution, all nine cases, historical controls and timing definitions](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
 
 ### FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark
 
@@ -509,11 +540,11 @@ What conclusion a figure is allowed to support.
 - **A speculative-decode point test is not interchangeable with a random-seed stress test**: 27B-DRAFT-AUDIT-01 sets a rule and claims no gain.
 - **External references are background, and unlike conditions are not ranked**: EXT-DGX-01 is someone else's public measurement, not a local control; data that differ in model, quantization, engine, prompt, or connection are never joined into one ranking table. A release number is not an experiment ID and not a data source. Every figure must say whether it came from the RTX 3060, the RTX 3080, the 395, or the 3080 + Spark pair.
 
-**September 18 addendum: DS41-6GPU-01.** Deployment V1–V7 is a separate evolution line; the public research release remains v1.6. [Evolution and controls](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
+**September 20 addendum: DS41-6GPU-01 V8 seq32.** Deployment V1–V8 is a separate evolution line; the public research release remains v1.6. [Evolution and controls](results/deepseek-v4.1-flash-six-gpu-v1-v7.md).
 
 ## Roadmap
 
-Next: align six-GPU/H20 workload, speculation and timing, and resolve V7 correctness failures.
+Next: align six-GPU/H20 workload, speculation and timing, and add repeated V8 long-duration runs and cold-restore validation.
 
 The controls that are still missing.
 
@@ -526,7 +557,7 @@ The controls that are still missing.
 
 ## Detailed reports and data
 
-**New DS41-6GPU-01:** [V1–V7 and system comparisons](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) · [CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Evidence JSON](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json).
+**New DS41-6GPU-01:** [V1–V8 and system comparisons](results/deepseek-v4.1-flash-six-gpu-v1-v7.md) · [CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Evidence JSON](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json).
 
 This page quotes only the few key figures per experiment; the complete data rows, metric definitions, and field notes are in the records and CSV files below; use the matching CSV for your own calculations, and do not combine data from different experiment IDs unless the record states that a comparable control exists.
 

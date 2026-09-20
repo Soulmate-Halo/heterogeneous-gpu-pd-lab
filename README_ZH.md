@@ -2,9 +2,37 @@
 
 [English](README.md)
 
-## 最新进展 · 2026-09-18 · DeepSeek-V4.1-Flash Prefill 峰值 16698.30 tok/s
+## 最新进展 · 2026-09-20 · V8：Prefill 16000+ tok/s，C32 聚合解码 442.02 tok/s
 
-### Prefill 峰值：16698.30 tok/s
+### V8：Prefill 稳定 16000+ tok/s，C32 聚合解码 442.02 tok/s
+
+**最新 V8 seq32 实测：32K 长输入在 C16、C24、C32 三个档位的 P 阶段 Prefill 整批吞吐均超过 16000 tok/s；短代码题 C32 聚合解码达到 442.02 tok/s，端到端聚合输出为 436.40 tok/s。** 两项成绩来自不同负载。这里的“稳定”指三个并发档位均达到该水平，每档一批，尚不代表长时间重复压测结论。
+
+**32K 长输入 Prefill：**
+
+| 输入 tokens | 并发 | 成功 | P 阶段整批 Prefill 吞吐，约 tok/s |
+|---|---:|---:|---:|
+| 32768 | C16 | 16/16 | **16326.03** |
+| 32768 | C24 | 24/24 | **16297.20** |
+| 32768 | C32 | 32/32 | **16297.81** |
+
+**短代码题输出：**
+
+| 并发 | 成功 | 活跃解码时段聚合 tok/s | 端到端聚合输出 tok/s |
+|---|---:|---:|---:|
+| C16 | 16/16 | **211.29** | 208.24 |
+| C24 | 24/24 | **396.87** | 391.82 |
+| C32 | 32/32 | **442.02** | 436.40 |
+
+P 阶段整批吞吐包含 P 排队，按输入总量除以“请求发起至监控首次确认 P 全部完成”的时间计算，排除 D 解码；采样间隔为 0.5 秒加采集耗时，因此为近似值，仅代表 Prefill 专用首段。活跃解码时段吞吐排除整批开头的首字等待，端到端输出吞吐包含等待、交接和生成。两者都不能用各流速度直接相加替代。
+
+**V8 相对 V7 的变化：** 首段仍是双 6000D、vLLM TP2；尾段从 vLLM 改为 **SGLang TP4/EP4**，加入跨引擎 NIXL 缓存页与状态适配，尾部补算参数从 **1280 缩到 256 tokens**。V8 本次后续压测又将 D 最大运行请求数和解码 CUDA Graph `max_bs` 从 **12 提高到 32**；DSpark 5、`flashinfer_cutlass`、关闭共享专家融合及 D 分块 2048 保留。最初冻结的 V8 快照仍为 seq12，本节报告的是之后已实测的 seq32 配置。
+
+输出预算均为 **1024 tokens**，允许自然结束；长输入精确为 8192 / 32768 tokens，短代码题实际输入为 36 tokens，每请求独立 cache salt。**9 个场景共 216/216 请求通过，另有 4 项正确性检查与 16 条预热后补测通过。** V7 和 H20 的既有负载、输出预算及计时口径不同，本次不据此计算跨版本或跨机组提速倍数。
+
+[V8 矩阵 CSV](data/deepseek-v4.1-flash-six-gpu-v8-seq32.csv) · [V8 脱敏原始计时与证据](data/deepseek-v4.1-flash-six-gpu-v8-seq32-evidence.json)
+
+### 历史 Prefill 峰值：16698.30 tok/s（2026-09-18）
 
 **四台 DGX Spark 加两张 RTX 6000Dpro，Prefill 峰值 16698.30 tok/s；按实验者 2026-09-18 校正，展示条件为 32768 输入 / 128 输出 / C12，12/12 请求完成。** 现有机器归档中的同数值记录为 C1，C12 原始批次待补充同步。
 
@@ -33,7 +61,7 @@ flowchart LR
     GEN --> OUT["输出 token"]
 ```
 
-TP2 表示两张卡共同计算同一首段，TP4 表示四台 Spark 共同计算同一尾段。**PP2 数的是两段，TP 数的是各段参与张量并行的设备数，总计 2＋4＝6 个 GPU。** 这里用 PP2 表示实验者补充的两段组织；归档实现以 P/D 服务和 NIXL 连接，输出阶段由尾段执行完整模型，不将每个新 token 送回首段。
+TP2 表示两张卡共同计算同一首段，TP4 表示四台 Spark 共同计算同一尾段。**PP2 数的是两段，TP 数的是各段参与张量并行的设备数，总计 2＋4＝6 个 GPU。** 这里用 PP2 表示实验者补充的两段组织；V7 以同引擎 P/D 服务和 NIXL 连接，V8 则使用 vLLM → SGLang 的跨引擎 NIXL 适配，输出阶段由尾段执行完整模型，不将每个新 token 送回首段。
 
 **图 2 · Prefill 为什么可以只运行编码器主路径**
 
@@ -71,16 +99,19 @@ flowchart TB
 
 **加速链条：CED 让 Prefill 路径可以独立裁剪 → TP2 双卡容纳并协同计算所需权重 → 大批输入集中到 6000D → TP4 大显存尾段承接缓存与生成。** 这解释了为什么本次最显著的收益出现在 Prefill；峰值和同条件收益见下方实测表。
 
-### 峰值对比：六卡、纯 TP4、八卡 H20
+### 机组对照：V8 与六卡、纯 TP4、八卡 H20 的历史峰值
 
-**六卡展示 Prefill 峰值 16698.30 tok/s、C12、12/12 完成；下表同时列出纯 TP4、八卡 H20 社区成绩和当前整机采购价格。** 价格查询日期：2026-09-18；海外价格保留原币种。
+**六卡新增 V8 的 32K/C32 成绩，保留此前 Prefill 峰值 16698.30 tok/s；下表同时列出纯 TP4 和八卡 H20 的历史参考。** 价格为 2026-09-18 查询或折算的美元参考，未在本次更新中重新报价。
 
-| 机组 / 引擎 | 峰值负载：输入 / 输出 / 并发 | 已测峰值 tok/s | 当前系统价格（USD；主机、内存计入总价） | 峰值批成功 |
+| 机组 / 引擎 | 负载：输入 / 输出 / 并发 | 该条件输入吞吐 tok/s | 系统价格参考（USD；2026-09-18） | 批次成功 |
 | --- | --- | ---: | --- | ---: |
 | 纯四 Spark TP4 / SGLang | 约 8K / 1 / C4；分块 8192 | 5037.39 | **US$18,796**（4 台整机） | 4/4 |
-| **双 6000D＋四 Spark / PP2（TP2→TP4）** | **32768 / 128 / C12** | **16698.30** | **US$38,146＋主机及内存（待补）** | **12/12** |
+| **双 6000D＋四 Spark / V8 seq32** | **32768 / 最多 1024 / C32** | **16297.81** | **US$38,146＋主机及内存（待补）** | **32/32** |
+| **双 6000D＋四 Spark / 历史 PP2（TP2→TP4）** | **32768 / 128 / C12** | **16698.30** | **US$38,146＋主机及内存（待补）** | **12/12** |
 | 八卡 H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **海外约 US$256,816 起**；国内折合 **US$193,499** | 64/64 |
 | 八卡 H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **海外约 US$256,816 起**；国内折合 **US$193,499** | 64/64 |
+
+V8 一行使用 P 阶段整批采样吞吐，历史 H20 行使用完整请求墙钟输入吞吐，负载也不同；各行用于展示各自已测结果，不计算统一性能排名。
 
 **计价基准（2026-09-18）：** 价格列统一为美元。[俄罗斯央行当日汇率](https://www.cbr.ru/currency_base/daily/?UniDbQuery.Posted=True&UniDbQuery.To=18.09.2026)为 1 USD = 84.5093 RUB、1 CNY = 12.5788 RUB，交叉折算 1 USD ≈ 6.718391 CNY；使用未舍入汇率计算，展示金额四舍五入至美元。国内报价折算与海外商家报价分别标注；税费、运输及集群互联设备未统一到同一口径。
 
@@ -97,7 +128,7 @@ flowchart TB
 
 [峰值 CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [逐批数字、公式与来源证据](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json)。历史 C1 归档复算：32768 / 1.962356 ≈ **16698.30 tok/s**；此单请求公式不用于复算校正后的 C12。H20 输入吞吐用其[逐轮原始计时](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json)复算：SGLang = 524288 / 106.588177；vLLM = 1572864 / 225.512473；失败请求仍占用完整墙钟的分母时间。
 
-### 同条件复核：C8 完整输入阶段
+### V7 同条件复核：C8 完整输入阶段
 
 | 输入 / 输出 / 并发 | 纯四 Spark TP4：输入 tok/s | 双 6000D＋四 Spark：输入 tok/s | 提升至 |
 | --- | ---: | ---: | ---: |
@@ -113,9 +144,9 @@ flowchart TB
 
 **12K＋已在三档并发实现：** 另一组正式代码矩阵中，32K 输入、512 输出的 C4 / C8 / C12 分别达到 **12804.59 / 13173.51 / 13814.56 tok/s**。该矩阵共 **100/100 请求完成**；以上 C8 直接对照来自独立批次。
 
-**最新参数：** 原版 MXFP4/FP8 权重、原生 FP8 KV；PP2（首段 TP2 / 尾段 TP4），vLLM P/D 服务与 NIXL 交接；P 分块 **4096**、D **1536**；DSpark **K=5**、probabilistic/block；CUDA Graph、Engram 预取/GPU stage；tail **1280**。启动至少预热 **90 秒**，连续两次内容烟测通过后放行。
+**V8 seq32 参数：** PP2 首段 vLLM TP2、尾段 SGLang TP4/EP4；跨引擎 NIXL；D 最大运行请求数及解码 Graph `max_bs` 为 **32**，D 分块 **2048**，尾部补算参数 **256**；DSpark **5**、`flashinfer_cutlass`，关闭共享专家融合。V7 参数与故障记录保留在详档历史章节。
 
-[**V1–V7 演进、完整对照与运行边界**](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [完整数据](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [脱敏证据](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)。解码数据与失败记录保留在详档。
+[**V1–V8 演进、完整对照与运行边界**](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [完整数据](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [脱敏证据](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)。解码数据与失败记录保留在详档。
 
 ## 最新研究发现 · 2026-09-14
 
@@ -189,7 +220,7 @@ C1–C6 指同时发 1 到 6 路请求，C1 是单流；聚合是同时在跑的
 
 | 做法 | 实验 | 短结果 | 详档 |
 | --- | --- | --- | --- |
-| 六卡 PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · 双 6000D＋四 Spark | 同配置 C8 Prefill 输入吞吐：8K **4.54×**、32K **7.82×**；V1–V7 演进 | [详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) |
+| 六卡 PD | DS41-6GPU-01 · DeepSeek-V4.1-Flash · 双 6000D＋四 Spark | V8：32K Prefill **16000+ tok/s**；短代码 C32 聚合解码 **442.02 tok/s**；V1–V8 | [详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) |
 | 稠密加速 | 9B-PIPE-01 · Ornith 9B · Q6_K · 3060 + 395 | 组合 Prefill **2129.69** / Decode **50.73** tok/s；比 3060 和 395 都快 | [详档](results/v2.4-fused-layer-pipeline.zh-CN.md) |
 | 分层装 | 27B-LONG-01 · Qwen3.8-27B · UD-IQ3_XXS · 3060 + 395 | 对 395：pp4096 **658.52** 对 313.28（**+110.2%**） | [详档](results/qwen3.8-27b-dual-machine-pd.zh-CN.md) |
 | 阶段分离 PD | 9B-PD-01 · Ornith 9B · Q6_K · 3060 + 395 | 对 395 服务态：TTFT **3.496 秒** 对 5.879 秒（**-40.5%**） | [详档](results/v1.0-independent-pd.zh-CN.md) |
@@ -285,7 +316,7 @@ Spark 格没有本地实测就写尚未测试；不把 395 数字填进那些 Sp
 | **M2 MoE · 装满**<br>Ornith-1.5-35B-A3B · IQ4_XS · RTX 3080 | MoE 快把 3080 装满时，阶段分离稳不稳；再往上做稠密重叠还有没有收益？ | **已验证**：ORNITH-PD-01 42/42，100K Decode 23.33 → 148.20（[详档](results/ornith-1.5-35b-a3b-dual-machine-pd.zh-CN.md)）；ORNITH-PD-02 Prefill 4173.47、Decode 114.86（[详档](results/ornith-1.5-35b-a3b-fused-dflash-pd.zh-CN.md)）。 | 本地尚未测试。 |
 | **M3 MoE · 装不下**<br>Qwen3.8-Flash · Q4 · RTX 3080 先导 | 模型总占用超过两张基准卡时，按层或按专家分开装，能不能同时保住能跑、吞吐和输出正确？ | FLASH-SPLIT-01 先导：C4 Prefill 633.685、Decode 71.185 tok/s。完整实验列入后续规划。[先导记录](results/qwen3.8-flash-q4-layer-split.zh-CN.md) | **FLASH-SPARK-01**：6000D + Spark，Flash-Next NVFP4；容量配平 **8157.74 / 414.90**，PP2 特殊配比分层 **8696.94 / 284.56**（8K Prefill / C6 聚合输出）。与 3080 Q4 先导是不同模型版本与量化。[详档](results/qwen3.8-flash-next-spark-6000d.zh-CN.md) |
 
-**新增路线五：2×RTX 6000Dpro＋4×DGX Spark，DeepSeek-V4.1-Flash，V7 PD。** 已测同配置纯 TP4 对照、8K/32K 代码并发与长输出诊断；归入 M3 大容量 MoE 的新增实证，和 Flash-Next 双机实验分开。[六卡数据](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
+**新增路线五：2×RTX 6000Dpro＋4×DGX Spark，DeepSeek-V4.1-Flash，V8 跨引擎 PD。** V7 同配置纯 TP4 对照与 V8 seq32 并发矩阵共同补充 M3 大容量 MoE 实证。[六卡数据](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
 
 ## 实验数据
 
@@ -295,7 +326,7 @@ Spark 格没有本地实测就写尚未测试；不把 395 数字填进那些 Sp
 
 ### DS41-6GPU-01 · DeepSeek-V4.1-Flash · 4 Spark＋双 6000Dpro
 
-**Prefill 峰值 16698.30 tok/s（32768 / 128 / C12，12/12 完成；实验者校正）；机组峰值及整机采购参考价见首页对照表。** 同配置 C8 Prefill 输入吞吐：8K **7812.43 对 1720.90 tok/s（4.54×）**，32K **13300.06 对 1699.75 tok/s（7.82×）**；32K 平均首字等待由 **86.541 秒降至 11.596 秒**。100/100 正式矩阵请求通过；最新部署版 V7，结构为 **PP2（首段 TP2 / 尾段 TP4）**。完整 V1–V7、参数、H20 外部参考、正确性边界见[六卡详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
+**最新部署版为 V8 seq32，结构为 PP2（首段 vLLM TP2 / 尾段 SGLang TP4/EP4）。** Prefill 三档稳定性、C32 输出吞吐及机组参考见首页表格；完整 V1–V8、九场景矩阵、历史对照与计时口径见[六卡详档](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
 
 ### FLASH-SPARK-01 · Qwen3.8-Flash-Next · NVFP4 · RTX 6000D + DGX Spark
 
@@ -508,11 +539,11 @@ C1–C6 Prefill 聚合为 569.892–633.685 tok/s，聚合 Decode 为 35.204–7
 - **投机解码的点测不和随机种子压测互换**：27B-DRAFT-AUDIT-01 只立规矩，不给提升。
 - **外部参考只当背景，不同条件不拼横向排名**：EXT-DGX-01 是别人公开的实测，不当本地对照；模型、量化、引擎、prompt 或连接方式不同的数据不拼排名。版本号不是实验编号，也不当数据来源。每个数据都要能说清用的是 RTX 3060、RTX 3080、395，还是 3080 + Spark 组合。
 
-**2026-09-18 数据补录：DS41-6GPU-01。** 六卡部署 V1–V7 是独立的部署演进线，研究仓库仍为 v1.6。[版本演进与对照](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
+**2026-09-20 数据补录：DS41-6GPU-01 V8 seq32。** 六卡部署 V1–V8 是独立的部署演进线，研究仓库仍为 v1.6。[版本演进与对照](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md)。
 
 ## 后续规划
 
-下一步补齐六卡与 H20 的相同负载、投机及计时对照，定位 V7 的正确性异常；其余待测路线如下。
+下一步补齐六卡与 H20 的相同负载、投机及计时对照，补充 V8 同档重复长时压测与冷恢复验收；其余待测路线如下。
 
 | 阶段 | 当前结果引出的问题 | 计划做什么、做到什么算完成 |
 | --- | --- | --- |
@@ -523,7 +554,7 @@ C1–C6 Prefill 聚合为 569.892–633.685 tok/s，聚合 Decode 为 35.204–7
 
 ## 详档与数据
 
-**新增 DS41-6GPU-01：** [V1–V7 与三类机组对照](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [证据 JSON](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)。
+**新增 DS41-6GPU-01：** [V1–V8 与三类机组对照](results/deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [证据 JSON](data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)。
 
 首页每个实验只摘最关键的几个数，完整数据行、指标定义和字段说明都在下面的详档和 CSV 里；自己算的时候用对应的 CSV；除非详档写明有可比的对照，不要把不同编号的实验数据合起来算。
 

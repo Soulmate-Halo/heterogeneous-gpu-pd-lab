@@ -1,10 +1,58 @@
-# DeepSeek-V4.1-Flash: peak Prefill 16698.30 tok/s, V1–V7 and TP4 / H20 comparisons
+# DeepSeek-V4.1-Flash: V8 Prefill 16000+ tok/s, C32 aggregate Decode 442.02 tok/s and V1–V8 evolution
 
 [中文](deepseek-v4.1-flash-six-gpu-v1-v7.zh-CN.md) · [Home](../README.md) · [Local CSV](../data/deepseek-v4.1-flash-six-gpu-v1-v7.csv) · [Sanitized evidence](../data/deepseek-v4.1-flash-six-gpu-v1-v7-evidence.json)
 
-**The six-GPU P stage reaches a measured peak of 16698.30 tok/s; this report also compares formal individual-batch peaks for standalone TP4 and eight H20 GPUs.** P-stage and complete-request timings are separated. The matched C8 controls at 4.54× / 7.82×, V1–V7 evolution and original batch links remain below.
+**Updated 2026-09-20: the V8 cross-engine PD seq32 matrix is complete.** Latest Prefill and Decode results follow; the historical 16698.30 tok/s Prefill peak, matched V7 controls and H20 references remain separate records.
 
-## Peak Prefill: 16698.30 tok/s
+## V8: 16000+ tok/s Prefill across three concurrency levels, 442.02 tok/s aggregate Decode at C32
+
+**The latest V8 seq32 run sustains over 16000 tok/s of P-stage batch Prefill throughput at C16, C24 and C32 with 32K inputs. Short-code C32 reaches 442.02 tok/s over the active Decode interval and 436.40 tok/s of end-to-end aggregate output.** These are separate workloads. Consistency here means one batch at each of three concurrency levels, not a repeated long-duration stability test.
+
+**32K-input Prefill:**
+
+| Input tokens | Concurrency | Success | Approximate P-stage batch Prefill, tok/s |
+|---|---:|---:|---:|
+| 32768 | C16 | 16/16 | **16326.03** |
+| 32768 | C24 | 24/24 | **16297.20** |
+| 32768 | C32 | 32/32 | **16297.81** |
+
+**Short-code output:**
+
+| Concurrency | Success | Aggregate active-Decode tok/s | End-to-end aggregate output tok/s |
+|---|---:|---:|---:|
+| C16 | 16/16 | **211.29** | 208.24 |
+| C24 | 24/24 | **396.87** | 391.82 |
+| C32 | 32/32 | **442.02** | 436.40 |
+
+P-stage batch throughput includes P queuing: total input tokens divided by time from batch launch to the first telemetry sample confirming all P requests complete. It excludes D Decode and covers only the specialized Prefill front stage. Sampling every 0.5 seconds plus collection time makes this an approximate metric. Active-Decode throughput excludes the batch's initial first-text wait; end-to-end output includes waiting, handoff and generation. Neither is a sum of individual stream rates.
+
+**What changed from V7:** the dual-6000D front stage remains vLLM TP2; the back stage changes from vLLM to **SGLang TP4/EP4**, with cross-engine NIXL cache-page and state adaptation. The tail-replay parameter drops from **1280 to 256 tokens**. This V8 follow-up also raises D running slots and Decode CUDA Graph `max_bs` from **12 to 32**, retaining DSpark 5, `flashinfer_cutlass`, disabled shared-expert fusion and D chunks of 2048. The original frozen V8 snapshot remains seq12; this section records the subsequently tested seq32 configuration.
+
+All cases use an output budget of **1024 tokens**, allowing natural EOS; long inputs are exactly 8192 / 32768 tokens and the short-code prompt has 36 input tokens. Every request uses a unique cache salt. **All 216/216 requests across nine cases passed, plus four correctness gates and 16 post-warmup requests.** Earlier V7 and H20 records use different workloads, output budgets and timing, so this run supplies no matched cross-version or cross-system speedup ratio.
+
+## Complete V8 matrix and timing evidence
+
+| Input tokens / task | Concurrency | Success | Approx. P batch tok/s | P request-service tok/s | Active-Decode aggregate tok/s | End-to-end output tok/s | Median per-stream Decode tok/s | Median TTFT seconds |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Short code (36) | C16 | 16/16 | 1018.76 | 274.62 | 211.29 | 208.24 | 19.54 | 6.40 |
+| Short code (36) | C24 | 24/24 | 1531.42 | 283.35 | 396.87 | 391.82 | 20.07 | 1.28 |
+| Short code (36) | C32 | 32/32 | 1942.79 | 223.12 | 442.02 | 436.40 | 16.51 | 1.66 |
+| 8192 | C16 | 16/16 | 15132.08 | 10974.53 | 151.42 | 149.96 | 10.34 | 5.80 |
+| 8192 | C24 | 24/24 | 15259.71 | 10954.66 | 202.11 | 200.60 | 9.48 | 8.08 |
+| 8192 | C32 | 32/32 | 15592.88 | 10905.90 | 223.65 | 222.22 | 7.82 | 9.70 |
+| 32768 | C16 | 16/16 | 16326.03 | 14753.10 | 122.10 | 119.50 | 9.82 | 19.71 |
+| 32768 | C24 | 24/24 | 16297.20 | 14703.07 | 152.05 | 149.37 | 8.43 | 28.92 |
+| 32768 | C32 | 32/32 | 16297.81 | 14609.22 | 152.83 | 150.82 | 6.40 | 36.90 |
+
+**Recomputable definitions:** P request-service speed is `Δprompt_tokens_total / Δrequest_prefill_time_seconds_sum`; it normalizes request service time and differs from batch wall throughput. Aggregate active Decode is `Σ(completion_tokens − 1) / (latest last content packet − earliest first content packet)`. End-to-end output is `Σcompletion_tokens / (latest response close − earliest request start)`. DSpark may emit multiple tokens per packet; subtracting one token per response follows the original measurement convention and introduces a small boundary error.
+
+Short-code C32 emitted **10233 tokens**, and the observed maximum simultaneous D requests was **32**. At C32 with 32K inputs, active Decode is **152.83 tok/s**; the short-task 442.02 and long-input 16297.81 are not a single-workload result. The first C16 matrix batch retains initialization time; its later warm run reaches **229.65 / 227.24 tok/s** for active Decode / end-to-end output.
+
+The evidence JSON contains sanitized per-request timings and token counts, P counter deltas, first completion samples and original file SHA256 hashes for all nine batches, enabling independent recomputation. Raw answers, node addresses and credentials are omitted.
+
+[V8 matrix CSV](../data/deepseek-v4.1-flash-six-gpu-v8-seq32.csv) · [V8 sanitized timing evidence](../data/deepseek-v4.1-flash-six-gpu-v8-seq32-evidence.json)
+
+## Historical Prefill peak: 16698.30 tok/s (2026-09-18)
 
 **Four DGX Sparks plus two RTX 6000Dpro GPUs reach a Prefill peak of 16698.30 tok/s. Per the experimenter’s September 18 correction, the displayed workload is 32768 input / 128 output / C12, with 12/12 requests completed.** The existing machine archive records the same numerical rate at C1; the C12 raw batch is pending.
 
@@ -33,7 +81,7 @@ flowchart LR
     GEN --> OUT["Output tokens"]
 ```
 
-TP2 means that two GPUs cooperate on the front stage; TP4 means that four Sparks cooperate on the back stage. **PP2 counts stages, while TP counts devices within each stage: 2 + 4 = 6 GPUs.** PP2 here describes the experimenter's two-stage organization. The archived implementation connects P/D services through NIXL; generation runs the full model on the back stage without sending each new token back to the front stage.
+TP2 means that two GPUs cooperate on the front stage; TP4 means that four Sparks cooperate on the back stage. **PP2 counts stages, while TP counts devices within each stage: 2 + 4 = 6 GPUs.** PP2 here describes the experimenter's two-stage organization. V7 connects same-engine P/D services through NIXL, while V8 adapts NIXL between vLLM and SGLang; generation runs the full model on the back stage without sending each new token back to the front stage.
 
 **Figure 2 · Why Prefill can use the encoder path**
 
@@ -71,7 +119,7 @@ flowchart TB
 
 **The acceleration chain is: CED enables a specialized Prefill path → TP2 fits and computes the required weights jointly → the 6000D pair handles long-input batches → the large-memory TP4 back stage receives context and generates.** This explains why Prefill is the main improvement; measured peaks and matched controls follow below.
 
-## Primary results: Prefill throughput and time to first text
+## Matched V7 results: Prefill throughput and time to first text
 
 Both paths reuse the same four-Spark D service with budget 1536, DSpark K=5 and identical Engram/CUDA Graph settings. Each path and input length has two C8 batches with 512 output tokens per request. Tables use batch means; code templates match but random prefixes differ.
 
@@ -87,16 +135,19 @@ Both paths reuse the same four-Spark D service with budget 1536, DSpark K=5 and 
 | 8192 / 512 / C8 | 21.711 s | **5.103 s** | **76.5%** |
 | 32768 / 512 / C8 | 86.541 s | **11.596 s** | **86.6%** |
 
-## Observed peaks: six GPUs, standalone TP4 and eight H20 GPUs
+## System comparison: V8 and historical six-GPU, TP4 and H20 peaks
 
-**The six-GPU row shows a Prefill peak of 16698.30 tok/s at C12 with 12/12 completions; the table adds standalone TP4, community H20 results and current complete-system purchase prices.** Prices checked on 2026-09-18, in their listed currencies.
+**The six-GPU entries include the new V8 32K/C32 result and the historical 16698.30 tok/s Prefill peak, alongside standalone TP4 and eight-H20 references.** All prices are USD references checked or converted on 2026-09-18; this update does not refresh quotations.
 
-| Hardware / runtime | Peak workload: input / output / concurrency | Measured peak tok/s | Current system price (USD; host and RAM in total) | Peak batch success |
+| Hardware / runtime | Workload: input / output / concurrency | Input throughput at this workload, tok/s | System price reference (USD; 2026-09-18) | Batch success |
 | --- | --- | ---: | --- | ---: |
 | Four Spark TP4 / SGLang | About 8K / 1 / C4; chunk 8192 | 5037.39 | **US$18,796** (four complete systems) | 4/4 |
-| **Dual 6000D + four Sparks / PP2 (TP2→TP4)** | **32768 / 128 / C12** | **16698.30** | **US$38,146 + host and RAM (quote pending)** | **12/12** |
+| **Dual 6000D + four Sparks / V8 seq32** | **32768 / up to 1024 / C32** | **16297.81** | **US$38,146 + host and RAM (quote pending)** | **32/32** |
+| **Dual 6000D + four Sparks / historical PP2 (TP2→TP4)** | **32768 / 128 / C12** | **16698.30** | **US$38,146 + host and RAM (quote pending)** | **12/12** |
 | Eight H20-3e / SGLang | 8192 / 128 / C32 | 4918.82 | **Overseas from ~US$256,816**; China equivalent **US$193,499** | 64/64 |
 | Eight H20-3e / vLLM | 24576 / 128 / C32 | 6974.62 | **Overseas from ~US$256,816**; China equivalent **US$193,499** | 64/64 |
+
+V8 uses sampled P-stage batch throughput; the historical H20 entries use input throughput over complete-request wall time, with different workloads. These are individual measured references, not a common-metric performance ranking.
 
 **Pricing basis (2026-09-18):** All prices in the table are USD. The [Bank of Russia daily rates](https://www.cbr.ru/currency_base/daily/?UniDbQuery.Posted=True&UniDbQuery.To=18.09.2026) are 1 USD = 84.5093 RUB and 1 CNY = 12.5788 RUB, implying 1 USD ≈ 6.718391 CNY. Calculations use the unrounded cross rate; displayed amounts are rounded to whole dollars. Converted China quotes and overseas seller listings are identified separately. Taxes, shipping and cluster networking are not normalized.
 
@@ -113,7 +164,7 @@ Scope: C12 and 12/12 in the six-GPU row follow the experimenter’s 2026-09-18 c
 
 [Peak CSV](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](../data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). Historical C1 archive calculation: 32768 / 1.962356 ≈ **16698.30 tok/s**; this single-request formula does not recompute the corrected C12 result. H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Failed requests remain in the full-wall denominator.
 
-## Secondary results: Decode and full-wall output
+## V7 secondary results: Decode and full-wall output
 
 The original Decode results below describe overall delivery gains; Prefill acceleration and shorter first-text waiting are the primary findings. Rates are tok/s.
 
@@ -131,7 +182,7 @@ The aggregate generation window includes late requests still prefilling, replayi
 
 **Historical standalone TP4 remains a separate baseline.** The September 13 four-Spark SGLang + DSpark recipe used 2048-token chunks and eight running slots. At C8/C12 it reported aggregate Decode **140.31/138.19** and full-wall output **131.85/133.16**, using **512 input / 256 output**. Its separate **8192 input / 1 output** Prefill tests gave **3232.70/3261.25**. These are not matched controls for the current long-input workload.
 
-## Deployment evolution V1 → V7
+## Deployment evolution V1 → V8
 
 These are deployment stages, separate from public research release **v1.6**. V1 is a retrospective label for the initial six-GPU pipeline; no separate V1 frozen-image manifest was found. V2–V5 are recorded experiment stages; V6/V7 have recovery materials. Early remote Engram stages used an additional helper host, so their hardware costs are not identical. Exact layer allocations remain private.
 
@@ -144,6 +195,7 @@ These are deployment stages, separate from public research release **v1.6**. V1 
 | **V5** | 2026-09-16 | Cross-stage KV mirroring and revised placement restore DSpark and 8192-token chunks | 12 long-input requests with 512 output tokens each completed in 215.19 s; C1 150K Prefill about 3860 tok/s. |
 | **V6** | 2026-09-16–17 | Switch to PD: dual 6000D Prefill plus four-Spark TP4 Decode; repair P2P, GPU gather and NIXL | P single-request stage rate about 13K–16.5K tok/s; end-to-end input still pays handoff and tail replay; golden checkpoint frozen. |
 | **V7** | 2026-09-17–18 | Select code-serving settings, D prefetch/GPU staging and tail=1280; package images and add a watchdog | 100/100 requests in the 8K/32K × C1/C4/C8/C12 matrix; matched C8 Prefill input throughput is 4.54×/7.82× direct TP4; mean 32K TTFT falls 86.6%. |
+| **V8** | 2026-09-20 | Keep vLLM TP2 P; change D to SGLang TP4/EP4; cross-engine cache adaptation and tail=256; later seq32 follow-up expands D to 32 slots | 216/216 across nine cases; 32K/C16–C32 Prefill over 16000 tok/s; short-code C32 active Decode 442.02 tok/s. Original frozen snapshot remains seq12. |
 
 Adding compute first required removing lookup, interconnect and pipeline stalls. With the experimenter's current clarification, the six-GPU organization is described as **PP2: a dual-6000D TP2 front stage and four-Spark TP4 back stage**. The diagrams above explain how this organization uses CED; the V6/V7 archive retains P/D and NIXL as the actual service roles and handoff mechanism. **The 6000D pair handles long-input encoding; four Sparks replay the tail and perform full-model generation**, including subsequent Decode steps.
 
@@ -183,7 +235,7 @@ One additional 32K/2048-output/C12 batch measured input **13485.39**, batch Deco
 
 **The project owner additionally reports “12K+ Prefill and 1200 aggregate Decode”.** No corresponding 1200 tok/s batch, workload or timing evidence was found in the referenced session and archived results. It remains unverified. **The published evidence does not establish higher total throughput than eight H20 GPUs.** A verified 1200 result would still need comparable conditions and cannot be ranked only against a selected lower H20 operating point.
 
-## Current parameters and limits
+## Historical V7 parameters and limits
 
 | Item | V7 |
 | --- | --- |
