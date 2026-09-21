@@ -2,11 +2,11 @@
 
 [中文](README_ZH.md)
 
-## Latest result · 2026-09-20 · V8: 16000+ tok/s Prefill, 442.02 tok/s aggregate Decode at C32
+## Latest result · 2026-09-20 · DS4.1 Flash · V8 deployment: 16000+ tok/s Prefill, 442.02 tok/s aggregate Decode at C32
 
-### V8: 16000+ tok/s Prefill across three concurrency levels, 442.02 tok/s aggregate Decode at C32
+### DeepSeek-V4.1-Flash (DS4.1 Flash) · V8: 16000+ tok/s Prefill across three concurrency levels, 442.02 tok/s aggregate Decode at C32
 
-**The latest V8 seq32 run sustains over 16000 tok/s of P-stage batch Prefill throughput at C16, C24 and C32 with 32K inputs. Short-code C32 reaches 442.02 tok/s over the active Decode interval and 436.40 tok/s of end-to-end aggregate output.** These are separate workloads. Consistency here means one batch at each of three concurrency levels, not a repeated long-duration stability test.
+**The latest seq32 run of our V8 deployment for DeepSeek-V4.1-Flash (DS4.1 Flash) sustains over 16000 tok/s of P-stage batch Prefill throughput at C16, C24 and C32 with 32K inputs. Short-code C32 reaches 442.02 tok/s over the active Decode interval and 436.40 tok/s of end-to-end aggregate output.** These are separate workloads. Consistency here means one batch at each of three concurrency levels, not a repeated long-duration stability test.
 
 **32K-input Prefill:**
 
