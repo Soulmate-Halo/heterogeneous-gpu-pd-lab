@@ -1,11 +1,13 @@
 {
   "role": "worker",
+  "topology": "spark_solo_prefill_and_rdma_cold_expert_service",
   "host": "DGX Spark / GB10",
   "arch": "aarch64",
   "cuda_arch": 121,
   "listen": "0.0.0.0:39580",
   "http": "0.0.0.0:8200",
   "kv": "fp8",
+  "kv_handoff": false,
   "command": [
     "strata-cold-expert-worker",
     "--format",

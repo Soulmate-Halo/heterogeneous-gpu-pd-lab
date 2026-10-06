@@ -1,5 +1,5 @@
 {
-  "schema": "qwen38-flash-spark-3080/baseline@3",
+  "schema": "qwen38-flash-spark-3080/baseline@4",
   "version": "V2",
   "release": "Qwen3.8-Flash-Next NVFP4 Strata dual-host kit (RTX 3080 20GB + DGX Spark GB10)",
   "frozen_at": "2026-10-06",
@@ -9,14 +9,14 @@
       "role": "engine",
       "host": "RTX 3080 20GB",
       "compute_capability": "8.6",
-      "work": "NVFP4 dense/prefill and attention/QSA, FP8 KV",
+      "work": "Joint Decode coordinator, dense/attention, hot experts and local FP8 KV; frozen engine also locally prefills its requests",
       "expert_cache": 4608
     },
     "worker": {
       "role": "worker",
       "host": "DGX Spark / GB10",
       "compute_capability": "12.1",
-      "work": "MoE cold-expert arena and PLE/KV tier"
+      "work": "Cold-expert RDMA compute; Spark HTTP engine can serve independent solo Prefill requests"
     },
     "transport": {
       "kind": "RDMA verbs",
@@ -25,7 +25,12 @@
       "slot_bytes": 4194304
     },
     "quantization": "NVFP4 experts + FP8 KV",
-    "max_context": 16384
+    "max_context": 16384,
+    "experimental_prefill": {
+      "host": "DGX Spark / GB10",
+      "work": "solo prefill"
+    },
+    "kv_handoff_available": false
   },
   "source": {
     "upstream": "Strata plus local NVFP4/RDMA/FP8-KV changes",
@@ -34,10 +39,12 @@
   },
   "evidence": {
     "canonical_metrics": "evidence/v2-metrics.json",
-    "prefill_peak_tok_s": 1163.4,
-    "aggregate_decode_measured_tok_s": 60.25,
-    "aggregate_decode_v2_projected_tok_s": 240.0,
-    "aggregate_decode_v2_status": "projected_kernel_scaling_target"
+    "aggregate_decode_measured_tok_s": 242.37,
+    "single_stream_decode_tok_s": 62.0,
+    "solo_aggregate_decode_tok_s": 107.6,
+    "solo_single_stream_decode_tok_s": 22.3,
+    "decode_source": "experimenter_report_20261006",
+    "raw_decode_logs_attached": false
   },
   "images": {
     "repository": "ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080",
@@ -54,14 +61,15 @@
       "NVFP4 hot/cold packs",
       "PLE tables",
       "credentials"
-    ]
+    ],
+    "runtime_preparation": "Native first-run CUDA build cached in a volume; matching model packs and PLE mounted separately"
   },
   "runtime_env": "bundle/runtime.env",
   "mount_contract": [
-    "STRATA_HOT_PACK_DIR",
-    "STRATA_COLD_PACK_DIR",
+    "STRATA_PACK_HOT",
+    "STRATA_PACK_COLD",
     "STRATA_DENSE_GGUF",
     "STRATA_PLE_FP8",
-    "STRATA_PROFILE_BIN"
+    "STRATA_PROFILE"
   ]
 }

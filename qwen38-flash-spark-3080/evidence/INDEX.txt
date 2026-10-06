@@ -1,3 +1,9 @@
+evidence/README.md
+evidence/INDEX.txt
+evidence/v2-metrics.json
+evidence/performance-v2.json
+evidence/metrics.csv
+# V2 Decode 242.37 aggregate / 62.00 single; Spark solo 107.60 / 22.30, report 2026-10-06; raw logs not attached.
 evidence/business-bench-v3-20261001.json
 evidence/expert-cache-scaling-20260930.json
 evidence/hotep-profile-v4-20261002.json

@@ -1,5 +1,6 @@
 {
   "role": "engine",
+  "topology": "joint_decode_with_spark_cold_experts",
   "host": "RTX 3080 20GB",
   "arch": "x86_64",
   "cuda_arch": 86,
@@ -8,6 +9,7 @@
   "kv": "fp8",
   "max_context": 16384,
   "expert_cache": 4608,
+  "kv_handoff": false,
   "command": [
     "strata",
     "--expert-format",

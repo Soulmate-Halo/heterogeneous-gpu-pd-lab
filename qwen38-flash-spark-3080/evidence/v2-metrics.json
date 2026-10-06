@@ -1,18 +1,35 @@
 {
-  "schema": "qwen38-flash-spark-3080/v2-metrics@1",
+  "schema": "qwen38-flash-spark-3080/v2-metrics@2",
   "model": "Qwen3.8-27B-Flash-Next",
-  "hardware": {"engine": "RTX 3080 20GB", "worker": "DGX Spark / GB10", "weight_format": "NVFP4", "kv_format": "FP8", "context_tokens": 16384},
-  "prefill_samples_tok_s": [1030.80, 1163.40, 1161.10],
+  "reported_at": "2026-10-06",
+  "hardware": {
+    "decode": "RTX 3080 20GB + DGX Spark / GB10",
+    "prefill": "DGX Spark / GB10",
+    "weight_format": "NVFP4",
+    "kv_format": "FP8"
+  },
+  "prefill_samples_tok_s": [
+    1030.8,
+    1163.4,
+    1161.1
+  ],
   "prefill_prompt_tokens": 3600,
-  "prefill_peak_tok_s": 1163.40,
   "prefill_mean_tok_s": 1118.43,
-  "prefill_status": "measured",
-  "aggregate_decode_measured_tok_s": 60.25,
-  "aggregate_decode_measurement": {"label": "C12", "concurrency": 12, "prompt_tokens": 2048, "output_tokens": 256, "completed": 156, "requests": 156, "status": "measured_end_to_end"},
-  "aggregate_decode_v2_projected_tok_s": 240.00,
-  "aggregate_decode_v2_status": "projected_kernel_scaling_target",
-  "aggregate_decode_v2_basis": "N=8 kernel scaling estimate; no completed end-to-end N=8 run",
-  "end_to_end_n1_tok_s": 45.54,
-  "measurement_scope": "V2 combines measured prefill and measured C12 decode; 240.00 is a projection/target and must not be reported as an end-to-end measurement.",
-  "source_artifacts": ["evidence/performance-v2.json", "evidence/nvfp4-batch-scaling-20261005.json", "evidence/nvfp4-spark-solo-prefill-20261004.json"]
+  "aggregate_decode_measured_tok_s": 242.37,
+  "single_stream_decode_tok_s": 62.0,
+  "solo_aggregate_decode_tok_s": 107.6,
+  "solo_single_stream_decode_tok_s": 22.3,
+  "decode_status": "experimenter_reported_measurement",
+  "decode_source": {
+    "kind": "user_provided_experiment_results",
+    "date": "2026-10-06",
+    "raw_logs_attached": false,
+    "concurrency": null,
+    "workload": null
+  },
+  "measurement_scope": "Decode and solo controls supplied by experimenter; raw logs and exact workload not attached. Prefill retains its original dated evidence.",
+  "source_artifacts": [
+    "evidence/nvfp4-dflash-bench-20261005.json",
+    "evidence/nvfp4-spark-solo-prefill-20261004.json"
+  ]
 }

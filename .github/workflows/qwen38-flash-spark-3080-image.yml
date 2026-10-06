@@ -24,6 +24,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Verify V2 bundle
         run: python qwen38-flash-spark-3080/verify_bundle.py
+      - name: Verify role entrypoints without GPU
+        run: |
+          bash qwen38-flash-spark-3080/scripts/container-smoke.sh
+          python -m py_compile qwen38-flash-spark-3080/scripts/doctor.py
+          for f in qwen38-flash-spark-3080/scripts/*.sh; do bash -n "$f"; done
+          docker compose -f qwen38-flash-spark-3080/docker-compose.yml config --quiet
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -40,7 +46,8 @@ jobs:
             type=sha,format=short
           labels: |
             org.opencontainers.image.version=V2
-            org.opencontainers.image.metrics=prefill_peak=1163.40;decode_measured=60.25;decode_v2_projected=240.00
+            org.opencontainers.image.metrics=decode_aggregate=242.37;decode_solo_aggregate=107.60;decode_single=62.00;decode_solo_single=22.30
+            org.opencontainers.image.description=CUDA 13/RDMA build kit; Spark solo Prefill and Spark plus RTX 3080 joint Decode; model assets mounted at runtime
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
         with:

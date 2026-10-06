@@ -1,39 +1,39 @@
 {
-  "release": "Qwen3.8-Flash-Next NVFP4 heterogeneous 3080 + DGX Spark V2 bundle",
-  "recorded_at": "2026-10-05",
-  "hardware": {
-    "decode": "RTX 3080 20GB",
-    "prefill": "DGX Spark / GB10",
-    "quantization": "NVFP4 experts + FP8 KV",
-    "context_tokens": 16384
-  },
-  "prefill_measured": {
+  "release": "Qwen3.8 Flash V2",
+  "reported_at": "2026-10-06",
+  "prefill": {
+    "host": "DGX Spark solo",
+    "samples_tok_s": [
+      1030.8,
+      1163.4,
+      1161.1
+    ],
+    "mean_tok_s": 1118.43,
     "prompt_tokens": 3600,
-    "tok_s": [1030.8, 1163.4, 1161.1],
-    "mean_tok_s": 1118.4333333333334,
-    "source": "nvfp4-dflash-bench-20261005.json"
+    "source": "evidence/nvfp4-dflash-bench-20261005.json"
   },
-  "decode_measured": {
-    "single_request_tok_s": [30.2, 46.4, 46.1],
-    "steady_state_range_tok_s": [46.1, 46.4],
-    "source": "nvfp4-dflash-bench-20261005.json"
+  "decode": {
+    "aggregate_decode_measured_tok_s": 242.37,
+    "single_stream_decode_tok_s": 62.0,
+    "solo_aggregate_decode_tok_s": 107.6,
+    "solo_single_stream_decode_tok_s": 22.3,
+    "decode_status": "experimenter_reported_measurement",
+    "decode_source": {
+      "kind": "user_provided_experiment_results",
+      "date": "2026-10-06",
+      "raw_logs_attached": false,
+      "concurrency": null,
+      "workload": null
+    }
   },
-  "aggregate_decode": {
-    "n8_tok_s": 240.0,
-    "status": "estimated_not_measured",
-    "basis": "N=8 projection from the 2026-10-06 batch-scaling discussion; no end-to-end N=8 run passed",
-    "measured_peak_tok_s": 60.25,
-    "measured_peak_concurrency": 12,
-    "measured_peak_source": "session history table C12"
+  "reported_ratios": {
+    "aggregate": 2.252509,
+    "single_stream": 2.780269
   },
-  "correctness": {
-    "v2_prompt_tokens": 2048,
-    "v2_prefill_tok_s": 211.74,
-    "golden_output_token": 248046,
-    "golden_output_token_match": true,
-    "acceptance": "PASS",
-    "source": "nvfp4-v2-20261003.json"
+  "topology": {
+    "experimental_prefill": "DGX Spark solo",
+    "decode": "RDMA hot/cold expert collaboration between Spark and RTX 3080",
+    "frozen_cross_host_kv_handoff": false
   },
-  "interpretation": "The 1100+ tok/s prefill figure is measured. The 240.00 tok/s aggregate decode figure is a clearly labelled projection, not a completed benchmark."
+  "historical_evidence_policy": "Original dated benchmark files retain their original values. This summary does not rewrite their logs."
 }
-

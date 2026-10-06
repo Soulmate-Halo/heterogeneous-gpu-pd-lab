@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib, json, tarfile
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
-REQUIRED = ['README.md','README_ZH.md','NOTICE','Dockerfile','entrypoint.sh','apply-bundle.sh','run-dual-host.example.sh','baseline.json','bundle/baseline.json','bundle/runtime.env','bundle/config/engine-3080.serve.json','bundle/config/worker-spark.json','bundle/config/router.json','evidence/v2-metrics.json','evidence/performance-v2.json','evidence/README.md']
+REQUIRED = ['README.md','README_ZH.md','NOTICE','Dockerfile','.dockerignore','docker-compose.yml','entrypoint.sh','apply-bundle.sh','run-dual-host.example.sh','baseline.json','bundle/baseline.json','bundle/runtime.env','bundle/config/engine-3080.serve.json','bundle/config/worker-spark.json','bundle/config/router.json','evidence/v2-metrics.json','evidence/performance-v2.json','evidence/README.md','scripts/container-help.sh','scripts/container-health.sh','scripts/container-smoke.sh','scripts/container-start.sh','scripts/container-build.sh','scripts/deploy.sh','scripts/doctor.py']
 TEXT_SUFFIXES = {'.md','.txt','.json','.csv','.py','.sh','.yml','.yaml','.toml','.env'}
 FORBIDDEN = ('C:\\Users\\','/home/ysy','gho_','sk-proj-','BEGIN OPENSSH PRIVATE KEY')
 def digest(p):
@@ -41,11 +41,14 @@ def verify_metrics(errors):
     try:
         m=json.loads((ROOT/'evidence/v2-metrics.json').read_text(encoding='utf-8'))
         if m['prefill_samples_tok_s'] != [1030.8,1163.4,1161.1]: errors.append('prefill samples changed')
-        if m['prefill_peak_tok_s'] != 1163.4: errors.append('prefill peak changed')
-        if m['aggregate_decode_measured_tok_s'] != 60.25: errors.append('measured aggregate decode changed')
-        if m['aggregate_decode_v2_projected_tok_s'] != 240.0: errors.append('V2 projection changed')
-        if m['aggregate_decode_v2_status'] != 'projected_kernel_scaling_target': errors.append('projection status missing')
-        if 'projection' not in m['measurement_scope'].lower(): errors.append('measurement scope does not separate projection')
+        if m.get('prefill_peak_tok_s', max(m['prefill_samples_tok_s'])) != 1163.4: errors.append('prefill peak changed')
+        if m['aggregate_decode_measured_tok_s'] != 242.37: errors.append('V2 aggregate decode changed')
+        if m['single_stream_decode_tok_s'] != 62.0: errors.append('V2 single-stream decode changed')
+        if m['solo_aggregate_decode_tok_s'] != 107.6: errors.append('solo aggregate baseline changed')
+        if m['solo_single_stream_decode_tok_s'] != 22.3: errors.append('solo single-stream baseline changed')
+        if m['decode_status'] != 'experimenter_reported_measurement': errors.append('decode source status missing')
+        if m['decode_source']['raw_logs_attached'] is not False: errors.append('raw log disclosure missing')
+        if 'raw logs' not in m['measurement_scope'].lower(): errors.append('measurement scope does not disclose raw logs')
     except Exception as exc: errors.append(f'metrics invalid: {exc}')
 def scan_public_text(errors):
     roots=[ROOT/'README.md',ROOT/'README_ZH.md',ROOT/'NOTICE',ROOT/'Dockerfile',ROOT/'entrypoint.sh',ROOT/'apply-bundle.sh',ROOT/'run-dual-host.example.sh',ROOT/'bundle',ROOT/'evidence']

@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-ROLE="${ROLE:-${STRATA_ROLE:-}}"
-if [[ "${1:-}" =~ ^(verify|worker|engine|router|shell|smoke|sanitize)$ ]]; then ROLE="$1"; shift || true; fi
-case "${ROLE:-verify}" in
+ROLE="${ROLE:-${STRATA_ROLE:-help}}"
+if [[ $# -gt 0 ]]; then ROLE="$1"; shift; fi
+case "$ROLE" in
   verify) exec python3 "$ROOT/verify_bundle.py" "$@" ;;
-  worker|wrk|spark) exec "$ROOT/scripts/run-spark.sh" "$@" ;;
-  engine|eng|3080) exec "$ROOT/scripts/run-3080.sh" "$@" ;;
-  router) exec "$ROOT/scripts/run-router.sh" "$@" ;;
-  smoke) exec "$ROOT/scripts/run-smoke.sh" "$@" ;;
-  sanitize) exec "$ROOT/scripts/sanitize.sh" "$@" ;;
+  help|--help|-h) exec "$ROOT/scripts/container-help.sh" ;;
+  doctor) exec python3 "$ROOT/scripts/doctor.py" "$@" ;;
+  build) exec "$ROOT/scripts/container-build.sh" "$@" ;;
+  worker|wrk|spark) exec "$ROOT/scripts/container-start.sh" spark "$@" ;;
+  engine|eng|3080|decode) exec "$ROOT/scripts/container-start.sh" 3080 "$@" ;;
+  router) export STRATA_FOREGROUND=1; exec "$ROOT/scripts/run-router.sh" "$@" ;;
+  smoke) exec "$ROOT/scripts/container-smoke.sh" ;;
   shell) exec /bin/bash "$@" ;;
-  *) echo "usage: ROLE=worker|engine|router|shell|verify $0" >&2; exit 2 ;;
+  sanitize) exec "$ROOT/scripts/sanitize.sh" "$@" ;;
+  *) echo "unknown role: $ROLE (run: help)" >&2; exit 2 ;;
 esac

@@ -1,11 +1,9 @@
 metric,status,value,unit,conditions,source
-prefill_run_1,measured,1030.8,tok/s,"prompt=3600; Spark prefill leg",nvfp4-dflash-bench-20261005.json
-prefill_run_2,measured,1163.4,tok/s,"prompt=3600; Spark prefill leg",nvfp4-dflash-bench-20261005.json
-prefill_run_3,measured,1161.1,tok/s,"prompt=3600; Spark prefill leg",nvfp4-dflash-bench-20261005.json
-prefill_mean,derived,1118.4333333333334,tok/s,"arithmetic mean of three runs",performance-v2.json
-decode_warm_1,measured,46.4,tok/s,"single request; steady decode leg",nvfp4-dflash-bench-20261005.json
-decode_warm_2,measured,46.1,tok/s,"single request; steady decode leg",nvfp4-dflash-bench-20261005.json
-decode_first,measured,30.2,tok/s,"first run includes expert-cache warmup",nvfp4-dflash-bench-20261005.json
-decode_aggregate_c12,measured,60.25,tok/s,"C12; 2048 input/256 output; 156/156 success",session-history-table
-decode_aggregate_n8,estimated,240.0,tok/s,"N=8 projection; no end-to-end pass",session-history-round-226
-
+prefill_run_1,measured,1030.80,tok/s,prompt=3600; Spark Prefill,nvfp4-dflash-bench-20261005.json
+prefill_run_2,measured,1163.40,tok/s,prompt=3600; Spark Prefill,nvfp4-dflash-bench-20261005.json
+prefill_run_3,measured,1161.10,tok/s,prompt=3600; Spark Prefill,nvfp4-dflash-bench-20261005.json
+prefill_mean,derived,1118.43,tok/s,arithmetic mean of three runs,v2-metrics.json
+decode_aggregate_v2,experimenter_reported_measurement,242.37,tok/s,workload and raw logs not attached,experimenter_report_20261006
+decode_aggregate_solo,experimenter_reported_measurement,107.60,tok/s,workload and raw logs not attached,experimenter_report_20261006
+decode_single_v2,experimenter_reported_measurement,62.00,tok/s,workload and raw logs not attached,experimenter_report_20261006
+decode_single_solo,experimenter_reported_measurement,22.30,tok/s,workload and raw logs not attached,experimenter_report_20261006

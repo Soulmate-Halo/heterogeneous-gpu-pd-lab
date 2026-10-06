@@ -42,7 +42,9 @@ cfg = {"exe": os.environ["STRATA_ENGINE_EXE"], "args": args, "cwd": os.path.dirn
        "model_name": "Qwen3.8-27B-NVFP4", "max_context": int(os.environ["STRATA_MAX_CONTEXT"]), "log": os.environ["STRATA_3080_LOG"]}
 with open(os.environ["STRATA_CFG"], "w", encoding="utf-8") as f: json.dump(cfg, f, ensure_ascii=False, indent=2)
 PY
+if [[ "${STRATA_FOREGROUND:-0}" == "1" ]]; then
+  exec python3 "$ROOT/src/serve/server.py" --engine strata --config "$CFG" --host "$HOST" --port "$PORT"
+fi
 nohup python3 "$ROOT/src/serve/server.py" --engine strata --config "$CFG" --host "$HOST" --port "$PORT" >>"$LOG" 2>&1 < /dev/null &
 echo $! > "$STATE/3080.pid"
 echo "launched role=3080 pid=$(cat "$STATE/3080.pid") http=$HOST:$PORT log=$LOG"
-

@@ -51,6 +51,9 @@ else
   note "WARN: cannot drop page cache (need root); the arena fill may fail on a dirty cache"
 fi
 
+if [ "${STRATA_FOREGROUND:-0}" = "1" ]; then
+  exec "$STRATA_BUILD_DIR/strata-cold-expert-worker" "${ARGS[@]}"
+fi
 start_bg worker worker-nvfp4 "$STRATA_BUILD_DIR/strata-cold-expert-worker" "${ARGS[@]}"
 
 WLOG="$(logfile worker-nvfp4)"

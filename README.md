@@ -4,22 +4,34 @@
 
 ## Qwen3.8 Flash-Next V2: RTX 3080 + DGX Spark
 
-Public reproducible bundle: [qwen38-flash-spark-3080](qwen38-flash-spark-3080/). NVFP4 dense/Prefill and FP8 KV run on the RTX 3080 20GB; MoE cold experts and the PLE/KV worker run on the DGX Spark / GB10.
+**DGX Spark handles Prefill alone; Spark and the RTX 3080 cooperate on Decode to accelerate decoding.** [Deployment guide](qwen38-flash-spark-3080/README.md) · [Bundle](qwen38-flash-spark-3080/)
 
-| Metric | Value | Single-machine baseline |
-| --- | ---: | --- |
-| Prefill, three runs | 1030.80 / 1163.40 / 1161.10 tok/s | 1117.93 tok/s (Spark solo, 2047 tokens) |
-| Prefill peak | 1163.40 tok/s | 1117.93 tok/s (Spark solo, 2047 tokens) |
-| Prefill mean | 1118.43 tok/s | 1117.93 tok/s (Spark solo, 2047 tokens) |
-| Aggregate Decode peak | 60.25 tok/s | Not measured (solo C12 aggregate) |
-| V2 aggregate Decode target | 240.00 tok/s | Not measured (solo N=8 end-to-end) |
-| Single-request end-to-end Decode | 45.54 tok/s | 24.51 tok/s (Spark solo, single stream) |
+| Metric | V2 | Spark solo baseline |
+| --- | ---: | ---: |
+| Prefill, three runs | 1030.80 / 1163.40 / 1161.10 tok/s | 1117.93 tok/s (2047 tokens) |
+| Prefill mean | 1118.43 tok/s | 1117.93 tok/s (2047 tokens) |
+| V2 aggregate Decode | **242.37 tok/s** | **107.60 tok/s** |
+| V2 single-stream Decode | **62.00 tok/s** | **22.30 tok/s** |
 
-The solo baselines come from `evidence/nvfp4-spark-solo-prefill-20261004.json`; Prefill input length, concurrency and Decode measurement differ, so these values do not form a strict speedup ratio.
+The experimenter supplied the V2 Decode results and solo controls on 2026-10-06; raw benchmark logs, concurrency and workload details were not included in this revision. These reported values give approximately **2.25x aggregate** and **2.78x single-stream** Decode. The three public Prefill runs use 3600 prompt tokens; the solo Prefill control uses 2047, so they do not establish a strict Prefill speedup.
 
-Docker image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest` (fixed tag `sha-3fcd285` as a supplementary pin).
+### Deployment diagram
 
-[Docker and apply procedure](qwen38-flash-spark-3080/README.md) · [V2 metrics](qwen38-flash-spark-3080/evidence/v2-metrics.json) · [V2 performance evidence](qwen38-flash-spark-3080/evidence/performance-v2.json)
+```mermaid
+flowchart LR
+    A["API request"] --> P["DGX Spark / GB10<br/>Solo Prefill"]
+    P --> D["Decode work distribution"]
+    D --> G["RTX 3080 20GB<br/>Hot experts and main compute"]
+    D --> S["DGX Spark / GB10<br/>Cold expert compute"]
+    G <-->|"RDMA expert requests and results"| S
+    G --> O["Output tokens<br/>Faster joint Decode"]
+```
+
+**The diagram shows the experimental division of work.** The frozen HTTP router selects a backend per request; it has no cross-host KV export/import interface and cannot seamlessly hand one request from Spark Prefill to 3080 Decode. Joint Decode uses RDMA compute cooperation between hot experts on the 3080 and cold experts on Spark, rather than polling two independent HTTP services. The container diagnostics disclose this reproduction limit.
+
+Docker image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest`. It includes CUDA 13 build tools, RDMA dependencies, pinned TVM-FFI, public sources, role commands and startup diagnostics. The first native build is cached on each host. Matching model assets, GPU drivers and RDMA must be prepared first; see [Docker deployment](qwen38-flash-spark-3080/README.md#docker-deployment).
+
+[V2 metrics](qwen38-flash-spark-3080/evidence/v2-metrics.json) · [Performance notes](qwen38-flash-spark-3080/evidence/performance-v2.json)
 
 ## DS4.1 Flash V8 Docker image (PP2 / PD separation)
 
@@ -612,7 +624,7 @@ The mapping from experiment IDs to legacy labels is in [data/experiment-index.cs
 
 公开可复现包：[qwen38-flash-spark-3080](qwen38-flash-spark-3080/)。3080 承担 NVFP4 dense/prefill 与 FP8 KV，DGX Spark 承担 MoE 冷专家、PLE/KV worker；启动顺序是先 worker，再 engine，模型权重、hot/cold pack、PLE 表和 role 镜像由使用者挂载，镜像不含 510 GB 官方权重。
 
-V2 口径：prefill 三次实测 1030.80 / 1163.40 / 1161.10 tok/s，峰值 1163.40 tok/s；聚合解码端到端实测峰值 60.25 tok/s（C12，156/156 成功）；240.00 tok/s 是 N=8 内核批量缩放推算目标，不是端到端实测。
+V2 metrics: DGX Spark performs Prefill alone; Spark + RTX 3080 joint Decode reports 242.37 tok/s aggregate (Spark solo 107.60) and 62.00 tok/s single stream (Spark solo 22.30). The Decode figures were supplied on 2026-10-06; raw logs were not attached.
 
 ~~~bash
 docker pull ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest

@@ -2,10 +2,12 @@
 set -euo pipefail
 # Run once on each host after replacing placeholders.
 IMAGE="${IMAGE:-ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest}"
-ROLE="${1:?usage: $0 worker|engine}"
+ROLE="${1:?usage: $0 spark|3080}"
 MODELS="${MODELS:-/srv/qwen38-models}"
+IMAGE="${IMAGE:-ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest}"
+COMMON=(--rm --network host --gpus all --device /dev/infiniband --cap-add IPC_LOCK --init -v "$MODELS:/models:ro" -v "${CACHE_DIR:-/srv/qwen38-cache}:/cache" -v "${STATE_DIR:-/srv/qwen38-state}:/state")
 case "$ROLE" in
-  worker) exec docker run --rm --name qwen38-spark-worker --network host --gpus all --device /dev/infiniband --cap-add IPC_LOCK -v "$MODELS:/models:ro" -e ROLE=worker "$IMAGE" ;;
-  engine) exec docker run --rm --name qwen38-rtx3080-engine --network host --gpus all --device /dev/infiniband --cap-add IPC_LOCK -v "$MODELS:/models:ro" -e ROLE=engine -e STRATA_RDMA_WORKER_HOST="${STRATA_RDMA_WORKER_HOST:?set Spark RDMA hostname}" "$IMAGE" ;;
-  *) echo 'role must be worker or engine' >&2; exit 2 ;;
+  spark) exec docker run --name qwen38-spark "${COMMON[@]}" -e STRATA_ROLE=spark "$IMAGE" spark ;;
+  3080) exec docker run --name qwen38-rtx3080 "${COMMON[@]}" -e STRATA_ROLE=3080 -e STRATA_REMOTE_HOST="${STRATA_REMOTE_HOST:?set Spark RDMA hostname}" "$IMAGE" 3080 ;;
+  *) echo 'role must be spark or 3080' >&2; exit 2 ;;
 esac

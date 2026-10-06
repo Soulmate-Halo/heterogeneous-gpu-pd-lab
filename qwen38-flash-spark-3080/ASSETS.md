@@ -18,3 +18,8 @@
 
 脚本不会下载、上传或猜测这些大文件，也不会把 Q2 权重偷换成 NVFP4。路径由 `env.example` 和命令行参数注入。
 
+## Docker 挂载名
+
+Compose 将宿主机的 `MODELS_DIR` 只读挂载到容器 `/models`：`strata-pack-hot/`、`strata-cold-pack/`、`dense.gguf`、`ple-fp8.bin` 和 `profile.bin`。`assets/expert-profile-v4.bin` 是公开的示例资产，只有在与当前 hot pack 的路由统计匹配时才能复制为 `profile.bin`；镜像不会自动下载或生成这些文件。缓存和状态分别挂载到 `/cache`、`/state`，用来保存首次 CUDA 编译产物和服务日志。
+
+启动前可运行 `docker run --rm <image> doctor` 做通用检查；`doctor spark` 与 `doctor 3080` 会进一步检查对应架构、CUDA、RDMA 和模型资产。缺文件时退出码为 2，`help`、`verify`、`smoke` 不需要 GPU。

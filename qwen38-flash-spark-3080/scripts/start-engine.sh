@@ -78,6 +78,9 @@ if env:
 open(cfg, "w", encoding="utf-8").write(json.dumps(doc, indent=1))
 print("WROTE " + cfg)
 PY
+  if [ "${STRATA_FOREGROUND:-0}" = "1" ]; then
+    exec "$STRATA_PYTHON" -m serve.server --engine strata --config "$CFG" --host "${STRATA_BIND:-0.0.0.0}" --port "$STRATA_HTTP_PORT"
+  fi
   start_bg http http.log "$STRATA_PYTHON" -m serve.server \
     --engine strata --config "$CFG" --host "${STRATA_BIND:-127.0.0.1}" --port "$STRATA_HTTP_PORT"
   note "waiting for the HTTP front on :$STRATA_HTTP_PORT ..."

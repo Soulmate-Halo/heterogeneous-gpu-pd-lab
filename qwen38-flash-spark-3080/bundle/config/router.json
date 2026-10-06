@@ -1,5 +1,7 @@
 {
   "role": "router",
+  "topology": "whole_request_http_split_only",
+  "kv_handoff": false,
   "listen": "0.0.0.0:8400",
   "prefill_backend": "http://<spark-http-host>:8200",
   "decode_backend": "http://<rtx3080-http-host>:8100",
