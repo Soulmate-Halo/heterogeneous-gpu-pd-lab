@@ -60,7 +60,9 @@ services:
       NVIDIA_VISIBLE_DEVICES: ${ENGINE_GPUS:-0}
       STRATA_ROLE: 3080
       STRATA_HTTP_PORT: ${STRATA_HTTP_PORT:-8100}
-      STRATA_REMOTE_HOST: ${STRATA_REMOTE_HOST:?set Spark RDMA address in .env}
+      # Keep `docker compose config` usable before .env is filled in. The
+      # runtime doctor still requires a real Spark RDMA address for 3080.
+      STRATA_REMOTE_HOST: ${STRATA_REMOTE_HOST:-spark-rdma.example.invalid}
     command: ["3080"]
     healthcheck:
       test: ["CMD", "bash", "scripts/container-health.sh"]
