@@ -39,10 +39,10 @@ RTX 3080 20GB (OCuLink) computes hot experts and the dense main path; the AI Max
 
 | Metric | 395 + RTX 3080 | AI Max 395 solo baseline |
 | --- | ---: | ---: |
-| Prefill | **800+ tok/s** | **273.04 tok/s** |
-| Decode | **40+ tok/s** | **41.33 tok/s** |
+| Prefill | **843.70 tok/s** | **273.04 tok/s** |
+| Decode | **40.55 tok/s** | **41.33 tok/s** |
 
-Figures provided by the experimenter on 2026-10-06; 800+ and 40+ are approximate, the solo baselines are exact. Decode runs on the AI Max 395 in both deployments, so it stays flat; the gain is in prefill (~3x, 273.04 to 800+ tok/s). The model is the 125B Qwen3.8-Flash-Next hybrid MoE (NVFP4), served by the Strata NVFP4 engine on a single host (mx7).
+Exact figures: prefill 843.70 tok/s is the measured 16K-tier peak (C1_ts55_ub1024, 3080 holds 55% of layers, ub 1024; pp1K 612.40 / pp6K 797.00 / pp16K 843.70); decode 40.55 tok/s is the client-measured median (range 28~56 tok/s, rising with expert-cache hit rate 47% to 83%); solo baselines are exact. Decode runs mostly on the AI Max 395 in both deployments, so it stays flat; the gain is in prefill (~3.1x, 273.04 to 843.70 tok/s). The model is the 125B Qwen3.8-Flash-Next hybrid MoE (NVFP4), served by the Strata NVFP4 engine on a single host (mx7).
 
 ### Deployment diagram
 
