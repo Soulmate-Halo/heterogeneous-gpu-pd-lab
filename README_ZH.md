@@ -2,6 +2,23 @@
 
 [English](README.md)
 
+## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark
+
+公开可复现包：[qwen38-flash-spark-3080](qwen38-flash-spark-3080/)。RTX 3080 20GB 承担 NVFP4 dense/Prefill 与 FP8 KV；DGX Spark / GB10 承担 MoE 冷专家与 PLE/KV worker。
+
+| 指标 | 数值 | 口径 |
+| --- | ---: | --- |
+| Prefill 三次 | 1030.80 / 1163.40 / 1161.10 tok/s | prompt=3600，实测 |
+| Prefill 峰值 | 1163.40 tok/s | 实测 |
+| Prefill 均值 | 1118.43 tok/s | 三次实测均值 |
+| 聚合解码峰值 | 60.25 tok/s | C12，12 路，2048 input / 256 output，156/156 完成，端到端实测 |
+| V2 聚合解码目标 | 240.00 tok/s | N=8 内核批量缩放推算/目标，**不是端到端实测** |
+| 单请求端到端解码 | 45.54 tok/s | N=1 实测 |
+
+Docker 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest`（补充固定标签 `sha-3fcd285`）。
+
+[Docker 与应用步骤](qwen38-flash-spark-3080/README_ZH.md) · [V2 指标](qwen38-flash-spark-3080/evidence/v2-metrics.json) · [V2 性能证据](qwen38-flash-spark-3080/evidence/performance-v2.json)
+
 ## DS4.1 Flash V8 Docker 镜像（PP2 / PD 分离）
 
 GHCR 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`。内含 V8 跨引擎补丁、DSpark 最终增量、运行环境和 SHA256 证据，不包含 510GB 权重或私有角色镜像。

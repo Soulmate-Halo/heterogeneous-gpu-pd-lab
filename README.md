@@ -2,6 +2,23 @@
 
 [中文](README_ZH.md)
 
+## Qwen3.8 Flash-Next V2: RTX 3080 + DGX Spark
+
+Public reproducible bundle: [qwen38-flash-spark-3080](qwen38-flash-spark-3080/). NVFP4 dense/Prefill and FP8 KV run on the RTX 3080 20GB; MoE cold experts and the PLE/KV worker run on the DGX Spark / GB10.
+
+| Metric | Value | Scope |
+| --- | ---: | --- |
+| Prefill, three runs | 1030.80 / 1163.40 / 1161.10 tok/s | prompt=3600, measured |
+| Prefill peak | 1163.40 tok/s | measured |
+| Prefill mean | 1118.43 tok/s | measured mean of the three runs |
+| Aggregate Decode peak | 60.25 tok/s | C12, 12-way, 2048 input / 256 output, 156/156 complete, measured end-to-end |
+| V2 aggregate Decode target | 240.00 tok/s | N=8 kernel batch-scaling projection/target, **not an end-to-end measurement** |
+| Single-request end-to-end Decode | 45.54 tok/s | N=1, measured |
+
+Docker image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest` (fixed tag `sha-3fcd285` as a supplementary pin).
+
+[Docker and apply procedure](qwen38-flash-spark-3080/README.md) · [V2 metrics](qwen38-flash-spark-3080/evidence/v2-metrics.json) · [V2 performance evidence](qwen38-flash-spark-3080/evidence/performance-v2.json)
+
 ## DS4.1 Flash V8 Docker image (PP2 / PD separation)
 
 The reproducibility image is published at `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`. It contains the frozen V8 cross-engine patches, final DSpark delta, runtime environment, and SHA256 evidence; it deliberately does not redistribute the 510 GB official weights or private role images.
