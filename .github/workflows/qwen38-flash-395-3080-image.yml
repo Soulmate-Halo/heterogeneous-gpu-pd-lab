@@ -1,0 +1,60 @@
+name: Qwen3.8 Flash-Next FLASH-395-01 Docker image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - qwen38-flash-395-3080/**
+      - .github/workflows/qwen38-flash-395-3080-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Verify FLASH-395-01 bundle
+        run: python qwen38-flash-395-3080/verify_bundle.py
+      - name: Verify entrypoints without GPU
+        run: |
+          bash qwen38-flash-395-3080/scripts/smoke.sh
+          python -m py_compile qwen38-flash-395-3080/scripts/doctor.py
+          python -m py_compile qwen38-flash-395-3080/bundle/freeze_baseline.py
+          for f in qwen38-flash-395-3080/scripts/*.sh; do bash -n "$f"; done
+          docker compose -f qwen38-flash-395-3080/docker-compose.yml config --quiet
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/qwen38-flash-395-3080
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.version=FLASH-395-01
+            org.opencontainers.image.metrics=prefill=800+;decode=40+;baseline_prefill=273.04;baseline_decode=41.33
+            org.opencontainers.image.description=CUDA 13 sm_86 build kit; RTX 3080 hot experts plus AI Max 395/8060S cold experts on one host; model assets mounted at runtime
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: qwen38-flash-395-3080
+          file: qwen38-flash-395-3080/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

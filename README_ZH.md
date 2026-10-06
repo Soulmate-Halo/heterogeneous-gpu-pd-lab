@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark
+## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark · 2026-10-06
 
 **DGX Spark 单独承担 Prefill，Spark 与 RTX 3080 协同 Decode，主要提升解码速度。** [完整搭建方案](qwen38-flash-spark-3080/README_ZH.md) · [部署包](qwen38-flash-spark-3080/)
 
@@ -33,7 +33,30 @@ Docker 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spa
 
 [V2 指标](qwen38-flash-spark-3080/evidence/v2-metrics.json) · [性能说明](qwen38-flash-spark-3080/evidence/performance-v2.json)
 
-## DS4.1 Flash V8 Docker 镜像（PP2 / PD 分离）
+## Qwen3.8 Flash-Next：RTX 3080 + AI Max 395 · 2026-10-06
+
+RTX 3080 20GB（OCuLink）承担热专家与主计算；AI Max 395（8060S 核显 + Zen5 CPU AVX-512）承担冷专家计算。3080 将预填充加速约 3 倍。[部署指南·捆绑包](qwen38-flash-395-3080/)
+
+| 指标 | 395 + RTX 3080 | AI Max 395 单机基线 |
+| --- | ---: | ---: |
+| 预填充 | **800+ tok/s** | **273.04 tok/s** |
+| 解码 | **40+ tok/s** | **41.33 tok/s** |
+
+数据由实验者于 2026 年 10 月 6 日提供；800+ 与 40+ 为约值，单机基线为精确值。两种部署的解码都由 AI Max 395 承担，因此基本持平；提升在预填充（约 3 倍，273.04 → 800+ tok/s）。模型为 125B Qwen3.8-Flash-Next 混合 MoE（NVFP4），由 Strata NVFP4 引擎在单机（mx7）上服务。
+
+### 部署图
+
+```mermaid
+flowchart LR
+    A["API request"] --> E["Strata NVFP4 engine<br/>Port 8095"]
+    E --> D["Expert work distribution"]
+    D --> G["RTX 3080 20GB / OCuLink<br/>Hot experts and main compute"]
+    D --> S["AI Max 395 / 8060S iGPU + Zen5 AVX-512<br/>Cold expert compute"]
+    G <-->|"Expert requests and results"| S
+    G --> O["Output tokens"]
+```
+
+## DS4.1 Flash V8 Docker 镜像（PP2 / PD 分离） · 2026-09-30
 
 GHCR 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`。内含 V8 跨引擎补丁、DSpark 最终增量、运行环境和 SHA256 证据，不包含 510GB 权重或私有角色镜像。
 
@@ -50,7 +73,7 @@ docker run --rm ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:lat
 
 ## 最新进展 · 2026-09-20 · DS4.1 Flash · V8 部署方案：Prefill 16000+ tok/s，C32 聚合解码 442.02 tok/s
 
-### DeepSeek-V4.1-Flash（DS4.1 Flash）· V8：Prefill 稳定 16000+ tok/s，C32 聚合解码 442.02 tok/s
+### DeepSeek-V4.1-Flash（DS4.1 Flash）· V8：Prefill 稳定 16000+ tok/s，C32 聚合解码 442.02 tok/s · 2026-09-21
 
 **DeepSeek-V4.1-Flash（DS4.1 Flash）V8 部署方案的最新 seq32 实测：32K 长输入在 C16、C24、C32 三个档位的 P 阶段 Prefill 整批吞吐均超过 16000 tok/s；短代码题 C32 聚合解码达到 442.02 tok/s，端到端聚合输出为 436.40 tok/s。** 两项成绩来自不同负载。这里的“稳定”指三个并发档位均达到该水平，每档一批，尚不代表长时间重复压测结论。
 
@@ -82,7 +105,7 @@ P 阶段整批吞吐包含 P 排队，按输入总量除以“请求发起至监
 
 **四台 DGX Spark 加两张 RTX 6000Dpro，Prefill 峰值 16698.30 tok/s；按实验者 2026-09-18 校正，展示条件为 32768 输入 / 128 输出 / C12，12/12 请求完成。** 现有机器归档中的同数值记录为 C1，C12 原始批次待补充同步。
 
-### 为什么两张 6000D 能接住 Prefill：PP2，首段 TP2、尾段 TP4
+### 为什么两张 6000D 能接住 Prefill：PP2，首段 TP2、尾段 TP4 · 2026-09-21
 
 **六卡按 PP2 两段流水组织：首段由两张 RTX 6000D 组成 TP2，集中承担长输入 Prefill；尾段由四台 DGX Spark 组成 TP4，承接上下文并完成后续生成。关键在于 DS4.1 的 Prefill 专用路径不需要在加速侧加载完整模型权重，两张 6000D 因而可以共同承接整条长输入编码路径，把算力用在最需要提速的环节。**
 
@@ -143,7 +166,7 @@ flowchart TB
 
 **加速链条：CED 让 Prefill 路径可以独立裁剪 → TP2 双卡容纳并协同计算所需权重 → 大批输入集中到 6000D → TP4 大显存尾段承接缓存与生成。** 这解释了为什么本次最显著的收益出现在 Prefill；峰值和同条件收益见下方实测表。
 
-### 机组对照：V8 与六卡、纯 TP4、八卡 H20 的历史峰值
+### 机组对照：V8 与六卡、纯 TP4、八卡 H20 的历史峰值 · 2026-09-21
 
 **六卡新增 V8 的 32K/C32 成绩，保留此前 Prefill 峰值 16698.30 tok/s；下表同时列出纯 TP4 和八卡 H20 的历史参考。** 价格为 2026-09-18 查询或折算的美元参考，未在本次更新中重新报价。
 
@@ -172,7 +195,7 @@ V8 一行使用 P 阶段整批采样吞吐，历史 H20 行使用完整请求墙
 
 [峰值 CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [逐批数字、公式与来源证据](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json)。历史 C1 归档复算：32768 / 1.962356 ≈ **16698.30 tok/s**；此单请求公式不用于复算校正后的 C12。H20 输入吞吐用其[逐轮原始计时](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json)复算：SGLang = 524288 / 106.588177；vLLM = 1572864 / 225.512473；失败请求仍占用完整墙钟的分母时间。
 
-### V7 同条件复核：C8 完整输入阶段
+### V7 同条件复核：C8 完整输入阶段 · 2026-09-21
 
 | 输入 / 输出 / 并发 | 纯四 Spark TP4：输入 tok/s | 双 6000D＋四 Spark：输入 tok/s | 提升至 |
 | --- | ---: | ---: | ---: |
@@ -617,7 +640,7 @@ C1–C6 Prefill 聚合为 569.892–633.685 tok/s，聚合 Decode 为 35.204–7
 实验编号和旧标签的对应关系在 [data/experiment-index.csv](data/experiment-index.csv)；全部详档在 [results/](results/) 目录。[更新记录](CHANGELOG_ZH.md)记录每一版公开实验版本测了什么。版本对照：[VERSION_HISTORY.md](VERSION_HISTORY.md)。
 
 
-## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark 异构方案
+## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark 异构方案 · 2026-10-06
 
 公开可复现包：[qwen38-flash-spark-3080](qwen38-flash-spark-3080/)。3080 承担 NVFP4 dense/prefill 与 FP8 KV，DGX Spark 承担 MoE 冷专家、PLE/KV worker；启动顺序是先 worker，再 engine，模型权重、hot/cold pack、PLE 表和 role 镜像由使用者挂载，镜像不含 510 GB 官方权重。
 

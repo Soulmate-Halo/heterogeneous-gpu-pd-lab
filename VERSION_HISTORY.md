@@ -1,8 +1,8 @@
 # Version history / 版本对照
 
-Public versions are the seven measured experiment milestones. Older publication numbers that only maintained wording, layout, or filing are not public versions and are not listed here.
+Public versions are the eight measured experiment milestones. Older publication numbers that only maintained wording, layout, or filing are not public versions and are not listed here.
 
-公开版本就是七个实测实验里程碑。旧发布号里只改措辞、排版或归档的，不再作为公开版本，也不在本表列出。
+公开版本就是八个实测实验里程碑。旧发布号里只改措辞、排版或归档的，不再作为公开版本，也不在本表列出。
 
 | Public / 公开 | Old publication / 旧号 | Experiment IDs / 实验 |
 | --- | --- | --- |
@@ -13,6 +13,7 @@ Public versions are the seven measured experiment milestones. Older publication 
 | v1.4 | v2.11 | ORNITH-PD-01 |
 | v1.5 | v2.14 | FLASH-SPLIT-01 |
 | v1.6 | v2.26 | ORNITH-PD-02 |
+| v1.7 | v2.27 | FLASH-395-01 |
 
 EXT-DGX-01 is an external background record filed with the v1.1 period; it is not a public experiment milestone.
 

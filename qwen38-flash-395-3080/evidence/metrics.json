@@ -1,0 +1,15 @@
+{
+  "schema": "qwen38-flash-395-3080/metrics@1",
+  "model": "qwen3.8-flash-next",
+  "date": "2026-10-06",
+  "source": "experimenter_report_20261006",
+  "deployment": "single host (mx7): RTX 3080 20GB (OCuLink) hot experts + AI Max 395 / 8060S cold experts, Strata NVFP4 engine",
+  "prefill_tok_s": 800,
+  "prefill_tok_s_approximate": true,
+  "decode_tok_s": 40,
+  "decode_tok_s_approximate": true,
+  "baseline_prefill_tok_s": 273.04,
+  "baseline_decode_tok_s": 41.33,
+  "decode_stays_flat_reason": "decode runs on the AI Max 395 in both deployments",
+  "raw_logs_attached": false
+}

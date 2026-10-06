@@ -4,6 +4,12 @@
 
 Public versions are the seven measured experiment milestones below. [VERSION_HISTORY.md](VERSION_HISTORY.md) maps them to older publication numbers. The 2026-09-11 Spark addendum is experiment data, not a new public version.
 
+## v1.7 · 2026-10-06
+
+- Measured FLASH-395-01: Qwen3.8-Flash-Next NVFP4 hot/cold expert split on RTX 3080 20GB (OCuLink) + AI Max 395, on a single host (mx7). The 3080 computes hot experts and the dense main path; the 395 (8060S iGPU + Zen5 AVX-512) computes cold experts under the Strata NVFP4 engine. Prefill rises about 3x (395 solo 273.04 to **800+ tok/s**); Decode stays flat (41.33 to **40+ tok/s**) because the 395 decodes in both deployments. The 800+ and 40+ values are experimenter-supplied approximations dated 2026-10-06; raw logs were not attached.
+- New deployment guide and bundle path `qwen38-flash-395-3080/`.
+- Date stamps added to recent experiment headings (V2 RTX 3080 + DGX Spark, DS4.1 Flash V8 Docker image, and the V8 result subsections), taken from the commits that introduced each section.
+
 ## 2026-09-18 six-GPU experiment addendum
 
 - Add DS41-6GPU-01: DeepSeek-V4.1-Flash on four DGX Sparks and dual RTX 6000Dpro, deployment V1–V7. Public release remains v1.6.

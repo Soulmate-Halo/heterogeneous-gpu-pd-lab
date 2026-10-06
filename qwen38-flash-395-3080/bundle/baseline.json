@@ -1,0 +1,118 @@
+{
+  "schema": "qwen38-flash-395-3080/baseline@1",
+  "version": "FLASH-395-01",
+  "release": "Qwen3.8-Flash-Next NVFP4 hot/cold expert split (RTX 3080 20GB + AI Max 395, single host)",
+  "frozen_at": "2026-10-06",
+  "status": "accepted_local_baseline_snapshot",
+  "architecture": {
+    "host": "single host (mx7)",
+    "hot_gpu": {
+      "device": "RTX 3080 20GB",
+      "link": "OCuLink",
+      "compute_capability": "8.6",
+      "cuda_arch": "sm_86",
+      "work": "hot experts and the dense main path"
+    },
+    "cold_compute": {
+      "device": "AI Max 395 / 8060S iGPU",
+      "arch": "gfx1151",
+      "cpu_pool": "Zen5 AVX-512",
+      "work": "cold experts, either via HIP (STRATA_HIPDECODE=1, FRAC=128) or the CPU pool"
+    },
+    "engine": "Strata NVFP4",
+    "quantization": "NVFP4",
+    "kv": "fp8",
+    "max_context": 16384,
+    "expert_cache": 4608,
+    "kv_handoff_available": false
+  },
+  "hip_cold_experts": {
+    "enable_env": "STRATA_HIPDECODE=1",
+    "lib_env": "STRATA_HIPCOLD_LIB",
+    "frac": 128,
+    "sync_mode": "block",
+    "slots": 384,
+    "fallback": "STRATA_HIPDECODE=0 runs cold experts on the AVX-512 CPU pool with no rebuild",
+    "image_note": "ROCm/HIP is not baked into the image; the gfx1151 library is compiled at container start and cached"
+  },
+  "performance": {
+    "prefill_tok_s": 800,
+    "prefill_tok_s_approximate": true,
+    "decode_tok_s": 40,
+    "decode_tok_s_approximate": true,
+    "baseline_prefill_tok_s": 273.04,
+    "baseline_decode_tok_s": 41.33,
+    "model": "qwen3.8-flash-next",
+    "date": "2026-10-06",
+    "source": "experimenter_report_20261006",
+    "raw_logs_attached": false,
+    "canonical_metrics": "evidence/metrics.json"
+  },
+  "images": {
+    "repository": "ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-395-3080",
+    "tags": [
+      "latest",
+      "sha-<commit>"
+    ],
+    "platforms": [
+      "linux/amd64"
+    ],
+    "does_not_contain": [
+      "125B Qwen3.8-Flash-Next NVFP4 checkpoint",
+      "expert pack (experts.bin)",
+      "dense.gguf",
+      "PLE / embedding / MTP assets",
+      "private credentials"
+    ],
+    "runtime_preparation": "Mount the converted assets under /models; the gfx1151 HIP cold-expert library is built on first start and cached in /cache"
+  },
+  "runtime_env": "bundle/runtime.env",
+  "mount_contract": [
+    "STRATA_EXPERTS_PACK",
+    "STRATA_DENSE_GGUF",
+    "STRATA_PLE",
+    "STRATA_EMBED",
+    "STRATA_MTP"
+  ],
+  "source": {
+    "upstream": "Strata plus local NVFP4/HIP-cold-expert changes (r433 bridge, r435 library)",
+    "source_revision_sha256": "55b7d928ff5f3d68046684f64e34c16719f4c5643d3dc8728faeb2a6d7101411"
+  },
+  "artifacts": [
+    {
+      "path": "strata_hipcold_lib_r435.cpp",
+      "sha256": "2ee0e22dedd763714f8411dff5e6416edc28f530de1e24e457d123acc50f0177",
+      "bytes": 75333
+    },
+    {
+      "path": "hipcold_bridge_r433.cpp",
+      "sha256": "127f9cbe823498ebb73f7ad3dc949342f537316d07bab99b59eb02bced059570",
+      "bytes": 11917
+    },
+    {
+      "path": "hipcold_bridge_r433.hpp",
+      "sha256": "1701564ec5dc00ccb5f530ab2d0c306c2560b87f52b1890b61de7806a86ec22d",
+      "bytes": 3372
+    },
+    {
+      "path": "evidence/r434_report.md",
+      "sha256": "e294d4822d12b51ec48c6c08e23f41c69a07d8bd566e8b015f3672f4f861b07a",
+      "bytes": 4630
+    },
+    {
+      "path": "evidence/r435_report.md",
+      "sha256": "dcfe9c2c227e68016b20cc280b7b45dc5464ce3670b325554f8d59a17c238fcd",
+      "bytes": 4270
+    },
+    {
+      "path": "bundle/runtime.env",
+      "sha256": "42bdad30f55ff0fc42cf31e042d48040241f15d408410e5b04490e8b657ea1a7",
+      "bytes": 672
+    },
+    {
+      "path": "bundle/config/server.json",
+      "sha256": "f05168a4deb4053c5bc0efbba6125939a0baa8fd3ee4c30c73db52cfe1269f6a",
+      "bytes": 1081
+    }
+  ]
+}

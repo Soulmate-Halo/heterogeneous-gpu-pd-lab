@@ -1,0 +1,58 @@
+name: qwen38-flash-395-3080
+
+x-common: &common
+  image: ${QWEN395_IMAGE:-ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-395-3080:latest}
+  network_mode: host
+  ipc: host
+  init: true
+  ulimits:
+    memlock: -1
+    nofile: 1048576
+  volumes:
+    - ${MODELS_DIR:-/srv/qwen395-models}:/models:ro
+    - ${CACHE_DIR:-/srv/qwen395-cache}:/cache
+    - ${STATE_DIR:-/srv/qwen395-state}:/state
+    - ${QWEN395_BUNDLE_DIR:-.}/bundle/runtime.env:/opt/qwen38-flash-395-3080/bundle/runtime.env:ro
+  environment:
+    NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+    STRATA_ROLE: engine
+    STRATA_ENGINE_BIN: ${STRATA_ENGINE_BIN:-/models/strata/strata}
+    STRATA_EXPERTS_PACK: /models/experts.bin
+    STRATA_DENSE_GGUF: /models/dense.gguf
+    STRATA_PLE: /models/ple.bin
+    STRATA_EMBED: /models/embedding.bin
+    STRATA_MTP: /models/mtp.bin
+    STRATA_HIPDECODE: ${STRATA_HIPDECODE:-1}
+    STRATA_HIPCOLD_LIB: ${STRATA_HIPCOLD_LIB:-/cache/hipcold/libstrata_hipdecode.so}
+    STRATA_HTTP_BIND: ${STRATA_HTTP_BIND:-0.0.0.0:8095}
+    STRATA_HEALTH_HOST: ${STRATA_HEALTH_HOST:-127.0.0.1}
+    STRATA_PEER_HOST: ${STRATA_PEER_HOST:-single-host.example.invalid}
+    STRATA_FOREGROUND: "1"
+  restart: unless-stopped
+
+services:
+  engine:
+    <<: *common
+    gpus: all
+    profiles: ["engine"]
+    container_name: qwen395-engine
+    environment:
+      STRATA_HTTP_PORT: ${STRATA_HTTP_PORT:-8095}
+    command: ["engine"]
+    healthcheck:
+      test: ["CMD", "bash", "scripts/health.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30m
+      retries: 3
+
+  doctor:
+    <<: *common
+    profiles: ["doctor"]
+    container_name: qwen395-doctor
+    command: ["doctor"]
+
+# Compose profiles are explicit strings ("engine", "doctor") because a bare
+# numeric-looking profile name is parsed as a number by some YAML readers.
+# Every address-like variable has a parseable placeholder default so that
+# `docker compose config -q` succeeds before .env is filled in.

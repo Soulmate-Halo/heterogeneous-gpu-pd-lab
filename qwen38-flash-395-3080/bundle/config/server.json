@@ -1,0 +1,29 @@
+{
+  "role": "engine",
+  "topology": "single_host_3080_hot_395_cold",
+  "host": "AI Max 395 + RTX 3080 20GB (OCuLink)",
+  "engine": "<models-dir>/strata/strata",
+  "arch": "x86_64",
+  "cuda_arch": 86,
+  "hip_arch": "gfx1151",
+  "experts_pack": "<models-dir>/experts.bin",
+  "dense_gguf": "<models-dir>/dense.gguf",
+  "ple": "<models-dir>/ple.bin",
+  "embedding": "<models-dir>/embedding.bin",
+  "mtp": "<models-dir>/mtp.bin",
+  "quantization": "nvfp4",
+  "kv": "fp8",
+  "max_context": 16384,
+  "expert_cache": 4608,
+  "args": ["--expert-format", "nvfp4", "--kv", "fp8", "--max-context", "16384"],
+  "hip": {
+    "enabled_env": "STRATA_HIPDECODE",
+    "lib": "<cache-dir>/hipcold/libstrata_hipdecode.so",
+    "frac": 128,
+    "sync_mode": "block",
+    "slots": 384
+  },
+  "log": "<state-dir>/engine.log",
+  "_log_note": "The 'log' key must point at a real file. r434 lost hours because engine stderr went to /dev/null; keep stderr on disk for triage.",
+  "_args_note": "Replace placeholder engine/asset paths and extend \"args\" with the exact flags of your converted checkpoint."
+}

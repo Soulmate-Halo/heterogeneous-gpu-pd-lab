@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-## Qwen3.8 Flash-Next V2: RTX 3080 + DGX Spark
+## Qwen3.8 Flash-Next V2: RTX 3080 + DGX Spark · 2026-10-06
 
 **DGX Spark handles Prefill alone; Spark and the RTX 3080 cooperate on Decode to accelerate decoding.** [Deployment guide](qwen38-flash-spark-3080/README.md) · [Bundle](qwen38-flash-spark-3080/)
 
@@ -33,7 +33,30 @@ Docker image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark
 
 [V2 metrics](qwen38-flash-spark-3080/evidence/v2-metrics.json) · [Performance notes](qwen38-flash-spark-3080/evidence/performance-v2.json)
 
-## DS4.1 Flash V8 Docker image (PP2 / PD separation)
+## Qwen3.8 Flash-Next: RTX 3080 + AI Max 395 · 2026-10-06
+
+RTX 3080 20GB (OCuLink) computes hot experts and the dense main path; the AI Max 395 (8060S iGPU + Zen5 CPU with AVX-512) computes cold experts. The 3080 accelerates prefill about 3x. [Deployment guide & bundle](qwen38-flash-395-3080/)
+
+| Metric | 395 + RTX 3080 | AI Max 395 solo baseline |
+| --- | ---: | ---: |
+| Prefill | **800+ tok/s** | **273.04 tok/s** |
+| Decode | **40+ tok/s** | **41.33 tok/s** |
+
+Figures provided by the experimenter on 2026-10-06; 800+ and 40+ are approximate, the solo baselines are exact. Decode runs on the AI Max 395 in both deployments, so it stays flat; the gain is in prefill (~3x, 273.04 to 800+ tok/s). The model is the 125B Qwen3.8-Flash-Next hybrid MoE (NVFP4), served by the Strata NVFP4 engine on a single host (mx7).
+
+### Deployment diagram
+
+```mermaid
+flowchart LR
+    A["API request"] --> E["Strata NVFP4 engine<br/>Port 8095"]
+    E --> D["Expert work distribution"]
+    D --> G["RTX 3080 20GB / OCuLink<br/>Hot experts and main compute"]
+    D --> S["AI Max 395 / 8060S iGPU + Zen5 AVX-512<br/>Cold expert compute"]
+    G <-->|"Expert requests and results"| S
+    G --> O["Output tokens"]
+```
+
+## DS4.1 Flash V8 Docker image (PP2 / PD separation) · 2026-09-30
 
 The reproducibility image is published at `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`. It contains the frozen V8 cross-engine patches, final DSpark delta, runtime environment, and SHA256 evidence; it deliberately does not redistribute the 510 GB official weights or private role images.
 
@@ -50,7 +73,7 @@ docker run --rm ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:lat
 
 ## Latest result · 2026-09-20 · DS4.1 Flash · V8 deployment: 16000+ tok/s Prefill, 442.02 tok/s aggregate Decode at C32
 
-### DeepSeek-V4.1-Flash (DS4.1 Flash) · V8: 16000+ tok/s Prefill across three concurrency levels, 442.02 tok/s aggregate Decode at C32
+### DeepSeek-V4.1-Flash (DS4.1 Flash) · V8: 16000+ tok/s Prefill across three concurrency levels, 442.02 tok/s aggregate Decode at C32 · 2026-09-21
 
 **The latest seq32 run of our V8 deployment for DeepSeek-V4.1-Flash (DS4.1 Flash) sustains over 16000 tok/s of P-stage batch Prefill throughput at C16, C24 and C32 with 32K inputs. Short-code C32 reaches 442.02 tok/s over the active Decode interval and 436.40 tok/s of end-to-end aggregate output.** These are separate workloads. Consistency here means one batch at each of three concurrency levels, not a repeated long-duration stability test.
 
@@ -82,7 +105,7 @@ All cases use an output budget of **1024 tokens**, allowing natural EOS; long in
 
 **Four DGX Sparks plus two RTX 6000Dpro GPUs reach a Prefill peak of 16698.30 tok/s. Per the experimenter’s September 18 correction, the displayed workload is 32768 input / 128 output / C12, with 12/12 requests completed.** The existing machine archive records the same numerical rate at C1; the C12 raw batch is pending.
 
-### Why two 6000D GPUs can handle Prefill: PP2 with a TP2 front stage and TP4 back stage
+### Why two 6000D GPUs can handle Prefill: PP2 with a TP2 front stage and TP4 back stage · 2026-09-21
 
 **The six GPUs form a two-stage PP2 pipeline: two RTX 6000D GPUs use TP2 for long-input Prefill, and four DGX Sparks use TP4 to receive context and generate the response. DS4.1's dedicated Prefill path does not require the accelerator side to load the full model. Both 6000D GPUs can therefore cooperate on the entire long-input encoding path, concentrating compute where acceleration matters most.**
 
@@ -143,7 +166,7 @@ flowchart TB
 
 **The acceleration chain is: CED enables a specialized Prefill path → TP2 fits and computes the required weights jointly → the 6000D pair handles long-input batches → the large-memory TP4 back stage receives context and generates.** This explains why Prefill is the main improvement; measured peaks and matched controls follow below.
 
-### System comparison: V8 and historical six-GPU, TP4 and H20 peaks
+### System comparison: V8 and historical six-GPU, TP4 and H20 peaks · 2026-09-21
 
 **The six-GPU entries include the new V8 32K/C32 result and the historical 16698.30 tok/s Prefill peak, alongside standalone TP4 and eight-H20 references.** All prices are USD references checked or converted on 2026-09-18; this update does not refresh quotations.
 
@@ -172,7 +195,7 @@ Scope: C12 and 12/12 in the six-GPU row follow the experimenter’s 2026-09-18 c
 
 [Peak CSV](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.csv) · [Per-batch metrics, formulas and source evidence](data/deepseek-v4.1-flash-six-gpu-v1-v7-peaks.json). Historical C1 archive calculation: 32768 / 1.962356 ≈ **16698.30 tok/s**; this single-request formula does not recompute the corrected C12 result. H20 input rates are recomputed from [original round timings](https://aik8s.run/assets/practices/deepseek-v41-flash-h20-day0/benchmark-summary.json): SGLang = 524288 / 106.588177; vLLM = 1572864 / 225.512473. Failed requests remain in the full-wall denominator.
 
-### Matched V7 verification: complete C8 input-serving interval
+### Matched V7 verification: complete C8 input-serving interval · 2026-09-21
 
 | Input / output / concurrency | Four Spark TP4: input tok/s | Dual 6000D + four Sparks: input tok/s | Speedup |
 | --- | ---: | ---: | ---: |
@@ -620,7 +643,7 @@ This page quotes only the few key figures per experiment; the complete data rows
 The mapping from experiment IDs to legacy labels is in [data/experiment-index.csv](data/experiment-index.csv); all records are under [results/](results/). The [changelog](CHANGELOG.md) records what each public experiment version measured. Version mapping: [VERSION_HISTORY.md](VERSION_HISTORY.md).
 
 
-## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark 异构方案
+## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark 异构方案 · 2026-10-06
 
 公开可复现包：[qwen38-flash-spark-3080](qwen38-flash-spark-3080/)。3080 承担 NVFP4 dense/prefill 与 FP8 KV，DGX Spark 承担 MoE 冷专家、PLE/KV worker；启动顺序是先 worker，再 engine，模型权重、hot/cold pack、PLE 表和 role 镜像由使用者挂载，镜像不含 510 GB 官方权重。
 
