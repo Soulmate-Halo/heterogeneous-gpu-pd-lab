@@ -2,6 +2,14 @@
 
 [中文](README_ZH.md)
 
+## 🎬 GPU Heterogeneous Intro · Explainer Video (10 min)
+
+<video src="https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4" controls width="960"></video>
+
+**▶ Watch or download: [GPU Heterogeneous Build Explainer v24 (10 min 10 s · 1080p · 52MB)](https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4)**
+
+Ten minutes on GPU heterogeneity: MoE mixture-of-experts basics, five build patterns, three real-hardware benchmarks (3080+Spark PD split, Qwen3.8 Flash EP, DS4.1 comparison), and the production-grade deployment takeaway.
+
 ## Qwen3.8 Flash-Next V2: RTX 3080 + DGX Spark · 2026-10-06
 
 **DGX Spark handles Prefill alone; Spark and the RTX 3080 cooperate on Decode to accelerate decoding.** [Deployment guide](qwen38-flash-spark-3080/README.md) · [Bundle](qwen38-flash-spark-3080/)
