@@ -4,9 +4,9 @@
 
 ## 🎬 GPU Heterogeneous Intro · Explainer Video (10 min)
 
-<video src="https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4" controls width="960"></video>
+<video src="https://github.com/user-attachments/assets/1b6d2842-ddb8-4751-99cb-9c8226494d56" controls width="960"></video>
 
-**▶ Watch or download: [GPU Heterogeneous Build Explainer v24 (10 min 10 s · 1080p · 52MB)](https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4)**
+**⬇ Download the HD original (1080p · 52MB): [GPU Heterogeneous Build Explainer v24](https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4)** — inline playback above is a 480p compressed preview (10 min 10 s, same content)
 
 Ten minutes on GPU heterogeneity: MoE mixture-of-experts basics, five build patterns, three real-hardware benchmarks (3080+Spark PD split, Qwen3.8 Flash EP, DS4.1 comparison), and the production-grade deployment takeaway.
 

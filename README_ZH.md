@@ -4,9 +4,9 @@
 
 ## 🎬 GPU异构介绍 · 科普视频（10 分钟）
 
-<video src="https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4" controls width="960"></video>
+<video src="https://github.com/user-attachments/assets/1b6d2842-ddb8-4751-99cb-9c8226494d56" controls width="960"></video>
 
-**▶ 点此在线播放 / 下载：[GPU异构方案 · 科普介绍视频 v24（10 分 10 秒 · 1080p · 52MB）](https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4)**
+**⬇ 高清原版下载（1080p · 52MB）：[GPU异构方案 · 科普介绍视频 v24](https://github.com/Soulmate-Halo/heterogeneous-gpu-pd-lab/releases/download/video-v24/gpu-heterogeneous-intro-v24.mp4)**　上方在线播放为 480p 压缩预览版（10 分 10 秒，内容相同）
 
 十分钟讲清 GPU 异构：MoE 混合专家模型原理、五种搭建方式、三组实测（3080+Spark PD 分工、Qwen3.8 Flash EP、DS4.1 对照），以及生产级部署结论。
 
