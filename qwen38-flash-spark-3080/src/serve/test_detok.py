@@ -20,7 +20,7 @@ from serve.server import Detokenizer  # noqa: E402
 def find_tokenizer():
     cands = [os.environ.get("STRATA_TOKENIZER", "")]
     cands += [str(p) for p in ROOT.glob("packs/*/tokenizer")] + [str(p) for p in ROOT.glob("pack/*/tokenizer")]
-    cands += [r"C:\Users\AI-Server\Desktop\Strata\Public\Engine\pack\full\tokenizer"]
+    cands += [r"/path/to/strata\Public\Engine\pack\full\tokenizer"]
     for c in cands:
         if c and (Path(c) / "vocab.json").exists():
             return Path(c)

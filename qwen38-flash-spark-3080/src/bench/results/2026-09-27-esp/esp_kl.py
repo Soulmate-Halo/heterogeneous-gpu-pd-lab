@@ -11,9 +11,9 @@ import sys
 import numpy as np
 
 S = os.path.dirname(os.path.abspath(__file__))
-E = r"C:\Users\AI-Server\Desktop\Strata\Public\Engine"
+E = r"/path/to/strata\Public\Engine"
 EXE = E + r"\build-dev\strata.exe"
-VEC = r"C:\Users\AI-Server\Desktop\Strata\experimental-speed-projection\Qwen3.8-Flash-Next-experimental-speed-projection.gguf"
+VEC = r"/path/to/strata\experimental-speed-projection\Qwen3.8-Flash-Next-experimental-speed-projection.gguf"
 TEXTS = {"code": S + r"\p512.ids", "doc": S + r"\4k-02-long-doc-1k.ids", "chat": S + r"\4k-04-chat-1k.ids"}
 OUT = S + r"\esp-kl"
 ARMS = {"stock": [],

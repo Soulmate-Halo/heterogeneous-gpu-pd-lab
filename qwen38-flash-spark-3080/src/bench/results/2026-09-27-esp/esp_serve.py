@@ -13,12 +13,12 @@ import sys
 import threading
 
 S = os.path.dirname(os.path.abspath(__file__))
-E = r"C:\Users\AI-Server\Desktop\Strata\Public\Engine"
+E = r"/path/to/strata\Public\Engine"
 sys.path.insert(0, E)
 from serve.server import StrataEngine  # noqa: E402
 
 EXE = E + r"\build-dev\strata.exe"
-VEC = r"C:\Users\AI-Server\Desktop\Strata\experimental-speed-projection\Qwen3.8-Flash-Next-experimental-speed-projection.gguf"
+VEC = r"/path/to/strata\experimental-speed-projection\Qwen3.8-Flash-Next-experimental-speed-projection.gguf"
 TEXTS = {"code": S + r"\p512.ids", "doc": S + r"\4k-02-long-doc-1k.ids", "chat": S + r"\4k-04-chat-1k.ids"}
 OUT = S + r"\esp-serve"
 VEC_ARGS = ["--control-vector-scaled", VEC + ":1.0", "--control-vector-layer-range", "4", "44",

@@ -431,7 +431,7 @@ do on every turn, is encoded only once.
 **Terminal chat:** type `/image <path to a picture>`, press Enter, then type your question.
 
 ```
-you> /image C:\Users\me\Pictures\receipt.jpg
+you> /image /path/to/pictures\receipt.jpg
 (picture attached: receipt.jpg - now type your question)
 you> What is the total on this receipt?
 ```

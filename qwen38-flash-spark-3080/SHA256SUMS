@@ -88,8 +88,8 @@ b94121f47e30c3159d35f5e8af4d6844d215dea7b1df13633b2faaf2d5f0c0f5  src/bench/resu
 25997bcba0bfa6628c5e150a938d520e8c3e9b0f3dc216fb2edbe61b00191e53  src/bench/results/2026-09-24-vision/vision.json
 6825d3c0cb323c324c2732e55b4f0a98d82d03c9e8c33a01be1f04d10227ac60  src/bench/results/2026-09-24-vision/vision.md
 420f5e23ad254bd90382c747c4a6fdb53fd1ee0d2d2f4cb380451ae5ed563ac0  src/bench/results/2026-09-27-cache-parity/README.md
-be2f9956bee3be2b6d07d7d786307b7d00d43ae1f2703079e0b63044815d0a10  src/bench/results/2026-09-27-esp/esp_kl.py
-a72531806ce551c17547be849110151caa07e840ad1787d1e59ced39eb85a3c5  src/bench/results/2026-09-27-esp/esp_serve.py
+5a3405250b3d3d7c09b4009bd8f3c4265eb5e7600705385a9313273780d260cf  src/bench/results/2026-09-27-esp/esp_kl.py
+d861572e6c2f7bb0d536082d6c32c218a10979eb17cc9f318b7b9711b7b286eb  src/bench/results/2026-09-27-esp/esp_serve.py
 176e2eaff347a9bf124c8124bcb08c5597a30e903f90b6bca2380bfc279418fa  src/bench/results/2026-09-27-esp/README.md
 b3517897e09d18a601f6a822c34d10a620e238c9baa77902d1dfb237b7bd783f  src/bench/results/2026-09-27-esp/serve-checks.txt
 0b259d343eb436500f8c1a58eab7690521b8ae8962c2d594581c22d31766a15d  src/bench/results/2026-09-27-esp/teacher-forced.txt
@@ -164,7 +164,7 @@ a514661124d5305effe9c1bcecff7dc069af398b2b19ff9d11628a2cad0a8915  src/data/exper
 45488e7b973d3759b96648971f7d3cc6205cb67c5064d52742a8cb8f987141d8  src/docs/AMD_HIP.md
 31dea44345362340a63086eeed917ae06548bb39127a7c1c9058e6d6a208a6bb  src/docs/AMD_HIP_PERFORMANCE.md
 f1dda516289262f474cbc31879b26801d47f902af328ee50cf58208f089c90d6  src/docs/benchmarks/2026-09-29-gfx1100.json
-8fcbb56b636c107c1950b99f10fea30118e4cc1f53bfc3b3d9e8ebfae3cda4d6  src/docs/DETAILS.md
+eeda36c8b7107c72e54bb8489a0201cc4dbfaceb86d5751ae3af759f13a2fecc  src/docs/DETAILS.md
 0c5849cd2807cd552a06ac935b6f3daecd85576c9ac5df646d9809055b0ae703  src/docs/media/guess-and-check.svg
 0e0c6f8c266f6038d993c277cda64fa3b0577cfe855baf89dd8cca50690c3a56  src/docs/media/how-it-works.svg
 0196dccfb807a0171e5f158daafa80c7440b39da971c0c96bf93a3b3ddb3eec8  src/docs/media/make_figures.py
@@ -288,7 +288,7 @@ d1f40e8aa1511a97dec90df116297157ff2fb60c4b92e7a50fc0f6746ecbc834  src/serve/mcp.
 484a5202e378fb61aa2baf4adea106f13f95696c1719a054d68c7a167e9e5325  src/serve/mcp_fake_server.py
 ba34dfc6c2dd457197c0f4fbe88a06874986f3b9173463263178b352f6cab5e9  src/serve/server.py
 a75504b0a516ca348dc2164bd826aac9a04bea8c06f4b33080f4f8e0911f7022  src/serve/telemetry.py
-ae82928e9c54e505ef731cd05d900cee4570765e073180c02f2f7190d4f736c5  src/serve/test_detok.py
+f966d07cb423891d68a77090c4b4f94283d29a0573394d266fbf0fc24008ffb8  src/serve/test_detok.py
 448e8b899cf9c1ee4ae792faecc2f9f64815e0baeb854094034dadae3aaad54d  src/serve/test_mcp.py
 1f49e174e479ccd7e8a62a0331b7b3a8cf5913e6bbba6f87530d3df864e9d07e  src/serve/test_server.py
 e3777b8e67ee1e71018f37b25ba680c4cf4d6e7cd2f2d280b15692f11df2df23  src/serve/web/app.css
