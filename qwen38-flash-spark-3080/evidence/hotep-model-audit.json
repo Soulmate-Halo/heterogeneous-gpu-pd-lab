@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "verified_files": 228,
+  "total_bytes": 138472557094,
+  "indices": [
+    {
+      "model": "main",
+      "shards": 198,
+      "tensor_count": 302489
+    },
+    {
+      "model": "draft",
+      "shards": 1,
+      "tensor_count": 6173
+    }
+  ],
+  "engram_tables": [
+    {
+      "path": "models/main/ple/qwen3.8-flash-next-ple-fp8.bin",
+      "bytes": 51200245760,
+      "sha256": "b070f9644adf93794d8a1030584ab705809387e64396a9327a68fa3a3a6666b3",
+      "layer": 0
+    }
+  ],
+  "manifest_set_sha256": "18b0bb40d2cf886d1aa70007e1a39cfcc52c60f6965738aa434cec5258f170ba"
+}

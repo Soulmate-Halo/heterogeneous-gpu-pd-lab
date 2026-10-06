@@ -1,0 +1,36 @@
+{
+  "version": "nvfp4-decode-levers-a1-b1-b2",
+  "date": "2026-10-05",
+  "scope": "decode 三杠杆实做：A' 小M流式内核（证伪回退）/ B1 sampler 并行化（数值PASS但归因证伪）/ B2 PLE 提前一拍（上线）+ ⑤ dump-routing 采集上线",
+  "results": {
+    "decode_steady_tok_s": "45.33~45.54（与基线 45.43~46.88 持平；本批改动净效果≈0，B2 收益场景在 probe 外）",
+    "A_prime_smallm_stream_kernel": {
+      "verdict": "证伪回退",
+      "evidence": "nvfp4_stream_expert.cu（259 行 GEMV 风格流式核）接入 run() batch cap<=8 分派，Spark BUILD_EXIT=0；layout_of 容量检查静态必过、二进制 strings 含符号、ch0 图路径 nvfp4_push_issue_staged(arena, ne=1~2) 必经分派——但 decode 12288 窗 compute p50 140µs ≥ marlin 基线 120µs（-17%）",
+      "root_cause": "内存级并行过低：每 warp 每 k-tile 仅 1 次 16B ld.global.cs、无双缓冲无批量预取，带宽喂不饱；第159轮 GB10 内核变体证伪的同型失败",
+      "rollback": "Spark 源码 3 文件 .bak-a1stream 恢复 + 二进制换回 + 引擎重启；本地工作副本同步恢复；nvfp4_stream_expert.cu 与 test_nvfp4_stream_smallm.cu 留底稿不参与构建",
+      "lesson": "golden 逐 token 一致不能证明新内核被触发（永不触发也一致）——触发判定必须靠符号/计数/性能签名；3080 树经 rsync 带入休眠 A' 代码（top_k=10>8 永不触发 cap<=8，无害），下次 3080 重建前需再 rsync 回退版 3 文件"
+    },
+    "B1_sampler_parallel": {
+      "verdict": "数值 PASS、收益证伪（归因错误）",
+      "evidence": "sampler.cu 改多 block 分片+跨 block 归约（确定性 tie-break：大 logit 优先、并列取小下标），sampler_select.hpp 共用，sampler_fullvocab_parity.cpp 宿主对拍；256-token 探针与基线 40 行 token 序列 TOK_SEQ_IDENTICAL",
+      "zero_effect_reason": "sample 段 1.05ms 真身=--native 开 stream_token 后 cudaStreamSynchronize 把 lm_head 全词表 logits GEMM 的 GPU 时间等进去（head host 段仅 0.027ms），sampler 内核本身不是瓶颈；B 探索单的归因偏差",
+      "status": "代码在线无害（输出逐 token 一致），若后续图化/重叠 lm_head，sample 段才有压缩空间"
+    },
+    "B2_ple_one_beat_ahead": {
+      "verdict": "上线（默认启用，--no-ple-ahead / STRATA_PLE_AHEAD=0 回退）",
+      "impl": "PleRun 加 emb_host_alt/inflight/host_slot/ahead 四字段（emb_dev 永为图捕获地址，host 双缓冲乒乓）；ple_issue 提前到上一拍 id 确定时（sample sync 后 / prompt 已知下一 id 时窗口保存恢复暂移）；首 token in-place fallback；verify 交接不留 in-flight；serve 与 one-shot 双循环同序",
+      "evidence": "启动行 '(issue one token ahead)'；probe PLE 0.479ms vs 旧 0.425ms 持平（短 prompt+页缓存热无收益空间）；TOK_SEQ_IDENTICAL；收益场景=生产长上下文冷 SSD（PLE 1.4ms 藏进 ~20ms GPU），待线上观察",
+      "review": "B2 器灵卡死零交付，主模型按单次机会制接手；基线 diff（Spark 树拉取）107+17+24 行复核：状态机自洽、边界齐全、fail-closed"
+    },
+    "routing_capture": "3080 serve 注入 --dump-routing /home/<3080>/routing-dump.bin（ strata-serve-start.sh 补丁），405KB 已增长；k=10 约 4224B/token/流；重训脚本 qwen38-hotep/ops/_hot_profile_retrain.py（selftest PASS；--top-n 须对齐线上 4608；prefill/decode 等权累加≠v4 dec×16）",
+    "e2e": "router decode 腿 200（reasoning_content 正常）/ prefill 腿 200（2658 tok prompt 4.9s cached=0）"
+  },
+  "wall_breakdown_after": "22.06ms/token = PLE 0.479 + embed 0.022 + LAYERS 20.486（GPU 11.9 + 门铃 ~8.5）+ head 0.027 + sample 1.049（lm_head 等待为主）",
+  "ops": {
+    "spark_engine": "回退版二进制（图化门铃，46.88 水平），_p12_merged_start.sh 重启",
+    "3080_serve": "B1+B2 版二进制 + dump-routing 采集；strata-serve-start.sh 重启（~3min）",
+    "remaining_levers": "A' v2（MLP 改进：批量预取/双缓冲，每迭代 ≥4 tile load）；lm_head 图化或 sample 重叠（1.05ms）；热集重训（采集中）；门铃层间预取（第201轮②，未动）"
+  },
+  "compliance": "探索 3 单（A'/B/⑤ 锚点）+ 写码 4 单（A'、B1、B2 卡死、⑤）；B2 零交付主模型接手（单次机会制）；运维脚本 _a1_sync_build.py/_a1_test.py/_a1_rollback.py/_b_sync_3080.py/_b_serve_up.py/_b_patch_dump.py/_b2_fetch_base.py 均 (c) 类凭证通道主模型亲为；踩坑：pgrep 自杀（命令行含二进制路径）、ssh '&' 后台化吞 stdin 致补丁空跑"
+}

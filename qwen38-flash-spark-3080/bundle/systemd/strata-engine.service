@@ -1,0 +1,31 @@
+[Unit]
+Description=Strata NVFP4 engine (RTX 3080 host, role=engine)
+Documentation=file:/opt/qwen38-flash-spark-3080/README_ZH.md
+After=network-online.target
+Wants=network-online.target
+# The engine consumes the cold-expert arena served by the Spark host. Starting it
+# before the peer listens only burns a long RDMA retry loop, so the peer unit runs
+# first on its own machine and health.sh gates the handover.
+Conflicts=strata-worker.service
+ConditionPathIsDirectory=/models/strata-pack-hot
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/qwen38-flash-spark-3080/bundle/runtime.env
+Environment=STRATA_ROLE=eng
+WorkingDirectory=/opt/qwen38-flash-spark-3080
+ExecStartPre=/opt/qwen38-flash-spark-3080/scripts/build-engine.sh
+ExecStart=/opt/qwen38-flash-spark-3080/scripts/start-engine.sh --serve
+ExecStop=/opt/qwen38-flash-spark-3080/scripts/stop.sh
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=1800
+LimitMEMLOCK=infinity
+LimitNOFILE=1048576
+# No new privileges and a read-only root: the engine only reads mounted assets.
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

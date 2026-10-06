@@ -1,0 +1,6 @@
+# Frozen prompts are hashed byte for byte (manifest sha256): never convert their line endings.
+bench/prompts/** -text
+
+# launchers keep their platform line endings wherever the repository is cloned
+*.sh text eol=lf
+*.bat text eol=crlf

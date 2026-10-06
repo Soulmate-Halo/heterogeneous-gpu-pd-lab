@@ -586,3 +586,15 @@ C1–C6 Prefill 聚合为 569.892–633.685 tok/s，聚合 Decode 为 35.204–7
 | EXT-DGX-01 | Qwen3.5 9B · TQ3_4S 与 Qwen3.8-27B · NVFP4 · 外部 DGX Spark | DGX Spark 的公开成绩，只当背景 | [DGX Spark 社区对照](results/dgx-spark-community-control.zh-CN.md) | [CSV](data/dgx-spark-community-controls.csv) |
 
 实验编号和旧标签的对应关系在 [data/experiment-index.csv](data/experiment-index.csv)；全部详档在 [results/](results/) 目录。[更新记录](CHANGELOG_ZH.md)记录每一版公开实验版本测了什么。版本对照：[VERSION_HISTORY.md](VERSION_HISTORY.md)。
+
+
+## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark 异构方案
+
+公开可复现包：[qwen38-flash-spark-3080](qwen38-flash-spark-3080/)。3080 承担 NVFP4 dense/prefill 与 FP8 KV，DGX Spark 承担 MoE 冷专家、PLE/KV worker；启动顺序是先 worker，再 engine，模型权重、hot/cold pack、PLE 表和 role 镜像由使用者挂载，镜像不含 510 GB 官方权重。
+
+V2 口径：prefill 三次实测 1030.80 / 1163.40 / 1161.10 tok/s，峰值 1163.40 tok/s；聚合解码端到端实测峰值 60.25 tok/s（C12，156/156 成功）；240.00 tok/s 是 N=8 内核批量缩放推算目标，不是端到端实测。
+
+~~~bash
+docker pull ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest
+python qwen38-flash-spark-3080/verify_bundle.py
+~~~

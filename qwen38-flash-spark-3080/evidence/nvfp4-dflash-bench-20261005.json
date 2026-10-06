@@ -1,0 +1,38 @@
+{
+  "id": "nvfp4-dflash-bench-20261005",
+  "date": "2026-10-05",
+  "task": "DFlash block-diffusion drafter integration + business benchmark",
+  "benchmark": {
+    "prefill_leg_tok_s": [1030.8, 1163.4, 1161.1],
+    "prefill_prompt_tokens": 3600,
+    "decode_leg_tok_s": [30.2, 46.4, 46.1],
+    "decode_note": "first run includes expert-cache warmup; steady state 46.1-46.4 matches V1 baseline 45.4-50.7",
+    "route": "router <ROUTER_ADDRESS>:8400, temperature 0, decode leg 256 tokens",
+    "production_state": "restored: stock strata-serve-start.sh (no dflash, 4608 slots), Spark engine untouched, E2E 200"
+  },
+  "dflash_code_state": {
+    "files": ["CMakeLists.txt", "include/strata/core/dflash.hpp", "include/strata/core/verify.hpp",
+              "src/core/dflash.cu", "src/core/verify.cpp", "src/program/generate.cpp"],
+    "builds": {"spark": "BUILD_EXIT=0", "gpu3080": "BUILD_EXIT=0"},
+    "backups": ".bak-df on both trees",
+    "mainline_fixes": [
+      "bind(): native_pack (CPU-expert layout flag) conflated with native-embed-loaded; NVFP4 line never loads NativeEmbed",
+      "embed source switched to pack token_embd.weight via WeightTable + embedding_gather_dev (same as MTP), NativeEmbed kept as Q2-line fallback",
+      "verify.cpp init error now names the failing field (d_res/cache_base/blob)"
+    ],
+    "dflash_loads": "weights 0.928 GiB + KV 0.156 GiB (8192 pos) + LM-head scratch 0.007 GiB = 1.101 GiB GPU; bind PASS; prefill chunk PASS at expert-cache 4096 (4608 leaves only ~650MB and the prompt buffers do not fit)"
+  },
+  "blocker": {
+    "error": "verify: needs the profile-filled VRAM expert tier (d_res=set cache_base=null blob=1382400)",
+    "root_cause": "the Verifier's expert-hit stage only knows the Q8/canonical VRAM tier: zero nvfp4/marlin references in verify.cpp; xcache.device_slot(0) is null in the NVFP4 config (resident experts live in the nvfp4 arena)",
+    "important_correction": "spec/verify mode has NEVER run on the NVFP4 3080 line; the round-202 'MTP verify window 13.4ms/T' was a projection from the wall breakdown, not a measurement; production serve is the non-spec plain path",
+    "required_work": "port the verify window's per-layer expert stage to NVFP4 marlin multi-token (resident hits from the nvfp4 arena + window misses over RDMA push channel 2, graph-capture compatible); components exist in the T=1 graph path and the prefill chunk engine, the verify-window glue is missing",
+    "sequential_verify_rejected": "running T sequential T=1 graph steps as 'verify' gains nothing (same total work as plain decode)"
+  },
+  "ops_lessons": [
+    "ssh remote command containing & backgrounding swallows piped stdin: the build script arrived as 0 bytes; fix = two-step (base64 -d inside the remote command string, then launch)",
+    "spark->3080 scp inside an && chain ending with & backgrounds the whole chain: files never arrived",
+    "3080 tree CMakeLists referenced bench/micro/{native_mmvq_multi.cpp,hit_cpu_order_parity.cu} that exist on no host (stale targets): any CMakeLists touch forced a reconfigure failure; removed",
+    "serve engine log is append-only: polling grep 'session is up' matches previous runs; poll HTTP 200 instead"
+  ]
+}

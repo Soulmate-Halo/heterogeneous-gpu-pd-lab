@@ -1,0 +1,196 @@
+{
+  "probe": "probe_batch_scaling",
+  "kernel_source": "/home/<3080>/strata-cross/Strata/build-nvfp4/libstrata_kernels.a (production kernels)",
+  "device": {
+    "name": "NVIDIA GeForce RTX 3080",
+    "compute_capability": "8.6",
+    "sms": 68
+  },
+  "warmup": 5,
+  "iters": 40,
+  "median_of": "per-iter CUDA event pairs, median of 40",
+  "serve_stopped_for_probe": "no",
+  "expert_nvfp4_marlin_gemv": {
+    "entry": "moe_hit_grouped_nvfp4",
+    "bytes_per_row": 2775208,
+    "note": "cap=16 (the captured decode graph maximum) with M live hits, one distinct expert each: cap>8 so every level takes the marlin MoE GEMM path, exactly as production decode does",
+    "levels": [
+      {
+        "rows": 1,
+        "median_ms": 0.06144,
+        "min_ms": 0.06042,
+        "tok_s": 16276.04,
+        "speedup_vs_m1": 1.0,
+        "achieved_gbps": 45.2
+      },
+      {
+        "rows": 2,
+        "median_ms": 0.05427,
+        "min_ms": 0.05395,
+        "tok_s": 36851.42,
+        "speedup_vs_m1": 2.2642,
+        "achieved_gbps": 102.3
+      },
+      {
+        "rows": 4,
+        "median_ms": 0.05939,
+        "min_ms": 0.05821,
+        "tok_s": 67349.14,
+        "speedup_vs_m1": 4.1379,
+        "achieved_gbps": 186.9
+      },
+      {
+        "rows": 8,
+        "median_ms": 0.0744,
+        "min_ms": 0.0727,
+        "tok_s": 107526.88,
+        "speedup_vs_m1": 6.6065,
+        "achieved_gbps": 298.4
+      },
+      {
+        "rows": 16,
+        "median_ms": 0.1072,
+        "min_ms": 0.10547,
+        "tok_s": 149253.74,
+        "speedup_vs_m1": 9.1701,
+        "achieved_gbps": 414.2
+      }
+    ]
+  },
+  "qsa_decode_attn_batch_fp8": {
+    "ctx_4k": {
+      "entry": "qsa_decode_attn_batch",
+      "n_kv_cells": 4096,
+      "cap_selection_width": 2051,
+      "bytes_per_query_row": 2165856,
+      "levels": [
+        {
+          "rows": 1,
+          "median_ms": 0.05869,
+          "min_ms": 0.05786,
+          "tok_s": 17039.26,
+          "speedup_vs_m1": 1.0,
+          "achieved_gbps": 36.9
+        },
+        {
+          "rows": 2,
+          "median_ms": 0.07437,
+          "min_ms": 0.07411,
+          "tok_s": 26893.29,
+          "speedup_vs_m1": 1.5783,
+          "achieved_gbps": 58.2
+        },
+        {
+          "rows": 4,
+          "median_ms": 0.11507,
+          "min_ms": 0.10778,
+          "tok_s": 34760.85,
+          "speedup_vs_m1": 2.04,
+          "achieved_gbps": 75.3
+        },
+        {
+          "rows": 8,
+          "median_ms": 0.19894,
+          "min_ms": 0.19789,
+          "tok_s": 40212.32,
+          "speedup_vs_m1": 2.36,
+          "achieved_gbps": 87.1
+        }
+      ]
+    },
+    "ctx_12k": {
+      "entry": "qsa_decode_attn_batch",
+      "n_kv_cells": 12288,
+      "cap_selection_width": 2051,
+      "bytes_per_query_row": 2165856,
+      "levels": [
+        {
+          "rows": 1,
+          "median_ms": 0.06576,
+          "min_ms": 0.05811,
+          "tok_s": 15206.81,
+          "speedup_vs_m1": 1.0,
+          "achieved_gbps": 32.9
+        },
+        {
+          "rows": 2,
+          "median_ms": 0.08234,
+          "min_ms": 0.08205,
+          "tok_s": 24290.71,
+          "speedup_vs_m1": 1.5974,
+          "achieved_gbps": 52.6
+        },
+        {
+          "rows": 4,
+          "median_ms": 0.11507,
+          "min_ms": 0.11482,
+          "tok_s": 34760.85,
+          "speedup_vs_m1": 2.2859,
+          "achieved_gbps": 75.3
+        },
+        {
+          "rows": 8,
+          "median_ms": 0.20019,
+          "min_ms": 0.19795,
+          "tok_s": 39961.64,
+          "speedup_vs_m1": 2.6279,
+          "achieved_gbps": 86.6
+        }
+      ]
+    }
+  },
+  "dense_q8_0_gemv": {
+    "entry": "native_q8_0_f32",
+    "tensor": "blk.3.attn_q.weight",
+    "n_in": 2560,
+    "n_out": 12288,
+    "weight_bytes": 33423360,
+    "levels": [
+      {
+        "rows": 1,
+        "ncols_calls": 1,
+        "median_ms": 0.05974,
+        "min_ms": 0.05862,
+        "tok_s": 16738.08,
+        "speedup_vs_m1": 1.0,
+        "achieved_gbps": 559.4
+      },
+      {
+        "rows": 2,
+        "ncols_calls": 1,
+        "median_ms": 0.0608,
+        "min_ms": 0.05808,
+        "tok_s": 32894.74,
+        "speedup_vs_m1": 1.9653,
+        "achieved_gbps": 549.7
+      },
+      {
+        "rows": 4,
+        "ncols_calls": 1,
+        "median_ms": 0.06845,
+        "min_ms": 0.06246,
+        "tok_s": 58438.52,
+        "speedup_vs_m1": 3.4914,
+        "achieved_gbps": 488.3
+      },
+      {
+        "rows": 8,
+        "ncols_calls": 1,
+        "median_ms": 0.10304,
+        "min_ms": 0.10083,
+        "tok_s": 77639.75,
+        "speedup_vs_m1": 4.6385,
+        "achieved_gbps": 324.4
+      },
+      {
+        "rows": 16,
+        "ncols_calls": 2,
+        "median_ms": 0.20109,
+        "min_ms": 0.19722,
+        "tok_s": 79567.16,
+        "speedup_vs_m1": 4.7537,
+        "achieved_gbps": 332.4
+      }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+Qwen3.8 Flash-Next NVFP4 3080 + DGX Spark V2 deployment kit
+
+This public directory contains scripts, configuration examples, source snapshots and sanitized benchmark excerpts. It does not contain the official model weights, hot/cold expert packs, PLE tables, credentials, private host configuration or proprietary role images. Operators must obtain those assets under their own licenses and mount them at runtime.
+
+The included Strata source and third-party components retain their upstream notices under src/ and src/third_party/. The deployment scripts and public evidence are provided under the repository license.

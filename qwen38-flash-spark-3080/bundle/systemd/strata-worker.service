@@ -1,0 +1,30 @@
+[Unit]
+Description=Strata NVFP4 cold-expert worker (DGX Spark / GB10 host, role=worker)
+Documentation=file:/opt/qwen38-flash-spark-3080/README_ZH.md
+After=network-online.target
+Wants=network-online.target
+# The worker owns the arena and the doorbell, so it must be listening before the
+# 3080 engine dials in. Do not start both units on one machine: the 63.3 GiB
+# arena and the single-host engine are mutually exclusive in unified memory.
+Conflicts=strata-engine.service
+ConditionPathIsDirectory=/models/strata-cold-pack
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/qwen38-flash-spark-3080/bundle/runtime.env
+Environment=STRATA_ROLE=wrk
+WorkingDirectory=/opt/qwen38-flash-spark-3080
+ExecStartPre=/opt/qwen38-flash-spark-3080/scripts/build-spark.sh
+ExecStart=/opt/qwen38-flash-spark-3080/scripts/start-worker.sh
+ExecStop=/opt/qwen38-flash-spark-3080/scripts/stop.sh
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=1800
+LimitMEMLOCK=infinity
+LimitNOFILE=1048576
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

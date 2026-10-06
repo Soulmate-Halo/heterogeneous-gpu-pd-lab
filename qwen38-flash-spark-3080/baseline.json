@@ -1,0 +1,67 @@
+{
+  "schema": "qwen38-flash-spark-3080/baseline@3",
+  "version": "V2",
+  "release": "Qwen3.8-Flash-Next NVFP4 Strata dual-host kit (RTX 3080 20GB + DGX Spark GB10)",
+  "frozen_at": "2026-10-06",
+  "status": "accepted_local_baseline_snapshot",
+  "architecture": {
+    "engine": {
+      "role": "engine",
+      "host": "RTX 3080 20GB",
+      "compute_capability": "8.6",
+      "work": "NVFP4 dense/prefill and attention/QSA, FP8 KV",
+      "expert_cache": 4608
+    },
+    "worker": {
+      "role": "worker",
+      "host": "DGX Spark / GB10",
+      "compute_capability": "12.1",
+      "work": "MoE cold-expert arena and PLE/KV tier"
+    },
+    "transport": {
+      "kind": "RDMA verbs",
+      "worker_endpoint": "<spark-rdma-host>:39580",
+      "slots": 4,
+      "slot_bytes": 4194304
+    },
+    "quantization": "NVFP4 experts + FP8 KV",
+    "max_context": 16384
+  },
+  "source": {
+    "upstream": "Strata plus local NVFP4/RDMA/FP8-KV changes",
+    "source_revision_file": "SOURCE-REVISION.txt",
+    "source_revision_sha256": "a62ad24bf6249745644aac39757e020923d00c8bf406af307d5ddb38e9e4ec5c"
+  },
+  "evidence": {
+    "canonical_metrics": "evidence/v2-metrics.json",
+    "prefill_peak_tok_s": 1163.4,
+    "aggregate_decode_measured_tok_s": 60.25,
+    "aggregate_decode_v2_projected_tok_s": 240.0,
+    "aggregate_decode_v2_status": "projected_kernel_scaling_target"
+  },
+  "images": {
+    "repository": "ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080",
+    "tags": [
+      "latest",
+      "sha-<commit>"
+    ],
+    "platforms": [
+      "linux/amd64",
+      "linux/arm64"
+    ],
+    "does_not_contain": [
+      "510 GB official model weights",
+      "NVFP4 hot/cold packs",
+      "PLE tables",
+      "credentials"
+    ]
+  },
+  "runtime_env": "bundle/runtime.env",
+  "mount_contract": [
+    "STRATA_HOT_PACK_DIR",
+    "STRATA_COLD_PACK_DIR",
+    "STRATA_DENSE_GGUF",
+    "STRATA_PLE_FP8",
+    "STRATA_PROFILE_BIN"
+  ]
+}

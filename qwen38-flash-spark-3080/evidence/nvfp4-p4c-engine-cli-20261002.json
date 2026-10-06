@@ -1,0 +1,20 @@
+{
+  "task": "P4c：引擎侧 NVFP4 全链路接线（generate.cpp CLI + 握手格式 bump）",
+  "date": "2026-10-02",
+  "executor": "主模型直接实现（P2/P3/P4b 全部上下文在主线，属单次机会制接手链路的延续）",
+  "verdict": "PASS（构建与 CLI 级；运行时验收=P4d 切栈窗口）",
+  "deliverables": {
+    "src/program/generate.cpp": "① --expert-format q2|nvfp4（默认 q2）；nvfp4 校验：必须有 --pack(pack-hot)/--expert-cache/静态 --expert-profile、无 GPU 拆分、无 STRATA_ENABLE_NVFP4 宏的构建干净拒绝 ② Nvfp4HotSource（pack-hot 逐层 mmap，Linux only，Windows 拒绝）③ xcache.open_planar 四平面（W13/W2/W13S/W2S 几何常量来自 nvfp4_marlin_expert.hpp）④ profile 平面预填：admit→blob→nvfp4_hot_plane_views→fill_slot_planar→nvfp4_process_globals→gm 宿主数组→末尾一次上传；slot 0 平面 0 前 4KB D2H 回读比对；profile 盖不满槽即拒启（运行时 admit 无平面填充路径，盖满则 admit 必拒、非 profile 专家恒为远端 miss）⑤ hit 路径：nvfp4 scratch（moe_hit_nvfp4_scratch_bytes/init，K 与 SM 数实取）接入 drive.d 与 thits；图捕获条件改 thits.on()||thits.on_nvfp4() ⑥ nvfp4 强制 no_prefill_borrow（prompt 路径借不了平面槽，缓冲独立分配并计入 auto sizing）⑦ rdma tier config.expert_format",
+    "include/strata/core/rdma_expert_tier.hpp + src/core/rdma_expert_tier.cpp": "RdmaExpertTierConfig.expert_format（0=q2/1=nvfp4）；PushBind version 1→2、pad 字段改为 expert_format 并随 bind 发布",
+    "tools/cold_expert_worker.cpp": "push bind 校验 version!=2 拒绝 + bind.expert_format 与 worker 解析格式（want_nvfp4）不一致拒绝——Q2 引擎配 NVFP4 worker 或反向都 fail-closed，不会拿错 arena 算出貌似合理的垃圾"
+  },
+  "acceptance": {
+    "s3080_build": "cmake --build build-nvfp4 -j 32（宏 ON）→ EXIT=0",
+    "spark_build": "cmake --build build -j 18（宏 OFF，检验零回归编译路径）→ EXIT=0（需先补同步 P2 文件集：Spark 树此前只有 P3）",
+    "cli": "./strata generate --expert-format bogus → 'must be q2 or nvfp4' 拒绝；--expert-format nvfp4 缺 profile → 'static --expert-profile' 拒绝；--help 含 --expert-format",
+    "deferred": "运行时验收全部在 P4d：槽数实测、双机上线、16 条对拍、Q2 运行时 selftest、68GB arena 冒烟、51.2GB PLE 装载冒烟",
+    "verdict": "PASS"
+  },
+  "compat_note": "PushBind v1→v2 是硬 bump：新 worker 拒旧引擎、新引擎（v2+format=0）配旧 worker 也会被旧 worker 的 v1 校验拒掉——Q2 栈回滚必须用同批新二进制两端一起起（格式 0 互通），不能新旧混配",
+  "next": "P4d 切栈窗口：停 hotep → 3080 槽数实测（dense.gguf 5.94GB 已多占 ~2.3GB）→ 双机 NVFP4 上线 → 16 条业务 prompt 对拍 hotep 快照 top1≥99% → 顺延冒烟三项"
+}

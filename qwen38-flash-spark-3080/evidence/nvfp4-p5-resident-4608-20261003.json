@@ -1,0 +1,70 @@
+{
+  "phase": "nvfp4-pf2048-resident-4608",
+  "slot": "run4608",
+  "prompt_tokens": 2048,
+  "tokens_file": "/tmp/p5-prefill.txt",
+  "max_new": 1,
+  "expert_cache": 4608,
+  "env": {
+    "STRATA_PF_NVFP4_RESIDENT": "1",
+    "STRATA_PREFILL_TIMING": "1"
+  },
+  "snapshots": [
+    {
+      "tag": "engine",
+      "remote": "/home/<3080>/strata-cross/engine-nvfp4.log.20261003-233225-run4608.snapshot",
+      "local": "<workstation-path>\\Roaming\\<agent-home>\\worktrees\\work\\p_mritbkbx_akcq\\s_mubgkqs6_cknl\\qwen38-hotep\\ops\\_pf_resident_acceptance\\run4608\\engine-nvfp4.log.20261003-233225-run4608.snapshot",
+      "bytes": 17639,
+      "sha256": "035921cf52456c944ea1376d8439434d9b9603d61c508755cf1e27faf62369a7",
+      "local_sha256": "035921cf52456c944ea1376d8439434d9b9603d61c508755cf1e27faf62369a7",
+      "verified": true,
+      "copied": true
+    },
+    {
+      "tag": "worker",
+      "remote": "/home/<spark>/strata/worker-nvfp4.log.20261003-233225-run4608.snapshot",
+      "local": "<workstation-path>\\Roaming\\<agent-home>\\worktrees\\work\\p_mritbkbx_akcq\\s_mubgkqs6_cknl\\qwen38-hotep\\ops\\_pf_resident_acceptance\\run4608\\worker-nvfp4.log.20261003-233225-run4608.snapshot",
+      "bytes": 755,
+      "sha256": "8bd411f59e2acbde61ad9e85829face8aefc3da8d5b9afd6c69cfe442593f922",
+      "local_sha256": "8bd411f59e2acbde61ad9e85829face8aefc3da8d5b9afd6c69cfe442593f922",
+      "verified": true,
+      "copied": true
+    }
+  ],
+  "hca": "rocep2s0",
+  "worker_arena": true,
+  "arena_line": "worker: NVFP4 cold arena 63.29 GiB loaded in 59.4 s (1.07 GiB/s)",
+  "engine": {
+    "exit_reason": "engine_exit",
+    "wall": 206.8
+  },
+  "log_excerpt": "strata prefill timing: 2047 tokens, GPU timeline 9663 ms, wall 9668 ms, host staging 0 ms: embed+steps 39 (0.4%) hc read 294 (3.0%) gdn 337 (3.5%) qsa proj 80 (0.8%) qsa indexer 0 (0.0%) qsa select 3 (0.0%) qsa attn 158 (1.6%) router+shared 45 (0.5%) host grouping 50 (0.5%) gather 8441 (87.3%) combine 44 (0.5%) ple 6 (0.1%) gdn conv+gates 14 (0.1%) gdn recurrence 75 (0.8%) gdn out proj 79 (0.8%)\nstrata prefill timing: host: chunk setup (PLE rows, the expert stream plan) 38 ms, waiting for each chunk 0 ms, after each chunk (the draft layer, progress) 0 ms, PLE 39 ms\nstrata prefill timing: remote: 48 windows, 644174 expert rows to the peer, 338386 resident rows by the grouped kernel, waiting on the peer 8174 ms\nstrata generate: prefill 2047 tokens in 1 chunks, 9667.6 ms (211.7 tok/s); experts streamed 0 (0 by DMA, host 0.0 ms), resident 0; PLE 38.9 ms\ndecode                   1 tokens in 31.6 ms  ->  31.62 tok/s\nprefill                  2047 tokens in 9667.7 ms  ->  211.74 tok/s  (time to first token 14044.1 ms)\n---WORKER---\ntail: cannot open '/home/<spark>/strata/worker-nvfp4.log' for reading: No such file or directory\n",
+  "metrics": {
+    "tokens_per_s": 211.74,
+    "prefill_ms": 9667.7,
+    "ttft_ms": 14044.1,
+    "gpu_timeline_ms": 9663.0,
+    "wall_ms": 9668.0,
+    "host_staging_ms": 0.0,
+    "waiting_chunk_ms": 0.0,
+    "windows": 48,
+    "expert_rows_peer": 644174,
+    "resident_rows": 338386,
+    "waiting_peer_ms": 8174.0,
+    "prefill_tokens": 2047,
+    "timing_tokens": 2047
+  },
+  "engine_left": "DEAD",
+  "worker_left": "DEAD",
+  "checks": {
+    "engine_exited": true,
+    "prefill_tok_s": true,
+    "prefill_timing_line": true,
+    "waiting_ms": true,
+    "remote_rows": true,
+    "resident_rows_4608": true,
+    "snapshots_verified": true,
+    "cleanup_done": true
+  },
+  "verdict": "PASS"
+}

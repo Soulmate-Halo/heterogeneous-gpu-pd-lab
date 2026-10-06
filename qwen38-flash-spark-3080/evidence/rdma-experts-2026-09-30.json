@@ -1,0 +1,272 @@
+{
+ "task": "RDMA 冷专家层验收（同步 10 文件 → 双端编译 → selftest → probe）",
+ "date": "2026-09-30",
+ "files_synced": {
+  "count": 10,
+  "list": [
+   "include/strata/core/remote_tier.hpp (新)",
+   "include/strata/core/rdma_expert_tier.hpp (新)",
+   "include/strata/kernels/q2_0_scalar_ref.hpp (新)",
+   "src/core/rdma_expert_tier.cpp (新)",
+   "tools/cold_expert_worker.cpp (新)",
+   "docs/RDMA_EXPERTS.md (新)",
+   "include/strata/core/remote_experts.hpp (改)",
+   "include/strata/core/expert_source.hpp (改)",
+   "src/program/generate.cpp (改)",
+   "CMakeLists.txt (改)"
+  ],
+  "targets": {
+   "spark": "/home/<spark>/strata/Strata",
+   "3080": "/home/<3080>/strata-cross/Strata"
+  },
+  "verified": "两端各文件字节数与本地一致（generate.cpp=330363, CMakeLists.txt=51217, cold_expert_worker.cpp=22422 等）"
+ },
+ "build": {
+  "spark": {
+   "command": "cmake --build build -j --target strata_cold_expert_worker strata strata_remote_stage_tool",
+   "result": "FAIL",
+   "detail": "strata / strata_remote_stage_tool 链接成功（build/strata 12384232 B, build/strata-remote-stage 79056 B）；strata_cold_expert_worker 链接失败",
+   "error_tail": [
+    "cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD2Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0x8): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+    "/usr/bin/ld: cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD2Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0xc): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+    "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `strata::core::RDMAExpertTier::~RDMAExpertTier()':",
+    "cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD0Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0x8): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+    "/usr/bin/ld: cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD0Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0xc): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+    "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `main':",
+    "cold_expert_worker.cpp:(.text.startup+0x2bc): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+    "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o:cold_expert_worker.cpp:(.text.startup+0x2c0): more undefined references to `vtable for strata::core::RDMAExpertTier' follow",
+    "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `main':",
+    "cold_expert_worker.cpp:(.text.startup+0x32c): undefined reference to `strata::core::RDMAExpertTier::open(strata::core::RdmaExpertTierConfig const&, long, long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+    "/usr/bin/ld: cold_expert_worker.cpp:(.text.startup+0x598): undefined reference to `strata::core::RDMAExpertTier::begin(long, float const*, int const*, long, long, int const*, int const*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+    "/usr/bin/ld: cold_expert_worker.cpp:(.text.startup+0x5ec): undefined reference to `strata::core::RDMAExpertTier::finish(float*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+    "collect2: error: ld returned 1 exit status",
+    "gmake[3]: *** [CMakeFiles/strata_cold_expert_worker.dir/build.make:103：strata-cold-expert-worker] 错误 1",
+    "gmake[2]: *** [CMakeFiles/Makefile2:456：CMakeFiles/strata_cold_expert_worker.dir/all] 错误 2",
+    "gmake[1]: *** [CMakeFiles/Makefile2:463：CMakeFiles/strata_cold_expert_worker.dir/rule] 错误 2",
+    "gmake: *** [Makefile:277：strata_cold_expert_worker] 错误 2",
+    "BUILD_RC=2"
+   ]
+  },
+  "3080": {
+   "command": "cmake --build build -j --target strata_cold_expert_worker strata strata_remote_stage_tool",
+   "result": "FAIL",
+   "detail": "strata / strata_remote_stage_tool 链接成功（build/strata 12120328 B, build/strata-remote-stage 79528 B）；strata_cold_expert_worker 链接失败",
+   "error_tail": [
+    "/usr/bin/x86_64-linux-gnu-ld.bfd: cold_expert_worker.cpp:(.text.startup+0x92e): undefined reference to `strata::core::RDMAExpertTier::begin(long, float const*, int const*, long, long, int const*, int const*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+    "/usr/bin/x86_64-linux-gnu-ld.bfd: cold_expert_worker.cpp:(.text.startup+0x99e): undefined reference to `strata::core::RDMAExpertTier::finish(float*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+    "/usr/bin/x86_64-linux-gnu-ld.bfd: warning: creating DT_TEXTREL in a PIE",
+    "collect2: error: ld returned 1 exit status",
+    "[4/12] Building CXX object CMakeFiles/strata_engine.dir/src/core/remote_experts.cpp.o",
+    "[5/12] Building CXX object CMakeFiles/strata_engine.dir/src/core/expert_source.cpp.o",
+    "[6/12] Building CXX object CMakeFiles/strata_engine.dir/src/core/verify.cpp.o",
+    "/home/<3080>/strata-cross/Strata/src/core/verify.cpp: In static member function ‘static void strata::core::Verifier::raise_flag(uint32_t*, uint32_t)’:",
+    "/home/<3080>/strata-cross/Strata/src/core/verify.cpp:1135:20: warning: unused variable ‘f’ [-Wunused-variable]",
+    " 1135 |     volatile long* f = (volatile long*) flag;",
+    "      |                    ^",
+    "[7/12] Building CXX object CMakeFiles/strata_prefill.dir/src/prefill/prefill.cpp.o",
+    "[8/12] Building CXX object CMakeFiles/strata.dir/src/program/generate.cpp.o",
+    "/home/<3080>/strata-cross/Strata/src/program/generate.cpp:702:5: warning: ‘int {anonymous}::argmax(const std::vector<float>&)’ defined but not used [-Wunused-function]",
+    "  702 | int argmax(const std::vector<float>& v) {",
+    "      |     ^~~~~~",
+    "ninja: build stopped: subcommand failed.",
+    "BUILD_RC=1"
+   ]
+  },
+  "root_cause": "src/core/rdma_expert_tier.cpp 只编进 strata_engine，而 CMakeLists.txt:317 的 target_link_libraries(strata_cold_expert_worker PRIVATE strata_remote_stage strata_kernels ${_strata_gpu_runtime_target}) 未链接 strata_engine，RDMAExpertTier 的 vtable/open/begin/finish 全部 undefined reference",
+  "source_fix_policy": "按任务纪律未改任何源码，报错原文照录"
+ },
+ "selftest": {
+  "status": "NOT RUN",
+  "reason": "前置编译失败：build/strata-cold-expert-worker 未产出，无法执行 --selftest"
+ },
+ "probe": {
+  "status": "NOT RUN",
+  "reason": "前置编译失败：worker 与 sender 二进制均未产出"
+ },
+ "latency": null,
+ "residual_processes": {
+  "spark": "确认无残留：pgrep cold-expert 无进程（仅有系统 rdma-ndd / kworker，非本次部署）",
+  "3080": "确认无残留：pgrep cold-expert/strata-cold/rdma 无 worker 进程"
+ },
+ "link_error_original": {
+  "spark": [
+   "[ 97%] Built target strata_kernels",
+   "[ 97%] Building CXX object CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o",
+   "[100%] Linking CXX executable strata-cold-expert-worker",
+   "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `strata::core::RDMAExpertTier::~RDMAExpertTier()':",
+   "cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD2Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0x8): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+   "/usr/bin/ld: cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD2Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0xc): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+   "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `strata::core::RDMAExpertTier::~RDMAExpertTier()':",
+   "cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD0Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0x8): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+   "/usr/bin/ld: cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD0Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0xc): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+   "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `main':",
+   "cold_expert_worker.cpp:(.text.startup+0x2bc): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+   "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o:cold_expert_worker.cpp:(.text.startup+0x2c0): more undefined references to `vtable for strata::core::RDMAExpertTier' follow",
+   "/usr/bin/ld: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `main':",
+   "cold_expert_worker.cpp:(.text.startup+0x32c): undefined reference to `strata::core::RDMAExpertTier::open(strata::core::RdmaExpertTierConfig const&, long, long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+   "/usr/bin/ld: cold_expert_worker.cpp:(.text.startup+0x598): undefined reference to `strata::core::RDMAExpertTier::begin(long, float const*, int const*, long, long, int const*, int const*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+   "/usr/bin/ld: cold_expert_worker.cpp:(.text.startup+0x5ec): undefined reference to `strata::core::RDMAExpertTier::finish(float*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+   "collect2: error: ld returned 1 exit status",
+   "gmake[3]: *** [CMakeFiles/strata_cold_expert_worker.dir/build.make:103：strata-cold-expert-worker] 错误 1",
+   "gmake[2]: *** [CMakeFiles/Makefile2:456：CMakeFiles/strata_cold_expert_worker.dir/all] 错误 2",
+   "gmake[1]: *** [CMakeFiles/Makefile2:463：CMakeFiles/strata_cold_expert_worker.dir/rule] 错误 2",
+   "gmake: *** [Makefile:277：strata_cold_expert_worker] 错误 2",
+   "BUILD_RC=2"
+  ],
+  "3080": [
+   "cold_expert_worker.cpp:(.text._ZN6strata4core14RDMAExpertTierD0Ev[_ZN6strata4core14RDMAExpertTierD5Ev]+0x8): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+   "/usr/bin/x86_64-linux-gnu-ld.bfd: CMakeFiles/strata_cold_expert_worker.dir/tools/cold_expert_worker.cpp.o: in function `main':",
+   "cold_expert_worker.cpp:(.text.startup+0x612): undefined reference to `vtable for strata::core::RDMAExpertTier'",
+   "/usr/bin/x86_64-linux-gnu-ld.bfd: cold_expert_worker.cpp:(.text.startup+0x64a): undefined reference to `strata::core::RDMAExpertTier::open(strata::core::RdmaExpertTierConfig const&, long, long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+   "/usr/bin/x86_64-linux-gnu-ld.bfd: cold_expert_worker.cpp:(.text.startup+0x92e): undefined reference to `strata::core::RDMAExpertTier::begin(long, float const*, int const*, long, long, int const*, int const*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+   "/usr/bin/x86_64-linux-gnu-ld.bfd: cold_expert_worker.cpp:(.text.startup+0x99e): undefined reference to `strata::core::RDMAExpertTier::finish(float*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)'",
+   "/usr/bin/x86_64-linux-gnu-ld.bfd: warning: creating DT_TEXTREL in a PIE",
+   "collect2: error: ld returned 1 exit status",
+   "[4/12] Building CXX object CMakeFiles/strata_engine.dir/src/core/remote_experts.cpp.o",
+   "[5/12] Building CXX object CMakeFiles/strata_engine.dir/src/core/expert_source.cpp.o",
+   "[6/12] Building CXX object CMakeFiles/strata_engine.dir/src/core/verify.cpp.o",
+   "/home/<3080>/strata-cross/Strata/src/core/verify.cpp: In static member function ‘static void strata::core::Verifier::raise_flag(uint32_t*, uint32_t)’:",
+   "/home/<3080>/strata-cross/Strata/src/core/verify.cpp:1135:20: warning: unused variable ‘f’ [-Wunused-variable]",
+   " 1135 |     volatile long* f = (volatile long*) flag;",
+   "      |                    ^",
+   "[7/12] Building CXX object CMakeFiles/strata_prefill.dir/src/prefill/prefill.cpp.o",
+   "[8/12] Building CXX object CMakeFiles/strata.dir/src/program/generate.cpp.o",
+   "/home/<3080>/strata-cross/Strata/src/program/generate.cpp:702:5: warning: ‘int {anonymous}::argmax(const std::vector<float>&)’ defined but not used [-Wunused-function]",
+   "  702 | int argmax(const std::vector<float>& v) {",
+   "      |     ^~~~~~",
+   "ninja: build stopped: subcommand failed.",
+   "BUILD_RC=1"
+  ]
+ },
+ "round3": {
+  "date": "2026-09-30",
+  "goal": "主模型修复 3 处缺陷后复验：worker 分组按组连续排列、参考实现换 q2_0_expert_gpu_ref 量化对齐（阈值 5e-3）、协议上限 128 / slot_bytes 默认 4MiB",
+  "files_synced": {
+   "count": 6,
+   "list": [
+    "include/strata/kernels/q2_0_scalar_ref.hpp",
+    "include/strata/core/rdma_expert_tier.hpp",
+    "src/core/rdma_expert_tier.cpp",
+    "tools/cold_expert_worker.cpp",
+    "src/program/generate.cpp",
+    "docs/RDMA_EXPERTS.md"
+   ],
+   "targets": {
+    "spark": "/home/<spark>/strata/Strata",
+    "3080": "/home/<3080>/strata-cross/Strata"
+   },
+   "per_file": {
+    "include/strata/kernels/q2_0_scalar_ref.hpp": "bytes=8947 md5=ece45471974bc3f8c50762bef1042840",
+    "include/strata/core/rdma_expert_tier.hpp": "bytes=5696 md5=d5063990b1889044e02bfd54ed15beac",
+    "src/core/rdma_expert_tier.cpp": "bytes=7810 md5=6e67de08d1896d674f2aaa7751a9fe8a",
+    "tools/cold_expert_worker.cpp": "bytes=22901 md5=44250599cdbc1c2a0e1c6ff67f29dee3",
+    "src/program/generate.cpp": "bytes=330403 md5=9a949921349e6887de2e5f05c210eeec",
+    "docs/RDMA_EXPERTS.md": "bytes=4342 md5=a0883d1bd6b2751ef7f80ea4cd5f093a"
+   },
+   "verified": "两端 6 文件字节数与 md5 均与本地工作区一致（12/12 PASS）：q2_0_scalar_ref.hpp=8947/ece45471、rdma_expert_tier.hpp=5696/d5063990、rdma_expert_tier.cpp=7810/6e67de08、cold_expert_worker.cpp=22901/44250599、generate.cpp=330403/9a949921、RDMA_EXPERTS.md=4342/a0883d1b"
+  },
+  "build": {
+   "spark": {
+    "command": "cmake --build build -j20 --target strata_cold_expert_worker strata",
+    "result": "PASS",
+    "build_rc": 0,
+    "artifacts": "build/strata 12384408 B, build/strata-cold-expert-worker 494096 B (2026-09-30 21:34)",
+    "warnings": "generate.cpp:702 argmax 未使用（既有警告）"
+   },
+   "3080": {
+    "command": "cmake --build build -j24 --target strata_cold_expert_worker strata",
+    "result": "PASS",
+    "build_rc": 0,
+    "artifacts": "build/strata 12120328 B, build/strata-cold-expert-worker 365512 B (2026-09-30 13:34 本机时区)",
+    "warnings": "generate.cpp:702 argmax 未使用（既有警告）"
+   }
+  },
+  "selftest": {
+   "status": "PASS",
+   "command": "cd /home/<spark>/strata/Strata && ./build/strata-cold-expert-worker --selftest --pack /home/<spark>/strata/pack-q2_0",
+   "exit_code": 0,
+   "raw_output": [
+    "worker: expert arena 31.64 GiB loaded in 3.4 s (9.18 GiB/s)",
+    "selftest: entry 0 (row 0, expert 137) rel_l2 1.935e-04",
+    "selftest: entry 1 (row 5, expert 42) rel_l2 1.751e-04",
+    "selftest: entry 2 (row 15, expert 137) rel_l2 1.708e-04",
+    "worker_selftest PASS"
+   ],
+   "rel_l2": {
+    "entry0": 0.0001935,
+    "entry1": 0.0001751,
+    "entry2": 0.0001708,
+    "threshold": 0.005
+   },
+   "note": "三个条目 rel_l2 均 ~1.7-1.9e-4，远低于 5e-3；上轮 entry 2 的 1.258 垃圾值随分组修复消失"
+  },
+  "probe": {
+   "status": "PASS",
+   "worker_command": "./build/strata-cold-expert-worker --pack /home/<spark>/strata/pack-q2_0 --device rocep1s0f1 --port 39580 --slots 4 --slot-bytes 4194304 --verbose  (Spark, 后台)",
+   "worker_ready": "worker: READY rdma=true slots=4 slot_bytes=4194304 - waiting for doorbells",
+   "probe_command": "./build/strata-cold-expert-worker --probe --pack /home/<3080>/strata-mirror/pack-q2_0 --peer <RDMA_SPARK_ADDRESS> --device mlx5_0 --port 39580 --windows 8 --slot-bytes 4194304  (3080)",
+   "exit_code": 0,
+   "raw_output": [
+    "probe: RDMA tier open, 8 windows",
+    "probe: computed 97 entries, mean window 512 us",
+    "expert_probe PASS"
+   ],
+   "worker_side_windows": [
+    "worker: seq=1 layer=0 tok=1 entries=6 736 us",
+    "worker: seq=2 layer=1 tok=2 entries=13 162 us",
+    "worker: seq=3 layer=2 tok=3 entries=20 214 us",
+    "worker: seq=4 layer=3 tok=1 entries=6 99 us",
+    "worker: seq=5 layer=4 tok=2 entries=13 147 us",
+    "worker: seq=6 layer=5 tok=3 entries=20 206 us",
+    "worker: seq=7 layer=6 tok=1 entries=6 97 us",
+    "worker: seq=8 layer=7 tok=2 entries=13 160 us"
+   ]
+  },
+  "latency": {
+   "mean_window_us": 512,
+   "worker_side_us": {
+    "seq1_warmup": 736,
+    "seq2_to_seq8_min": 97,
+    "seq2_to_seq8_max": 214
+   },
+   "source": "3080 sender 侧 8 窗口 --probe 自计；worker 侧 8 窗口逐条耗时"
+  },
+  "residual_processes": {
+   "spark": "pkill -f strata-cold-expert-worker 后 pgrep 返回 NO_WORKER，39580 端口 PORT_39580_FREE",
+   "3080": "pgrep 返回 NO_WORKER，无 worker 残留（仅本轮短命 probe 进程已退出）"
+  },
+  "notes": "本轮未改任何源码；执行脚本为临时件，跑完已删；两端源码树仅按清单覆盖 6 个文件。"
+ },
+ "round4": {
+  "goal": "整机端到端：3080 跑 Strata 引擎、冷专家经 RDMA flag 环由 Spark GB10 计算",
+  "fixes_this_round": [
+   "expert_source.cpp: act_quant_q8_1/act_quant_any 推迟到确认有 CPU 作业后才调用（3080 无 AVX512，原来每层无条件调用 → SIGILL invalid opcode，journalctl 实锤）",
+   "pool run/run_split/run_split_multi 在 njobs==0 时跳过"
+  ],
+  "engine_args": "strata --pack strata-mirror/pack-q2_0 --native Q2_0-00001.gguf --ple-gguf Q2_0-00002.gguf --max-context 8192 --mmap-experts --remote-rdma <RDMA_SPARK_ADDRESS> --remote-rdma-device mlx5_0 --remote-rdma-slot-bytes 4194304 --expert-cache 3072 --tokens-file prompt512 --max-new 64（无 --spec：verify 窗口需 expert-profile 驻留表，两端暂无 profile.bin）",
+  "result": {
+   "decode": "64 tokens in 1114.1 ms -> 57.45 tok/s",
+   "prefill": "511 tokens in 13759.6 ms -> 37.14 tok/s",
+   "ttft_ms": 13777.7,
+   "output": "greedy 重复循环 198/197/197/320（随机 ids prompt 的预期形态）"
+  },
+  "worker_window_us": {
+   "windows": 24044,
+   "min": 55,
+   "p50": 66,
+   "p99": 112,
+   "max": 584,
+   "mean": 71,
+   "note": "decode 阶段 tok=1 时每窗 3-7 条 miss 目"
+  },
+  "comparison": {
+   "old_nvfp4_cross_machine": "10.25 tok/s (C1)",
+   "spark_alone_strata": "73.8-82.0 tok/s",
+   "nico_target": "~100 tok/s",
+   "this": "57.45 tok/s",
+   "note": "5.6x 于旧跨机栈；与 Spark 单机的差距=3080 本地稠密 GEMV 带宽+每层远程窗"
+  },
+  "spec_blocked": "--spec 4 需要 --expert-profile 驻留表（make_profile.py 生成），缺失时引擎拒绝；prefill 单 token 路径 37 tok/s 是下一个优化点",
+  "residual": "两端 pgrep 无 strata/worker 残留；Spark 源码树 build/strata 已用含修复的源码重建"
+ }
+}

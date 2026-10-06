@@ -1,0 +1,39 @@
+{
+  "release": "Qwen3.8-Flash-Next NVFP4 heterogeneous 3080 + DGX Spark V2 bundle",
+  "recorded_at": "2026-10-05",
+  "hardware": {
+    "decode": "RTX 3080 20GB",
+    "prefill": "DGX Spark / GB10",
+    "quantization": "NVFP4 experts + FP8 KV",
+    "context_tokens": 16384
+  },
+  "prefill_measured": {
+    "prompt_tokens": 3600,
+    "tok_s": [1030.8, 1163.4, 1161.1],
+    "mean_tok_s": 1118.4333333333334,
+    "source": "nvfp4-dflash-bench-20261005.json"
+  },
+  "decode_measured": {
+    "single_request_tok_s": [30.2, 46.4, 46.1],
+    "steady_state_range_tok_s": [46.1, 46.4],
+    "source": "nvfp4-dflash-bench-20261005.json"
+  },
+  "aggregate_decode": {
+    "n8_tok_s": 240.0,
+    "status": "estimated_not_measured",
+    "basis": "N=8 projection from the 2026-10-06 batch-scaling discussion; no end-to-end N=8 run passed",
+    "measured_peak_tok_s": 60.25,
+    "measured_peak_concurrency": 12,
+    "measured_peak_source": "session history table C12"
+  },
+  "correctness": {
+    "v2_prompt_tokens": 2048,
+    "v2_prefill_tok_s": 211.74,
+    "golden_output_token": 248046,
+    "golden_output_token_match": true,
+    "acceptance": "PASS",
+    "source": "nvfp4-v2-20261003.json"
+  },
+  "interpretation": "The 1100+ tok/s prefill figure is measured. The 240.00 tok/s aggregate decode figure is a clearly labelled projection, not a completed benchmark."
+}
+

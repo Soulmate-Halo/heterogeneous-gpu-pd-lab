@@ -1,0 +1,33 @@
+{
+  "task": "P4d 排障：NVFP4 Strata 栈生成乱码的根因与修复",
+  "date": "2026-10-03",
+  "verdict": "ROOT_CAUSE_FOUND_AND_FIXED",
+  "symptom": "NVFP4 双机栈（P1~P4c 全部机器验收 PASS）端到端生成确定性乱码：push 模式输出 100592/38429/13236 等重复 token；no-push（dump）模式输出全 0（layer 1 起 NaN，router 权重 -inf）。",
+  "bisection_chain": [
+    "逐层 dump（no-push）：embedding 与 Q2 栈逐比特一致（rel 0.0000），layer 0 有限，layer 1 起全 stream NaN → 但此模式 prefill 不走远端（push channel 未武装），属另一表现。",
+    "push 模式 routing dump：48 层 router ids/softmax 权重全部健康（无 -inf、无退化 0..9）→ 注意力/KV/embedding/路由全链路正常。",
+    "cache=1（等效全冷）输出不变 → marlin 热路径无责；worker 换 IQ4_NL PLE 输出不变 → PLE FP8 无责；STRATA_PF_X_F32/PF_Y_F32 输出不变 → 线格式精度无责。",
+    "--dump-mixed + 独立 Q8_0 解码参考 logits：argmax == 引擎采样 token → 头（native_mmvq Q8_0 GEMV）无责，乱码来自隐状态本身。",
+    "1-token prompt（无 prefill、无历史、cache=1、双栈 halves dump 对比）：QSA 层（4k+3）attn cos 0.13~0.47、GDN 层 attn cos ~0.00 → 病灶锁定 GDN 专属张量。",
+    "决定性 A/B：--expert-format nvfp4 + --native Q2_0-00001.gguf（NVFP4 专家 + Q2 dense）→ 输出完全正常 → 病灶在 P4a 自产 dense.gguf。",
+    "张量级对比（gguf.quants + 自写 Q2_0 解码）：attn_qkv 的 q/k 段 identity、v 段 / attn_gate / ssm_out 输入列全部呈现同一 48 头置换：GGUF 块 b = HF 头 (b%16)*3 + b//16。"
+  ],
+  "root_cause": "llama.cpp 的 Qwen3-Next GGUF 转换把 GDN 的 48 个 v/gate/y 头从 HF 的 k-major 布局（[k组g][v序号j]，每个 k 头带 3 个 v 头）重排为 j-major（[j][g]）。P4a 的 nvfp4_dense_gguf.py 从 HF checkpoint 按原行序重编码 Q8_0，未做此重排 → attn_qkv 的 v 段、attn_gate（in_proj_z）、ssm_out（输入列）三个融合张量全部头序错乱 → 36 个 GDN 层注意力输出即垃圾（QSA 层为分离张量不受影响）。P4a 验收 rel_l2 是对未置换源张量自洽校验，结构性错误天然漏网。",
+  "fix": {
+    "file": "strata-src/Strata/tools/nvfp4_dense_gguf.py",
+    "change": "新增 HEAD48 置换表 + permute_heads()/head_kind()，编码与 verify 两处对 attn_qkv（仅 v 段行）/attn_gate（全行）/ssm_out（输入列块）应用同一置换",
+    "remote_backup": "Spark: tools/nvfp4_dense_gguf.py.bak-p4d；3080: dense.gguf.bak-p4d"
+  },
+  "acceptance": {
+    "converter_verify": "P4A_VERIFY_PASS（776/776 逐字节、303/303 rel_l2 ≤ 0.015、ple_key 0.35099 ≤ 0.45）",
+    "perm_probe": "新 dense.gguf 的 v/gate/ssm_out 头映射全部 identity（conf 0.997+，L0/L1 实测）",
+    "deploy_md5": "5940aebe45ff111103353855e7ac1b37（Spark 与 3080 一致）",
+    "e2e_smoke": "3080+Spark 双机 push 模式：输出 71093 12305 198 1445 18904 1120 1697 11 23846 271 727 ...（```python from typing，与 mixdense 参照逐 token 相同），decode 39.50 tok/s"
+  },
+  "integration_lessons": [
+    "量化格式转换的 rel_l2 验收必须对『引擎实际消费的布局』校验，或直接与已知良好 GGUF 做同型对拍；对源张量自洽的校验抓不到行/列置换。",
+    "Qwen3-Next 的 GDN 融合张量（in_proj_qkv 的 v 段、in_proj_z、out_proj 输入）在 HF 与 llama.cpp GGUF 间存在 48 头 mod-3 重排：(b%16)*3+b//16；q/k 段与 QSA 全部张量无置换。",
+    "P4d 新增运维事实：--dump-layers/--dump-halves 会禁用 token graph 从而强制 --no-remote-rdma-push，且该模式下 prefill 不走远端 worker（无 push channel 1 行），NVFP4 下 prefill 本地路径不可用；prefill 远端与否看引擎日志 'strata prefill: remote experts over RDMA push channel 1' 一行。",
+    "3080 上 gguf 生态：pd27b-nvfp4-sglang/venv 有 gguf.quants.dequantize（K-quant/IQ 全支持）但 type 42(Q2_0) 需 _missing_ 补丁 + GGML_QUANT_SIZES[42]=(64,18)；Q2_0 解码 = 每 64 元素 18B（fp16 d + 16B 2bit 码，值=(码-1)*d）。"
+  ]
+}

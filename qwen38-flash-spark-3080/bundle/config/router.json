@@ -1,0 +1,7 @@
+{
+  "role": "router",
+  "listen": "0.0.0.0:8400",
+  "prefill_backend": "http://<spark-http-host>:8200",
+  "decode_backend": "http://<rtx3080-http-host>:8100",
+  "threshold_tokens": 4096
+}

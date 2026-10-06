@@ -1,0 +1,20 @@
+{
+  "role": "worker",
+  "host": "DGX Spark / GB10",
+  "arch": "aarch64",
+  "cuda_arch": 121,
+  "listen": "0.0.0.0:39580",
+  "http": "0.0.0.0:8200",
+  "kv": "fp8",
+  "command": [
+    "strata-cold-expert-worker",
+    "--format",
+    "nvfp4",
+    "--port",
+    "39580",
+    "--slots",
+    "4",
+    "--slot-bytes",
+    "4194304"
+  ]
+}

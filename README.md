@@ -589,3 +589,15 @@ This page quotes only the few key figures per experiment; the complete data rows
 | EXT-DGX-01 | Qwen3.5 9B · TQ3_4S and Qwen3.8-27B · NVFP4 · external DGX Spark | DGX Spark public figures, background only | [DGX Spark community control](results/dgx-spark-community-control.md) | [CSV](data/dgx-spark-community-controls.csv) |
 
 The mapping from experiment IDs to legacy labels is in [data/experiment-index.csv](data/experiment-index.csv); all records are under [results/](results/). The [changelog](CHANGELOG.md) records what each public experiment version measured. Version mapping: [VERSION_HISTORY.md](VERSION_HISTORY.md).
+
+
+## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark 异构方案
+
+公开可复现包：[qwen38-flash-spark-3080](qwen38-flash-spark-3080/)。3080 承担 NVFP4 dense/prefill 与 FP8 KV，DGX Spark 承担 MoE 冷专家、PLE/KV worker；启动顺序是先 worker，再 engine，模型权重、hot/cold pack、PLE 表和 role 镜像由使用者挂载，镜像不含 510 GB 官方权重。
+
+V2 口径：prefill 三次实测 1030.80 / 1163.40 / 1161.10 tok/s，峰值 1163.40 tok/s；聚合解码端到端实测峰值 60.25 tok/s（C12，156/156 成功）；240.00 tok/s 是 N=8 内核批量缩放推算目标，不是端到端实测。
+
+~~~bash
+docker pull ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest
+python qwen38-flash-spark-3080/verify_bundle.py
+~~~

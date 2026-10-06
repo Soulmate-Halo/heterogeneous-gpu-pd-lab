@@ -1,0 +1,30 @@
+{
+  "role": "engine",
+  "host": "RTX 3080 20GB",
+  "arch": "x86_64",
+  "cuda_arch": 86,
+  "worker_endpoint": "<spark-rdma-host>:39580",
+  "http": "0.0.0.0:8100",
+  "kv": "fp8",
+  "max_context": 16384,
+  "expert_cache": 4608,
+  "command": [
+    "strata",
+    "--expert-format",
+    "nvfp4",
+    "--prefill",
+    "auto",
+    "--kv",
+    "fp8",
+    "--max-context",
+    "16384",
+    "--remote-rdma",
+    "<spark-rdma-host>",
+    "--remote-rdma-port",
+    "39580",
+    "--remote-rdma-slots",
+    "4",
+    "--remote-rdma-slot-bytes",
+    "4194304"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "expert_layers": 1,
+  "resident_experts": 512,
+  "quant_method": "ModelOptNvFp4FusedMoEMethod",
+  "allocated_bytes": 4207740416
+}

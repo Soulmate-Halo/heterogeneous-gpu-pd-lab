@@ -1,0 +1,66 @@
+{
+  "phase": "prefill-bottleneck-probe",
+  "date": "2026-10-03",
+  "scope": "NVFP4 V2 栈（4608 槽 resident 开启）pf2048 全探针复测：引擎相位表 + worker 每窗耗时，瓶颈定位",
+  "run": "手工分步执行 _p5_bench.py 同款命令（3080 /tmp/eng-pf2048-probe.log + Spark /tmp/w-probe.log）",
+  "env": {
+    "engine": "STRATA_PREFILL_TIMING=1 STRATA_PF_NVFP4_RESIDENT=1",
+    "worker": "STRATA_PF_PROBE=1",
+    "hca_3080": "rocep2s0",
+    "expert_cache": 4608
+  },
+  "speed": {
+    "prefill_2047_tok_s": 212.5,
+    "prefill_wall_ms": 9633.9,
+    "v2_acceptance_tok_s": 211.74,
+    "v0_all_remote_tok_s": 145.72,
+    "q2_v4_target_tok_s": 650
+  },
+  "engine_phase_table": {
+    "gather_ms": 8445,
+    "gather_pct": 87.7,
+    "hc_read_ms": 277,
+    "gdn_ms": 327,
+    "qsa_attn_ms": 158,
+    "qsa_proj_ms": 80,
+    "gdn_out_proj_ms": 79,
+    "gdn_recurrence_ms": 75,
+    "embed_steps_ms": 32,
+    "host_grouping_ms": 49,
+    "router_shared_ms": 45,
+    "combine_ms": 44,
+    "gdn_conv_gates_ms": 14,
+    "ple_ms": 6,
+    "qsa_select_ms": 3,
+    "host_chunk_setup_ms": 30,
+    "host_ple_ms": 34
+  },
+  "remote_detail": {
+    "windows": 48,
+    "remote_rows": 644174,
+    "resident_rows": 338386,
+    "resident_pct_of_all_rows": 34.4,
+    "waiting_on_peer_ms": 8179,
+    "waiting_share_of_total": "8179/9634 = 84.9%"
+  },
+  "worker_window_samples": {
+    "note": "三段内核聚合行每 256 窗才打印，prefill 仅 48 窗故未触发；每窗耗时行样本 3 条",
+    "layer0_entries_16354_us": 230454,
+    "layer1_entries_10238_us": 131225,
+    "layer2_entries_7905_us": 101292,
+    "us_per_entry": "14.1 / 12.8 / 12.8",
+    "extrapolated_48win_total_s": "644174 rows x ~12.9 us = 8.3 s ≈ engine waiting 8179 ms（账目闭合）"
+  },
+  "conclusion": [
+    "prefill 9.63s 里 84.9%（8.18s）在逐层等 Spark 冷专家窗口；加上窗口内本地 resident 计算，gather 相位合计 87.7%",
+    "644k 远端行 x 12.9us/行：慢在 Spark 端每行的 dequant->BF16 分组内核（正确性优先版，无 tensor core），不在 40G 链路带宽（每窗 x q8_0 + y f16 实际流量远低于 40G）也不在 host 段（chunk setup 30ms + PLE 34ms）",
+    "第二瓶颈是引擎自己的 GPU 相位：hc read 277 + gdn 327 + qsa attn 158 等合计 ~1.1s（11.5%），居民路径打开后已相对 v0 下降（14.0s->9.6s）",
+    "resident 命中已生效（338,386 行本地算，34.4%），进一步扩槽受 20GB 显存限制（5120 槽实测 OOM）",
+    "跨层流水不可行（层间真数据依赖，r174 已证）",
+    "下一杠杆按收益排序：1) Spark 冷内核换 FP4 tensor-core（cutlass，需 scale swizzle + w13 融合新 pack 风味重打 68GB）预期把 12.9us/行大幅压低；2) 窗口协议进一步瘦身收益上限仅协议占比；3) decode 侧 sampler 1.06ms/token"
+  ],
+  "logs": {
+    "engine_3080": "/tmp/eng-pf2048-probe.log",
+    "worker_spark": "/tmp/w-probe.log"
+  }
+}

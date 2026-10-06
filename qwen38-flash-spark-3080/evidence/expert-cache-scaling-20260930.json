@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-30",
+  "title": "3080 热专家缓存提档 + pool-on 命中路径实证（512 prefill / 64 decode，随机 512 前缀）",
+  "launch": "Spark: strata-cold-expert-worker --pack pack-q2_0 --device rocep1s0f1 --port 39580 --slots 4 --slot-bytes 4194304; 3080: strata --pack/--native/--ple-gguf --max-context 8192 --mmap-experts --stats --remote-rdma <RDMA_SPARK_ADDRESS> --remote-rdma-device mlx5_0 --remote-rdma-slot-bytes 4194304 --expert-cache N --tokens-file r4_prompt512.txt --max-new 64（pool 开，去掉 --no-pool）",
+  "results": [
+    {"cfg": "no-pool cache3072（上轮基线，缓存实际未生效）", "decode_toks": 57.45, "prefill_toks": 37.14, "remote_windows": 24044, "note": "generate.cpp:2398/2492: --no-pool 同时关闭缓存填充与 GPU 命中路径，全部专家走远程"},
+    {"cfg": "pool-on cache8192（10.55 GiB VRAM）", "decode_toks": 52.81, "prefill_toks": 10.76, "hit_rate": 0.9041, "remote_windows": 5106, "window_us": 112, "ring_ms_per_layer": 0.394, "host_after_ring_ms_per_token": 70.5, "note": "命中路径生效；远程窗 -79%；decode 由每层 host 在环 0.394ms 封底；prefill 叠加冷缓存从 SATA SSD 填充约 10.5GiB blob + PLE 行 SSD 读 p50 819us"},
+    {"cfg": "pool-on cache11264（14.50 GiB VRAM）", "decode_toks": 6.64, "prefill_toks": 8.26, "hit_rate": 0.9356, "note": "显存只剩 <1GiB，CUDA 图/临时分配被挤压，层耗时 0.394→3.139ms，判不合格"},
+    {"cfg": "pool-on cache12288", "note": "引擎拒绝：需 15.82 GiB，仅 15.28 GiB 空闲（基础占用 4.31/19.58 GiB）"}
+  ],
+  "conclusions": [
+    "3080 最优档 = --expert-cache 8192（pool 必须开，否则缓存完全不生效）；20GiB 卡的实际上限约 11264 条但不可实用",
+    "decode 瓶颈不是 GPU 也不是 RDMA：每层 host 在环门铃/图调度 0.394ms×48 = 18.9ms/token 封底，E5-2673 v3 单核性能是直接原因；Nico 约 100 tok/s 对应约 0.2ms/层，差的就是 host CPU 与 PCIe 代差",
+    "prefill 慢的实锤：逐 token 串行过 48 层门铃（无 chunk 路径），且每 token 附加 host-after-ring 约 79ms（含冷缓存 SSD 填充与 PLE SSD 读），不是 GPU 算不动",
+    "worker 侧窗口 p50 约 66-112us，传输占 decode 预算 <4%，RDMA 链路无优化空间需求"
+  ],
+  "ops_notes": [
+    "pkill -f 的模式串与同一条远程命令里的二进制路径同时出现会杀掉远程 shell 自身（本轮 ladder 六档全败的根因），pkill 必须单独一条命令执行",
+    "worker 单会话：引擎断开即退出，每档需重起；3080 已无 AVX512 SIGILL（remote-rdma 模式下引擎明示 CPU AVX-512 内核非必需）"
+  ]
+}

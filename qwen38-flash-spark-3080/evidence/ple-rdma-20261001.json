@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-01",
+  "round": 152,
+  "scope": "grouped-gemm big-group fix attempt + worker truncation discovery + PLE table over one-sided RDMA",
+  "corruption_found": {
+    "what": "the worker (tools/cold_expert_worker.cpp) built NATURAL groups (one per expert) and the grouped kernel served at most GMAX=8 entries per group, silently TRUNCATING the rest; a 2048-token window routes ~57 entries/expert, so ~86% of remote rows at 4K chunk-2048 were stale scratch",
+    "consequence": "round-151's 545.84 tok/s @4K was computed with garbage remote rows - its speed was partly skipped work. Honest full-compute baseline after the fix: 497.4 tok/s",
+    "proof": "Spark standalone (independent f16 path) real_prompt4096 first-16 tokens = 1118 3817 318 14472 3860 8 248046 198 248045 74455 198 248068 198 760 1156 682 - matches the FIXED cross-machine run, differs from round-151's corrupted output at token 6",
+    "fix": "worker host-side sub-grouping into <=8-entry runs (WGMAX), matching the kernel's contract"
+  },
+  "kernel_experiments": {
+    "tile_loop_register_resident_weights": "4859ms gather @4K - SLOWER than host-split (3652ms); register preload cut occupancy, longer per-block serial chains",
+    "lane_per_entry_big_kernel": "21121ms gather @4K - catastrophic; 34B scattered global activation reads waste 8x L2 bandwidth; kernels kept in tree but only reached by device-side dispatch for ne>8 (MTP/verify safety net, previously silently truncated there too)",
+    "conclusion": "the grouped kernel is latency/occupancy-bound, NOT weight-bandwidth-bound (re-reads were ~7% of gather); many small independent blocks win. True engine-side hit-kernel cost is ~700ms of the 4K wall (0.62us/row); the gather segment was mostly PEER WAIT all along"
+  },
+  "ple_over_rdma": {
+    "design": "worker --ple-gguf loads the 28.8GB IQ4_NL table into pinned RAM, expose_region(REMOTE_READ), publishes PleInfo (addr/rkey/rows) in ring slot 0 before serving; engine fetch_ple_info polls slot 0 after tier open, PleReader remote backend serves the row cache then one-sided chained reads (48 rows per WR chain, QP max_send_wr=64) via new RemoteStage::rdma_read_rows; --ple-io rdma, fail-closed",
+    "infra": "Spark needed /etc/security/limits.d/<spark>-memlock.conf (memlock unlimited) for the 28.8GB registration - done",
+    "measured": {
+      "row_read_p50_us": 11,
+      "decode_512": {"before": 60.72, "after": 66.68, "note": "PLE host phase 1.579 -> 0.026 ms/token"},
+      "prefill_512": {"before": 243.1, "after": 328.9},
+      "prefill_4k_real": {"before_honest": 497.4, "after": 520.3, "ple_ms": "1591 -> 186"}
+    },
+    "numerics": "512 and 4K outputs bit-identical to the Spark standalone ground truth"
+  },
+  "current_4k_wall_breakdown_ms": {
+    "wall": 7870, "gather": 5111, "peer_wait_inside": 4420, "engine_hit_kernel_approx": 700,
+    "gdn_total": 948, "qsa_total": 590, "hc_read": 652, "embed_steps": 138, "host_grouping": 214
+  },
+  "nico_baseline_4k": 1226,
+  "verdict": "520.3 vs 1226 = 42% - BELOW baseline; the wall is now the worker: 836K remote rows, ~40ms service per 2048-token window (transfer ~110MB f32 results + 21MB activations, then GB10 compute)",
+  "next_levers_ranked": [
+    "1. shrink window transfer: results f32->fp16 (89->44.5MB/window) and activations f32->q8_0 (engine already quantizes pf_q8; 21->5.4MB) - worth ~1.5-2s of the 4.4s peer wait; gate on token match vs ground truth",
+    "2. profile.bin regeneration from real routing traces (prefill hit 55% -> decode-level 90% halves remote rows AND transfer)",
+    "3. worker kernel throughput on GB10 (latency-bound tile kernel; bigger GMAX with dynamic shared on sm_121, or row-parallel redesign)",
+    "4. verify-window push-ification (decode 66 -> toward 90)"
+  ]
+}

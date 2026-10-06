@@ -1,0 +1,76 @@
+# The Linux-side compose template for the validated dual-host pair.
+#
+#   docker compose --profile engine up -d engine     # on the RTX 3080 host
+#   docker compose --profile worker up -d worker     # on the DGX Spark host
+#
+# Both containers use the host network: the RDMA doorbell path and the HTTP
+# fronts are addressed by the direct-fabric addresses, and NAT would break the
+# verbs endpoints. Real assets are mounted read-only; the image ships none.
+name: qwen38-flash-spark-3080
+
+x-common: &common
+  image: ${QWEN38_IMAGE:-ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest}
+  network_mode: host
+  ipc: host
+  runtime: nvidia
+  # RDMA verbs need the device nodes, the locked pages and the shared memory.
+  ulimits:
+    memlock: -1
+    nofile: 1048576
+  volumes:
+    - ${QWEN38_BUNDLE_DIR:-./bundle}/runtime.env:/opt/qwen38-flash-spark-3080/bundle/runtime.env:ro
+    # ---- externally acquired assets: the image never contains them ----------
+    - ${HOT_PACK_DIR:-/srv/models/strata-pack-hot}:/models/strata-pack-hot:ro
+    - ${COLD_PACK_DIR:-/srv/models/strata-cold-pack}:/models/strata-cold-pack:ro
+    - ${DENSE_GGUF:-/srv/models/dense.gguf}:/models/dense.gguf:ro
+    - ${PLE_GGUF:-/srv/models/Q2_0-00002.gguf}:/models/Q2_0-00002.gguf:ro
+    - ${PLE_FP8:-/srv/models/ple-fp8.bin}:/models/ple-fp8.bin:ro
+    - ${STRATA_RUN_DIR:-/var/run/strata}:/run/strata
+  devices:
+    - ${RDMA_CHAR_DEVICE:-/dev/infiniband}:/dev/infiniband
+
+services:
+  engine:
+    <<: *common
+    profiles: [engine]
+    container_name: qwen38-engine
+    environment:
+      ROLE: engine
+      NVIDIA_VISIBLE_DEVICES: ${ENGINE_GPUS:-0}
+      STRATA_ROLE: eng
+      # the endpoint this engine dials, exactly as documented
+      STRATA_RDMA_WORKER_ENDPOINT: ${STRATA_RDMA_WORKER_ENDPOINT:-10.43.12.1:39580}
+      STRATA_RDMA_ENGINE_ADDRESS: ${STRATA_RDMA_ENGINE_ADDRESS:-10.43.12.2}
+      STRATA_RDMA_DEVICE: ${STRATA_RDMA_DEVICE:-rocep1s0f1}
+      STRATA_CONTAINER_ROLE: engine
+    command: ["engine"]
+    restart: unless-stopped
+
+  worker:
+    <<: *common
+    profiles: [worker]
+    container_name: qwen38-worker
+    environment:
+      ROLE: worker
+      NVIDIA_VISIBLE_DEVICES: ${WORKER_GPUS:-0}
+      STRATA_ROLE: wrk
+      STRATA_RDMA_WORKER_ENDPOINT: ${STRATA_RDMA_WORKER_ENDPOINT:-10.43.12.1:39580}
+      STRATA_RDMA_DEVICE: ${STRATA_RDMA_DEVICE:-rocep1s0f1}
+      STRATA_CONTAINER_ROLE: worker
+    command: ["worker"]
+    restart: unless-stopped
+
+  router:
+    <<: *common
+    profiles: [router]
+    container_name: qwen38-router
+    environment:
+      STRATA_PREFILL_BACKEND: ${STRATA_PREFILL_BACKEND:-http://10.43.12.1:8200}
+      STRATA_DECODE_BACKEND: ${STRATA_DECODE_BACKEND:-http://10.43.12.2:8100}
+      STRATA_ROUTER_THRESHOLD: ${STRATA_ROUTER_THRESHOLD:-4096}
+    command: ["shell"]
+
+# Order matters. The worker must be listening on 10.43.12.1:39580 before the
+# engine starts, otherwise the first expert window is served from an unfilled
+# arena. Start the worker profile on the Spark host and wait for its arena line,
+# then start the engine profile on the 3080 host.

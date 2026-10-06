@@ -1,0 +1,30 @@
+{
+  "task": "P4a：NVFP4 dense 权重 GGUF（Strata 引擎 --native 用）",
+  "date": "2026-10-02",
+  "executor": "器灵写码单 run 20261002-212450-ed2921（385s 提前终局，只完成 GGUF 头探针、零交付）→ 主模型按单次机会制接手完成全部设计/写码/转换/验收",
+  "verdict": "PASS",
+  "deliverables": {
+    "strata-src/Strata/tools/nvfp4_dense_gguf.py": "转换器+验收器。策略：参考 Q2_0-00001.gguf 里 BF16/F32/F16 张量（776 个，hc/ssm/norm/router/ple_value 等未量化件，与 NVFP4 检查点 modelopt ignore 同源）逐字节拷贝；量化张量（303 个）从检查点 BF16 safetensors 重编码；专家张量 ffn_*_exps 144 个排除（走 pack-hot/pack-cold）",
+    "/home/<spark>/strata-nvfp4-p4/dense.gguf": "5,946,514,784 B，1079 张量（= 参考 1223 - 144 专家），metadata 73 KV 全克隆（类型保留）；已后台 scp 到 /home/<3080>/strata-nvfp4-p4/（Spark→3080 直连，<spark> 公钥已装 3080）"
+  },
+  "type_decisions": {
+    "Q8_0 (type 8)": "token_embd、output.weight、attn_gate/attn_qkv/attn_q/attn_k/attn_v/attn_output、ssm_out、ffn_*_shexp——native_mmvq_supported 不含 type 30 BF16，Q8_0 是被支持的最高精度线性网格",
+    "Q2_0 (type 42)": "仅 blk.1.ple_key.weight——ple.cu:233 fail-closed 只放行 42/18/23；编码器为逐块 MSE 最优 d（符号×分数二维搜索），契约解码 (code-1)*d 网格 {-1,0,1,2}",
+    "BF16/F32/F16 原样": "776 个未量化张量逐字节拷贝自参考 GGUF，零 HF 名映射风险（A_log/dt_bias 语义一并规避）"
+  },
+  "acceptance": {
+    "command": "python tools/nvfp4_dense_gguf.py --verify（Spark，/home/<spark>/strata-nvfp4-p4/build2.log）",
+    "header": "1079 tensors / 73 metadata，名字形状顺序与参考逐一对齐，problems=0",
+    "copy_compare": "776/776 逐字节一致",
+    "reencode": "303/303 PASS：Q8_0 rel_l2 全部 0.0056~0.0087（Q8_0 理论量级，阈 0.015）；ple_key MSE 编码 rel_l2 0.35099 ≤ 参考 ISTA 编码器的 0.35289（阈 0.45）",
+    "verdict": "P4A_VERIFY_PASS"
+  },
+  "integration_lessons": [
+    "docs/q2_0-contract.md 的朴素编码器（d=amax）会把小正值压到 0（实测 ple_key rel_l2 0.72）；真实 ISTA 编码约 d≈amax/2 量级带符号，MSE 搜索编码器达到并略超参考质量——首个从浮点编码 Q2_0 的场景，此前全部是抽取不重编码",
+    "参考 GGUF 00001 含 144 个专家张量（34GB），dense 转换必须显式排除；引擎 --native 模式的 dense 张量=1223-144=1079",
+    "远程传文件大坑三连：pkill -f 模式匹配到自身命令串自杀（用 [n] 首字母法或干脆别 pkill）、nohup 后台必须 </dev/null 全 detach 否则 paramiko 通道挂到超时、MSYS2_ARG_CONV_EXCL='*' 防 Git Bash 吃掉远程绝对路径",
+    "Spark→3080 无免密：已把 <spark>@<spark-host> 的 ed25519 公钥装入 /home/<3080>/.ssh/authorized_keys，scp 直连 40G 可用"
+  ],
+  "vram_note": "dense.gguf 5.94GB（Q2 时代 dense 约 3.6GB）——3080 显存预算里 dense 多占 ~2.3GB，NVFP4 热专家槽数实测时（P4d）要把这个算进去；若槽数太紧，备选是把 attention 类降到 Q4_K/IQ4_XS 重出一版（native_mmvq 均支持）",
+  "next": "P4b PLE FP8（语义已锁定：160×e4m3×0.00019931793212890625，行序与 IQ4_NL 表一致，行级对拍 max_rel 0.0845 PASS）→ P4c 引擎 CLI 接线 → P4d 切栈窗口"
+}

@@ -1,0 +1,35 @@
+{
+  "phase": "nvfp4-serve-nospec",
+  "date": "2026-10-04",
+  "goal": "路线一 decode 腿真身：解锁 Strata NVFP4 双机栈的 HTTP serve（用户拍板 B，实施走方案甲=解除 serve 对 --spec 的硬依赖，非 spec 解码路径；verify 接 NVFP4 平面层的方案乙不做，MTP 维持顺延）",
+  "change": {
+    "file": "strata-src/Strata/src/program/generate.cpp",
+    "summary": "serve 无 --spec 时走与 one-shot 相同的逐 token 路径（ple window + session_run_token/session_loop + run_head + sample_tokens），GEN/T/DONE 协议不变；ver./mtp. 全部条件化（spec_serve = o.spec >= 2 && !o.mtp.empty()）；旧 spec 路径行为零变化；read_windows/短读窗在非 spec 下禁用（短读走 batched）；prefill batched 路径与 RDMA push channel 1 不受影响",
+    "edits": 16,
+    "lines": "5585 -> 5669",
+    "backup": "generate.cpp.bak-serve-nospec（同目录，回滚=复原+双端重建）",
+    "sha256": "6bb0f7c9a18418e8bb7e601cdaac40bb59b8f6860c7e575e8de197ea9e7a3d26",
+    "build": "3080 cmake --build build-nvfp4 --target strata EXIT=0（唯一警告=819 行既有未用 argmax）",
+    "takeover": "器灵写码单因派单方 bash 反引号转义事故零产出失败，单次机会制主模型接手；调研锚点 14/14 唯一命中来自器灵探索单 20261004-115841-e71371"
+  },
+  "verify": {
+    "smoke_GEN16": "首 token 248046，与 V3 pf2048 bench 输出逐字一致；DONE 协议行完整",
+    "serve_pf2048": "prefill 278.0 tok/s（V3 bench 280.6，-0.9%），首 decode token 25.8ms",
+    "http_e2e": "真实中文请求 214 token，predicted_per_second 41.9 tok/s（V3 bench 41.7）；含 reasoning_content，chat template 正常",
+    "router_e2e": "经 <spark>:8400 短请求 15 字符 → leg=decode → <RDMA_PEER_ADDRESS>:8100 → 200，43.1 tok/s；/route-stats decode 1 请求 0 错误"
+  },
+  "deployment": {
+    "engine_http": "3080 server.py（serve/server.py 包，msvenv 解释器，补装 regex+jinja2）监听 0.0.0.0:8100，config /home/<3080>/strata-serve.json，启动脚本 /home/<3080>/strata-serve-start.sh（自动探测 RDMA 设备名），日志 /home/<3080>/strata-serve-http.log + strata-serve-engine.log",
+    "worker": "Spark <spark> strata-cold-expert-worker 去表形态不变（WORKER_CMD 同 _p5_bench.py），单会话：引擎退出 worker 即死，重启顺序=先 worker 后 server",
+    "router": "<spark> route-split 重启为 --prefill-backend http://<LAN_PREFILL_HOST>:8000 --decode-backend http://<RDMA_PEER_ADDRESS>:8100（<spark>→3080 管理网仍被隔离，ping 不通，走 40G 直连 <RDMA_PEER_ADDRESS>）",
+    "lan_ip_3080": "<LAN_3080_ADDRESS>（管理网，<spark> 方向不通）；<RDMA_PEER_ADDRESS>（直连，通）"
+  },
+  "caveats": [
+    "非 spec serve 的惩罚采样参数（penalty_*）传给 sampler 但无历史缓冲（与 one-shot 同行为）；vision/GENI 未测",
+    "engine 崩溃后 server.py 会自动重启 engine，但 worker 单会话已死，须人工/看门狗先起 worker",
+    "~30% 概率引擎首连报 peer control connection failed，重试即过",
+    "layer split（--split-device）+ 非 spec serve 未支持（阶段 verifier 仍需 spec）",
+    "非 spec serve 不做自适应专家置换（与 bench one-shot 同行为，41.7 即此形态实测）"
+  ],
+  "rollback": "router decode-backend 改回 http://<LAN_PREFILL_HOST>:8000 即回 interim；引擎回滚=复原 .bak-serve-nospec + 3080 重建（旧 spec 路径本版行为未变，混用亦安全）"
+}

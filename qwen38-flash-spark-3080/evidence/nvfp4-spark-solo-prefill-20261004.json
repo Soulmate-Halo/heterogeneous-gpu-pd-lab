@@ -1,0 +1,41 @@
+{
+  "version": "nvfp4-spark-solo-prefill-p1",
+  "date": "2026-10-04",
+  "scope": "P1①：Strata 引擎单机全专家 NVFP4 prefill 分支（Spark/GB10, aarch64, sm_121, CUDA 13.0）——45 号机单机 prefill 实测立版",
+  "architecture": "Spark 单进程引擎：--expert-resident-all 合成全 24576 (48x512) 驻留表，planar tier 63.28 GiB 全专家 marlin 平面驻统一内存，无 remote tier；prefill 走 STRATA_PF_NVFP4_RESIDENT resident marlin 批量路径（原要求 m.remote!=nullptr 的门已开）；--ple-fp8 bare_table 本地 NVMe 直读。3080 sm_86 双机路径零回归（同源码树双 arch）。",
+  "results": {
+    "prefill_2047tok_tok_s": 1117.93,
+    "prefill_ms": 1831.1,
+    "ttft_ms": 3205.9,
+    "decode_tok_s_standalone": 24.51,
+    "golden_first_token": "248046 (position 2048 — 与 V2/V3 双机生产逐字一致，sm_121 marlin 端到端数值验收 PASS)",
+    "fill": "bulk pread 版填充：48 层 x 1.42GB 顺序读入 1.42GB bounce + 512 槽/层 memcpy，全程约 60~80s（含引擎启动）",
+    "comparisons": {
+      "dual_machine_v3_prefill": "280.6 tok/s（本方案 = 3.98x）",
+      "sglang_single_spark_17": "2215 tok/s（本方案 = 50.5%）",
+      "dual_machine_decode_live": "41.7 tok/s（生产 decode 腿，不受影响）",
+      "sglang_decode_17": "15.6~18.9 tok/s（Spark 单机 24.51 仍高于它）"
+    }
+  },
+  "code_changes": {
+    "executor": "器灵单A 979s 零交付（16384 输出 token 截死）、单B 875s 零交付 → 主模型按单次机会制接手",
+    "files": [
+      "strata-src/Strata/src/program/generate.cpp：--expert-resident-all CLI（结构体/帮助/解析/nvfp4 校验放宽 profile 必需项/新增 nvfp4 限定校验）；profile 合成全 24576 对 layer-major 并钉死 --expert-cache=24576；planar 填充 bulk pread 路径（层文件整读 bounce + POSIX_FADV_DONTNEED 防页缓存挤占统一内存驱动池；首槽读回校验改用 4096B stash 防 bounce 翻页）",
+      "strata-src/Strata/src/prefill/prefill.cpp：nv4_hot 门去掉 m.remote 必要条件；缓冲块改 (remote||nv4_hot) 触发、pf_x_done 事件作闩锁、RDMA 窗口缓冲/arm_push 收进 remote 内层、pf_x_f32/pf_y_f32 仅 remote 生效；层循环 remote_on = remote||nv4_hot；pf_dst_host 写加 remote 保护 + pf_ne>0 且无 remote 时显式报错（未命中=启动填充 bug）",
+      "strata-src/Strata/CMakeLists.txt：STRATA_ENABLE_NVFP4 按 CMAKE_CUDA_ARCHITECTURES 121→SGL_CUDA_ARCH=1210 / 86→860 分流，错误文案更新"
+    ],
+    "build": "Spark /home/<spark>/strata/Strata/build-nvfp4（cmake 参数同 BUILD-SPARK.md + STRATA_ENABLE_NVFP4=ON + 三 venv 路径；BUILD_EXIT=0，ldd libtvm_ffi 解析自 Spark venv）"
+  },
+  "ops_findings": {
+    "gb10_pagecache_vs_cuda": "GB10 统一内存：cudaMemGetInfo 把页缓存计为已用——68GB 热缓存时 1.97GB cudaMalloc 即失败、63.28GiB planar 检查报 only 2.32 GiB free；引擎启动前须 drop_caches（用 start_worker.sh 自带 sudo 行），且填充路径不得经 mmap 页缓存（mmap fault 读实测仅 11.7 MB/s）",
+    "worker_cycle": "worker 与单机引擎内存互斥（63.3+90>121），bench 期间停 worker、完毕按 V3 原命令行重启（STRATA_PF_PROBE=1 ./build/strata-cold-expert-worker --format nvfp4 --pack /home/<spark>/strata-cold-pack --device rocep1s0f1 --port 39580 --slots 4 --slot-bytes 4194304）",
+    "ple_gguf_spark": "/home/<spark>/Q2_0-00002.gguf（28.8GB，3080 strata-mirror 经 40G rsync）；PLE fp8 表 /home/<spark>/qwen3.8-flash-next-ple-fp8.bin 同日早前到位；tokenizer 补齐 tokenizer.json/vocab.json 后 pack-hot 与 3080 全目录 rsync --checksum 一致",
+    "tokens": "pf2048 = 248045 x 2048 逗号分隔（/home/<spark>/pf2048_ids.txt），golden 首 token 248046"
+  },
+  "next": [
+    "P1② 双角色合并：worker 冷计算切 marlin 入口（复用 nvfp4_marlin_expert.cu，输出语义=未加权 expert 输出，容差 bf16 1ULP）+ 单进程内引擎 serve 与 worker 门铃循环共享同一份 63.28GiB marlin 平面（68+dense6+KV2+runtime15+RDMA~5 ≈ 96GB 可共存）——否则 prefill 引擎与 decode worker 内存互斥无法同驻",
+    "P2：Spark serve 常驻 + router prefill 腿切 45 本机 + E2E"
+  ],
+  "rollback": "代码：三个文件均有 3080 生产同源（工作副本即真相）；Spark build-nvfp4 目录可整体删除；生产双机栈（3080 serve :8100 + Spark worker）未做任何改动，worker 已按原命令行重启",
+  "raw_logs": ["Spark:/home/<spark>/spark-solo-bench4.log（PASS 全量）", "bench1~3.log（mmap 慢填充/页缓存顶 cudaMalloc 两次失败形态，存档备查）", "/home/<spark>/build-nvfp4-r2.log（BUILD_EXIT=0）"]
+}

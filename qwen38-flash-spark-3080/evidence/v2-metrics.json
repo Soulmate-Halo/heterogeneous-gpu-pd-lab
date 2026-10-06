@@ -1,0 +1,18 @@
+{
+  "schema": "qwen38-flash-spark-3080/v2-metrics@1",
+  "model": "Qwen3.8-27B-Flash-Next",
+  "hardware": {"engine": "RTX 3080 20GB", "worker": "DGX Spark / GB10", "weight_format": "NVFP4", "kv_format": "FP8", "context_tokens": 16384},
+  "prefill_samples_tok_s": [1030.80, 1163.40, 1161.10],
+  "prefill_prompt_tokens": 3600,
+  "prefill_peak_tok_s": 1163.40,
+  "prefill_mean_tok_s": 1118.43,
+  "prefill_status": "measured",
+  "aggregate_decode_measured_tok_s": 60.25,
+  "aggregate_decode_measurement": {"label": "C12", "concurrency": 12, "prompt_tokens": 2048, "output_tokens": 256, "completed": 156, "requests": 156, "status": "measured_end_to_end"},
+  "aggregate_decode_v2_projected_tok_s": 240.00,
+  "aggregate_decode_v2_status": "projected_kernel_scaling_target",
+  "aggregate_decode_v2_basis": "N=8 kernel scaling estimate; no completed end-to-end N=8 run",
+  "end_to_end_n1_tok_s": 45.54,
+  "measurement_scope": "V2 combines measured prefill and measured C12 decode; 240.00 is a projection/target and must not be reported as an end-to-end measurement.",
+  "source_artifacts": ["evidence/performance-v2.json", "evidence/nvfp4-batch-scaling-20261005.json", "evidence/nvfp4-spark-solo-prefill-20261004.json"]
+}

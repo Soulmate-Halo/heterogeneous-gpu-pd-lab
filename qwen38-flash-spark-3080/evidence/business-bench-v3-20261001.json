@@ -1,0 +1,43 @@
+{
+  "name": "业务测试集压测 · 稳态镜像 v3",
+  "date": "2026-10-01",
+  "scope": "跨机 Q2_0（3080 引擎 + Spark worker）用自有历史业务测试集（qwen38-hotep/benchmarks/history-20260929/corpus.jsonl，16 条 9 类）单路压测 prefill/decode",
+  "method": {
+    "driver": "3080 端 /tmp/bizbench/orch.py：逐条重启 worker（Spark /home/<spark>/start_worker.sh）+ 一次性 strata generate --tokens-file --max-new 64",
+    "engine_flags": "--pack strata-mirror/pack-q2_0 --native Q2_0-00001.gguf --ple-gguf Q2_0-00002.gguf --ple-io rdma --max-context 8192(idx12=9216) --mmap-experts --stats --remote-rdma <RDMA_SPARK_ADDRESS> --remote-rdma-device mlx5_0 --expert-cache 8192 --expert-profile /tmp/profile.bin --prefill 2048",
+    "critical_flag": "--prefill 2048 必须显式给：不给则 prompt 走逐 token decode 图（全部业务 prompt 只有 56~65 tok/s）；--prefill auto 会选自 2560 超出 RDMA 窗 2048 上限而报错，不可用",
+    "two_runs": "run1 无 --prefill（全部 56~65 tok/s，证伪用）；run2 --prefill 2048（下表）"
+  },
+  "results_run2": [
+    {"idx": 0, "category": "客服对话", "prompt_tokens": 1115, "prefill_tok_s": 608.41, "ttft_ms": 5428.8, "decode_tok_s": 65.05},
+    {"idx": 1, "category": "互动文案", "prompt_tokens": 305, "prefill_tok_s": 327.92, "ttft_ms": 4256.7, "decode_tok_s": 56.39},
+    {"idx": 2, "category": "互动文案", "prompt_tokens": 296, "prefill_tok_s": 311.51, "ttft_ms": 4330.7, "decode_tok_s": 56.88},
+    {"idx": 3, "category": "长文生成", "prompt_tokens": 696, "prefill_tok_s": 504.85, "ttft_ms": 4746.8, "decode_tok_s": 63.41},
+    {"idx": 4, "category": "历史代码基准", "prompt_tokens": 81, "prefill_tok_s": 129.59, "ttft_ms": 3890.7, "decode_tok_s": 64.88},
+    {"idx": 5, "category": "历史代码基准", "prompt_tokens": 83, "prefill_tok_s": 126.66, "ttft_ms": 3910.2, "decode_tok_s": 66.02},
+    {"idx": 6, "category": "游戏识别", "prompt_tokens": 1243, "prefill_tok_s": 639.9, "ttft_ms": 5164.2, "decode_tok_s": 64.49},
+    {"idx": 7, "category": "游戏识别", "prompt_tokens": 1246, "prefill_tok_s": 621.42, "ttft_ms": 5482.6, "decode_tok_s": 64.24},
+    {"idx": 8, "category": "数字商品估价", "prompt_tokens": 2516, "prefill_tok_s": 626.5, "ttft_ms": 7380.7, "decode_tok_s": 56.49},
+    {"idx": 9, "category": "客服质检", "prompt_tokens": 4627, "prefill_tok_s": 631.52, "ttft_ms": 10671.5, "decode_tok_s": 55.9},
+    {"idx": 10, "category": "客服质检", "prompt_tokens": 5919, "prefill_tok_s": 741.71, "ttft_ms": 11519.4, "decode_tok_s": 63.97},
+    {"idx": 11, "category": "客服质检", "prompt_tokens": 6933, "prefill_tok_s": 731.55, "ttft_ms": 12929.8, "decode_tok_s": 63.97},
+    {"idx": 12, "category": "客服质检", "prompt_tokens": 8899, "prefill_tok_s": 732.62, "ttft_ms": 15611.2, "decode_tok_s": 63.73},
+    {"idx": 13, "category": "翻译", "prompt_tokens": 216, "prefill_tok_s": 268.91, "ttft_ms": 4222.1, "decode_tok_s": 56.8},
+    {"idx": 14, "category": "翻译", "prompt_tokens": 459, "prefill_tok_s": 277.85, "ttft_ms": 6149.9, "decode_tok_s": 64.22},
+    {"idx": 15, "category": "旧文案基准", "prompt_tokens": 42, "prefill_tok_s": 43.19, "ttft_ms": 4827.4, "decode_tok_s": 52.78}
+  ],
+  "findings": {
+    "prefill_scaling": "业务 prefill 渐近速率 ~735 tok/s（8.9K 实测 732.6），短 prompt 被固定开销摊薄（ttft 含 prefill_ms 之外约 3.3~3.6s 固定开销）",
+    "decode": "56~66 tok/s，与合成基线 63.5 一致；低值（52.8~56.9）与命中率相关",
+    "vs_synthetic": "合成 4K 文本 965.7 tok/s vs 业务长 prompt ~735：业务命中率低于合成文本",
+    "vs_old_arch": "旧双机 PD 架构同业务集单路 13.83 tok/s（第119轮），现 decode 单项即 ~64 tok/s",
+    "concurrency": "本架构单序列 FIFO，两路并发不支持"
+  },
+  "ops_lessons": [
+    "Spark 页缓存膨胀会让 worker 的 512MiB 余量检查 fail-closed（cudaMemGetInfo 不计可回收缓存）；sudo 清 drop_caches 后恢复",
+    "worker 起后等引擎控制连接约 10 分钟，超时打印 listen timeout 退出——必须 worker/引擎成对立即启动",
+    "ssh/远程一行流里 pkill -f 模式会匹配自身命令行自杀：worker 启动固化成 /home/<spark>/start_worker.sh，调用行不含模式字面值",
+    "--serve 强制 --spec>=2+--mtp（跨机 verify 窗未 push 化，decode 会崩到 14.7），v3 测量口径只能用一次性 generate"
+  ],
+  "cleanup": "两端已清场（worker 已杀、3080 显存 9 MiB）"
+}

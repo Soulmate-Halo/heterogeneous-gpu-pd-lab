@@ -1,0 +1,77 @@
+{
+  "status": "PASS",
+  "results": [
+    {
+      "layer": 0,
+      "batch": 1,
+      "relative_rmse": 0.004674927797168493,
+      "roundtrip_ms": 79.18900399818085,
+      "activation_bytes": 5400,
+      "result_bytes": 5200
+    },
+    {
+      "layer": 0,
+      "batch": 8,
+      "relative_rmse": 0.005075033288449049,
+      "roundtrip_ms": 4.709129003458656,
+      "activation_bytes": 41808,
+      "result_bytes": 41040
+    },
+    {
+      "layer": 0,
+      "batch": 32,
+      "relative_rmse": 0.005146930925548077,
+      "roundtrip_ms": 7.451468001818284,
+      "activation_bytes": 166616,
+      "result_bytes": 163920
+    },
+    {
+      "layer": 23,
+      "batch": 1,
+      "relative_rmse": 0.005881936755031347,
+      "roundtrip_ms": 3.868877000059001,
+      "activation_bytes": 5400,
+      "result_bytes": 5200
+    },
+    {
+      "layer": 23,
+      "batch": 8,
+      "relative_rmse": 0.005033961497247219,
+      "roundtrip_ms": 4.653672993299551,
+      "activation_bytes": 41808,
+      "result_bytes": 41040
+    },
+    {
+      "layer": 23,
+      "batch": 32,
+      "relative_rmse": 0.0058269319124519825,
+      "roundtrip_ms": 6.656479003140703,
+      "activation_bytes": 166616,
+      "result_bytes": 163920
+    },
+    {
+      "layer": 47,
+      "batch": 1,
+      "relative_rmse": 0.006191113963723183,
+      "roundtrip_ms": 3.658670000731945,
+      "activation_bytes": 5400,
+      "result_bytes": 5200
+    },
+    {
+      "layer": 47,
+      "batch": 8,
+      "relative_rmse": 0.00595377292484045,
+      "roundtrip_ms": 4.554617000394501,
+      "activation_bytes": 41808,
+      "result_bytes": 41040
+    },
+    {
+      "layer": 47,
+      "batch": 32,
+      "relative_rmse": 0.005751120857894421,
+      "roundtrip_ms": 6.770175008568913,
+      "activation_bytes": 166616,
+      "result_bytes": 163920
+    }
+  ]
+}

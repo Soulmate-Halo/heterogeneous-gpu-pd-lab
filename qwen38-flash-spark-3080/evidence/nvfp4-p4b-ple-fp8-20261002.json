@@ -1,0 +1,29 @@
+{
+  "task": "P4b：PLE FP8 E4M3 新路径（worker + 引擎双侧）",
+  "date": "2026-10-02",
+  "executor": "器灵写码单 run 20261002-213119-81a151（50+ 分钟卡死在自编 find / 全盘扫描，零文件改动，已 --kill-run 明确终止）→ 主模型按单次机会制接手完成全部设计/写码/双端构建/验收",
+  "verdict": "PASS",
+  "semantics": {
+    "table": "ple/qwen3.8-flash-next-ple-fp8.bin：320001536 行 × 160 B，e4m3(1S/4E bias7/3M) × 全局 scale 0.00019931793212890625（model-plefp8-scale.safetensors 与索引内 weight_scale 同值，bf16）",
+    "oracle": "8 行抽样行级对拍 FP8×scale vs 引擎现行 IQ4_NL 解行：rel_l2 0.0775~0.0845 = IQ4_NL 自身量化误差量级，ORACLE_PASS——行序布局两格式一致，FP8 是检查点原生存储（比 Q2 生产的 IQ4_NL 精度更高）"
+  },
+  "deliverables": {
+    "include/strata/core/rdma_expert_tier.hpp": "PleInfo v2：+format(kPleFmtIq4Nl=0/kPleFmtFp8E4m3=1)+fp8_scale；v1 记录继续被接受并归一化为 Iq4Nl（Q2 零回归）",
+    "src/core/rdma_expert_tier.cpp": "fetch_ple_info 接受 v1(90B)或 v2(format 校验 fail-closed)",
+    "tools/cold_expert_worker.cpp": "--ple-fp8 PATH --ple-fp8-scale F（与 --ple-gguf 互斥、缺 scale 拒启）：原始表 fread 51.2GB pinned 注册 RDMA，发 v2 记录；Q2 --ple-gguf 路径逐字不动",
+    "include/strata/kernels/ngram.hpp + src/kernels/ngram.cpp": "PleRowFormat、PLE_ROW_BYTES_FP8=160、fp8e4m3_dequant_row（256 码查表）；PleTable 按 format/rb 解行，FP8 仅限 RDMA 模式且必须带 scale（fail-closed）；本地 GGUF 仍作形状预言机（两编码行数与行宽 160 值全同）",
+    "include/strata/ngram/ple_reader.hpp + src/ngram/ple_reader.cpp": "行宽参数化（ROW_BYTES 常量→open/open_remote 的 row_bytes，行缓存/页对齐/统计全跟随）",
+    "src/program/generate.cpp": "PleRowsOverRdma 带行宽；glue 把 PleInfo 的 format/scale 传给 PleTable，并 fail-closed 校验 worker 行数==本地 GGUF 行数",
+    "tests/test_ple_fp8.cpp + CMakeLists.txt": "fixture 测试：e4m3 全 256 码 vs 独立标量参考、FP8 全链路（loopback remote+行缓存+gather/gather_batch/read_row）、IQ4_NL 同管线回归、越界行零、无 scale 拒开"
+  },
+  "acceptance": {
+    "oracle_command": "python /tmp/_p4_ple_oracle.py（Spark）→ ORACLE_PASS max_rel=0.08452",
+    "spark_build": "cmake --build build -j 18 → EXIT=0（100% built）",
+    "spark_test": "./build/test_ple_fp8 → 11/11 PASS，PLE_FP8_TEST_PASS",
+    "s3080_build": "cmake --build build-nvfp4 -j 32 → EXIT=0、0 error（需补同步 P3 的 nvfp4_cold 两个文件，3080 树此前缺）",
+    "s3080_test": "./build-nvfp4/test_ple_fp8 → 11/11 PASS，PLE_FP8_TEST_PASS",
+    "deferred": "51.2GB 全量装载冒烟 + 双机 RDMA PLE 联调顺延 P4d 切栈窗口（与在线 hotep 显存互斥）",
+    "verdict": "PASS"
+  },
+  "next": "P4c 引擎 CLI 接线（P2 遗留：--expert-format nvfp4 + pack manifest + profile 平面填充 + gm 上传）→ P4d 切栈窗口"
+}

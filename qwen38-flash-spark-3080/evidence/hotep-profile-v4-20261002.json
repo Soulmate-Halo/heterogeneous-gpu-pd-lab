@@ -1,0 +1,52 @@
+{
+  "id": "hotep-profile-v4-20261002",
+  "date": "2026-10-02",
+  "task": "用全部 16 条业务 prompt 重建热门专家表 v4 并 A/B 验收（提高线上 decode 命中率）",
+  "trigger": "引擎日志实测 decode R4 命中 50.3% vs profile_v3 离线自评 86.4%，口径差 36pp",
+  "root_cause": "v3 的 86.4% 是 in-sample 自评虚高（profile 由被评 trace 生成，且该 trace 只有 7393 个不同 (layer,expert) 对 < 8192 槽，自评上限 100%）；线上业务 prompt 是 out-of-sample，v3 真实命中只有 ~46-50%。离线口径与线上算法一致（都按 (layer,expert) 驻留表判 hit），无 bug，纯语料漂移。证据：889db5 调查单 + LOSO 复评。",
+  "collection": {
+    "method": "collect_all.sh：每条 prompt 重启 Spark worker + 引擎跑 --prefill 2048 --max-new 128，STRATA_PREFILL_TRACE + --dump-routing 落 pf_idxN.bin / dec_idxN.bin",
+    "result": "16/16 RC=0，dec 文件全部 540672B（128 tok x 48 层 x 10 专家完整）",
+    "location": "3080:/tmp/tr_v4/（含 englogs/ 每条引擎日志）"
+  },
+  "loso_eval": {
+    "method": "leave-one-prompt-out：held-out prompt 的表用其余 15 条 trace 建，驻留 top-8192，评 held-out decode 命中（与引擎 R4 口径同）",
+    "incumbents": {"profile_v3": 0.4596, "nico": 0.4445},
+    "best_config": "decx1_pfx0_oldpf0_olddec0（纯业务 decode trace，prefill trace 与旧 trace 混入均不加分）",
+    "v4_loso_decode_hit": 0.6786,
+    "distinct_pairs_seen": 22901,
+    "script": "strata-src/evidence/hotep-profile-v4/build_eval.py",
+    "full_report": "strata-src/evidence/hotep-profile-v4/loso_eval.json"
+  },
+  "online_ab": {
+    "method": "同段背靠背，每条重启 worker，--stats，3080:/tmp/bench_v4/",
+    "idx9_4626tok": {
+      "v3": {"r4_hit": 0.4951, "prefill_toks": 705.70, "ttft_ms": 10444.2, "decode_toks": 63.78},
+      "v4": {"r4_hit": 0.8643, "prefill_toks": 842.45, "ttft_ms": 9094.5, "decode_toks": 66.41}
+    },
+    "idx0_1114tok": {
+      "v3": {"r4_hit": 0.4789, "prefill_toks": 607.91, "ttft_ms": 5765.7, "decode_toks": 64.89},
+      "v4": {"r4_hit": 0.8276, "prefill_toks": 743.02, "ttft_ms": 5130.3, "decode_toks": 67.94}
+    },
+    "note": "线上命中 0.83-0.86 高于 LOSO 0.68：v4 交付表含全部 16 条 trace（对这两条 in-sample）；0.68 是对全新 unseen prompt 的泛化估值"
+  },
+  "conclusion": "v4 相对 v3：线上 decode 命中 0.48~0.50 -> 0.83~0.86，prefill +19~22%，decode +4~5%。decode 涨幅小是因为 44ms/步里远端 miss 部分只占一部分，固定开销仍在。",
+  "production": {
+    "active": "/tmp/profile.bin = v4, md5 e729e75e59700340cc37248a98ccdc56",
+    "backup": "/tmp/profile_v3_backup.bin = v3, md5 28b66062c21357fa3aac67d78463a82b",
+    "local_copy": "strata-src/evidence/hotep-profile-v4/profile_v4_cand.bin"
+  },
+  "nvfp4_download": {
+    "model": "RadixArk/Qwen3.8-Flash-Next-NVFP4 (modelscope)",
+    "path": "3080:~/pd27b-nvfp4-sglang/models/Flash-Next-NVFP4",
+    "verified": "420/420 文件、135.3GB、逐字节比对 API 尺寸全部一致（du 显 126G 为块占用差异，文件尺寸全对）",
+    "note": "仅下载未部署，按用户指示先把 Q2 栈搞好"
+  },
+  "lessons": [
+    "大下载（100G+ 写同一块盘）会把引擎启动的 expert-cache 填充拖到超时（600s 不够）：跑引擎前确认盘上没有大写入任务，或先停采集等下载完",
+    "collect_all.sh 跳过已有 trace 的 prompt，可断点重跑；重复实例会互相 pkill 引擎（run_one 失败路径 pkill -9 'build/strat[a]' 无差别），启动前必须确认没有活实例",
+    "引擎 GPU init 期间跳板 SSH 通道开不起来是常态（负载高），所有 drive.py 调用要套重试",
+    "drive.py bg/run 的 /tmp 参数在 MSYS2 下会被路径转换，必须 export MSYS2_ARG_CONV_EXCL='*'",
+    "多行 python -c 经 jump3080 repr() 嵌套引号必炸，超过一行的远端 python 一律写成文件 put 上去跑"
+  ]
+}

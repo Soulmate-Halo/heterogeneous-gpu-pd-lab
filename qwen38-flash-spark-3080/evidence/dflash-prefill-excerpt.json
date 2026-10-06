@@ -1,0 +1,8 @@
+{
+  "schema": "normalized-evidence-excerpt@1",
+  "source_artifact": "nvfp4-dflash-bench-20261005.json",
+  "source_scope": "prompt_tokens=3600, prefill leg",
+  "prefill_leg_tok_s": [1030.80, 1163.40, 1161.10],
+  "prefill_peak_tok_s": 1163.40,
+  "note": "Normalized public excerpt; model weights, host logs and credentials are not redistributed."
+}

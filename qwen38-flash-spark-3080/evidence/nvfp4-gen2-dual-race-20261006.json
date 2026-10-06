@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-06",
+  "subject": "batch ladder phase 2 (N=2 GEN2 dual-slot decode): infra shipped, serial-correct, concurrency race isolated to B's remote path x A's live graph",
+  "status": "production restored on strata.bak-batch2 (phase-1 binary); phase-2 code dormant behind GEN2 (never sent by production)",
+  "fixes_landed": [
+    "bug A root cause: arm_push_prefill is once-per-process (rdma_expert_tier.cpp:219), so slot-1's Prefill object staged into its own buffers while channel 1 stayed bound to slot-0's regions -> slot-1 prefill state garbage (gdn/ple/tail/kv hash mismatch). FIX: single shared Prefill + Prefill::set_session() retarget between prompts; production GEN re-takes it at apply_pending; lend layout tracker unified to lend_first_now. Verified: S1-after-prefill hash == S0 == single-GEN reference, byte-identical.",
+    "PLE drain at GEN2 end (outstanding ahead issue would otherwise be collected by the next single GEN - ST_REFA2 contamination attempt #1; ST_REFA2 still fails, cause still open, only matters if GEN2 is used)"
+  ],
+  "experiment_matrix": {
+    "serial_dual (STRATA_G2_SERIAL)": "T0==T1==single reference, 8/8 + EOS cases - dual bookkeeping (sessions, prefills, PLE tickets, doorbells, drive, serve loop) all CORRECT",
+    "concurrent (stagger 0/4/16)": "corrupt; stagger 48 (A fully served before B launches) clean - any real graph overlap breaks",
+    "B_NOHITS (B graph w/o marlin hit path)": "A still corrupts - collider is NOT the NVFP4 marlin kernels on shared planes",
+    "B_NOPLE (B graph w/o PLE)": "A still corrupts - collider is NOT PLE",
+    "B_NOPOOL (B graph sprint, host-acked flags, zero worker traffic)": "A PERFECT 8/8 - device-side graph concurrency is CLEAN (kernels do not collide)",
+    "A_NOPOOL (A graph sprint, B served for real on ch3)": "B STILL corrupt - ch3 remote path fails when A's graph is merely LIVE, no ch0 traffic needed",
+    "B pull variant": "broken and leaves the tier in pull (next GEN times out); 3080 CPU is E5-2673 v3 (no AVX-512) so the CPU-pool fallback for B is impossible"
+  },
+  "conclusion": "B's corruption needs (A's graph LIVE) + (B's real remote serve). Statically verified airtight: per-slot doorbells/y_contig/session arenas, request-block ack chain (flag-after-y, pend gating), worker sequential single-loop with per-channel bind regions, in-graph ring-after-scatter ordering, threadfence_system in ring/wait kernels. Next probe: dump B's y_contig header+first rows vs Spark cold-host log per layer in the A-live window (is the y late/wrong, or the flag early), or repeat A_NOPOOL 3x for probability.",
+  "ops_notes": [
+    "Spark cold-host dies fail-closed after repeated accept timeouts (each engine QUIT = session lost): restart = bash /home/<spark>/_p12_merged_start.sh, then 3080 serve",
+    "3080 serve restart: setsid bash /home/<3080>/strata-serve-start.sh; health = curl 127.0.0.1:8100/v1/models (on 3080) or router <ROUTER_ADDRESS>:8400/health",
+    "instrumentation in tree (env-gated, dormant): STRATA_G2_STATE/LAYERS/ROUNDS/TRACE/SERIAL/PULL/B_NOPUSH/B_NOHITS/B_NOPLE/B_NOPOOL/A_NOPOOL, /tmp/strata_g2_stagger; state_hash_dump() shared by GEN+GEN2",
+    "diag scripts: qwen38-hotep/ops/_b2_diag.py _b2_diag_iso.py _b2_diag_state.py _b2_diag_stagger.py; deploy _b2_deploy.py"
+  ]
+}

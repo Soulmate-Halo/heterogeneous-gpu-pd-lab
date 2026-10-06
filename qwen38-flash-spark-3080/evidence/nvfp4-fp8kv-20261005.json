@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-05",
+  "task": "FP8 (e4m3) KV cache implementation + production rollout + context capacity doubling",
+  "implementation": {
+    "author": "subagent run 20261005-155652-0c8e42 (write contract), mainline added CMakeLists entries",
+    "design": "new kv_fp8 path mirroring kv_q8: 64 e4m3 codes + 1 fp16 scale per group (scale=max|x|/448, SATFINITE), quantize on write, software dequant in attention (sm_86 has no FP8 hardware); KV_MODE 2 in qsa_decode_attn/qsa_prompt_attn (q4 template renumbered 2->4, math unchanged); 1056 B/cell vs 2048 B fp16",
+    "files": ["CMakeLists.txt", "include/strata/core/layer.hpp", "include/strata/kernels/kv_fp8.hpp (new)", "include/strata/kernels/kv_stream.hpp", "include/strata/kernels/qsa_decode_attn.hpp", "src/core/layer.cpp", "src/core/mtp.cpp", "src/core/verify.cpp", "src/kernels/cuda/kv_fp8.cu (new)", "src/kernels/cuda/kv_stream.cu", "src/kernels/cuda/qsa_decode_attn.cu", "src/kernels/cuda/qsa_prompt_attn.cu", "src/kernels/kv_fp8_parity.cpp (new)", "src/prefill/prefill.cpp", "src/program/generate.cpp"],
+    "diffstat_lines_per_file_3080": "4..44 changed lines per touched file (fp8 scope only); default fp16 path untouched",
+    "flag": "--kv fp8 (default remains fp16); fp8/int8/q4/k8v4 mutually exclusive"
+  },
+  "builds": {"spark": "BUILD_EXIT=0 (strata + kv_fp8_parity + kv_q8_parity)", "gpu3080": "BUILD_EXIT=0 (same targets)"},
+  "parity": {
+    "spark": {"kv_fp8": "OK (quant 16.000 scale-units, vs FP16 16.197, attn RMSE 0.1857)", "kv_q8_regression": "OK (0.590 steps)"},
+    "gpu3080": {"kv_fp8": "OK (identical numbers to Spark)", "kv_q8_regression": "OK", "note": "3080 required production serve down (VRAM full) to run; executed in the switchover gap"}
+  },
+  "golden_e2e": {
+    "route": "router <ROUTER_ADDRESS>:8400, temperature 0, 256 completion tokens",
+    "fp16_vs_fp8": "greedy paths diverge early (g1 0%, g2 4 chars, g3 48 chars prefix match) - argmax flips on near-tie reasoning openers from fp8 quantization drift; both sides coherent and on-topic (g2 math verified correct: 21.55ms wall, halving doorbell -> +20.1%)",
+    "fp8_determinism": "3/3 runs byte-identical for g1,g2,g3 and for g4 at 11.5K context",
+    "config_sanity": "g1 output byte-identical before/after max-context 8192->16384 bump"
+  },
+  "capacity": {
+    "before": "max-context 8192 both ends; HTTP usable input ~7800 tokens (8192-8-max_new)",
+    "after": "max-context 16384 both ends (--kv fp8); fp8 pool @16384 ~= 198MiB vs fp16 @8192 192MiB - net zero VRAM",
+    "proof": "g4 = 11,457 prompt tokens (19911 chars) -> HTTP 200, old config would reject outright; warm rerun cached_tokens=11452/11457"
+  },
+  "speed_e2e_256tok": {
+    "g1_short": "5.89s steady (~43 tok/s e2e, in business band)",
+    "g2_medium": "6.28s",
+    "g3_2922tok": "9.60s",
+    "g4_11457tok": "first 25.36s (uncached prefill ~10.4s + cold decode), warm cached 9.68s (~26 tok/s e2e at 11.5K ctx)"
+  },
+  "production_state": "LIVE: Spark :8200 and 3080 :8100 both restarted with --kv fp8 --max-context 16384; router untouched; STRATA_BUILD_TESTS flipped back OFF on both build-nvfp4 dirs",
+  "rollback": {
+    "binaries": "strata.fp16-golden copied from /proc/<pid>/exe on both ends before switchover (Spark 1.5MB, 3080 28MB) next to build-nvfp4/strata",
+    "scripts": "_p12_merged_start.sh.bak-fp8 + strata-serve.json.bak-fp8 (Spark), strata-serve-start.sh.bak-fp8 + strata-serve.json.bak-fp8 (3080)",
+    "sources": ".bak-fp8 per touched file on both source trees",
+    "procedure": "restore golden binary over build-nvfp4/strata, restore .bak-fp8 start scripts, restart Spark then 3080"
+  },
+  "ops_lessons": [
+    "nested ssh 'bash -c \"...\"' launch reports LAUNCHED but payload never runs (quoting eaten); reliable pattern = write script locally, scp to 3080, ssh 'setsid bash file'",
+    "build-nvfp4 on both ends has STRATA_BUILD_TESTS:BOOL=OFF: parity/test targets do not exist there; flip ON -> build test targets -> flip back OFF (reconfigure only, no rebuild of strata)",
+    "ssh run_client occasionally returns empty on this link (known ~30% peer-control drops): retry wrapper required",
+    "curl on Windows Git Bash mangles Chinese in -d literals: always --data @utf8-file"
+  ],
+  "notes": [
+    "PRESSURE.md 'usable input ~7800 tok' conclusion is now obsolete (was a config cap, not a VRAM limit: fp16 pool was only 192MiB of 20GB)",
+    "library entry V1.1 start scripts now differ from production (--kv fp8, 16384): candidate V1.2 re-validation if a new library version is wanted",
+    "next levers unchanged: doorbell inter-layer prefetch (7.2ms), FlashInfer NVFP4 kernels (11.9ms)"
+  ]
+}

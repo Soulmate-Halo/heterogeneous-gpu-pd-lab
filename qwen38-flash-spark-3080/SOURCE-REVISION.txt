@@ -1,0 +1,19 @@
+Project: Qwen3.8-Flash-Next NVFP4 heterogeneous PD deployment
+Snapshot date: 2026-10-06
+
+Upstream family:
+  https://github.com/Niko1221/Strata (MIT)
+  https://github.com/sergqwer/strata-nvfp4 (fork reference)
+
+This bundle carries the complete Strata source snapshot under src/ plus the
+local NVFP4/RDMA/FP8-KV changes already validated in the experiment archive.
+It does not carry model weights, private binaries, private host configuration,
+or private credentials. The exact source snapshot can be identified by the
+SHA256SUMS file; do not mix source files from another snapshot.
+
+Validated build contract:
+  RTX 3080: CUDA 13, sm_86, STRATA_ENABLE_NVFP4=ON,
+             STRATA_NATIVE_EXPERTS=OFF
+  DGX Spark/GB10: CUDA 13, sm_121, STRATA_ENABLE_NVFP4_COLD=ON
+  external build inputs: SGL kernel headers, TVM-FFI headers and library
+

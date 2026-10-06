@@ -1,0 +1,92 @@
+{
+  "mode": "hot",
+  "status": "PASS",
+  "records": [
+    {
+      "name": "arithmetic",
+      "pass": true,
+      "content": "42",
+      "reasoning": "",
+      "usage": {
+        "prompt_tokens": 34,
+        "total_tokens": 37,
+        "completion_tokens": 3,
+        "prompt_tokens_details": null,
+        "reasoning_tokens": 0
+      },
+      "finish_reason": "stop",
+      "wall_seconds": 0.759325732011348,
+      "ttft_seconds": 0.6006986440042965,
+      "stream_chunks": 2
+    },
+    {
+      "name": "exact-recall",
+      "pass": true,
+      "content": "BIRCH-5729-CYAN",
+      "reasoning": "",
+      "usage": {
+        "prompt_tokens": 40,
+        "total_tokens": 52,
+        "completion_tokens": 12,
+        "prompt_tokens_details": null,
+        "reasoning_tokens": 0
+      },
+      "finish_reason": "stop",
+      "wall_seconds": 1.4861380649963394,
+      "ttft_seconds": 0.7891634269908536,
+      "stream_chunks": 5
+    },
+    {
+      "name": "concurrent-a",
+      "pass": true,
+      "content": "MAPLE-8136-GOLD",
+      "reasoning": "",
+      "usage": {
+        "prompt_tokens": 30,
+        "total_tokens": 40,
+        "completion_tokens": 10,
+        "prompt_tokens_details": null,
+        "reasoning_tokens": 0
+      },
+      "finish_reason": "stop",
+      "wall_seconds": 1.934723358019255,
+      "ttft_seconds": 1.0944322510040365,
+      "stream_chunks": 4
+    },
+    {
+      "name": "concurrent-b",
+      "pass": true,
+      "content": "CEDAR-4268-WHITE",
+      "reasoning": "",
+      "usage": {
+        "prompt_tokens": 30,
+        "total_tokens": 40,
+        "completion_tokens": 10,
+        "prompt_tokens_details": null,
+        "reasoning_tokens": 0
+      },
+      "finish_reason": "stop",
+      "wall_seconds": 1.9345003229973372,
+      "ttft_seconds": 1.3481993169989437,
+      "stream_chunks": 4
+    },
+    {
+      "name": "long-recall",
+      "pass": true,
+      "content": "ASPEN-6391-BLUE",
+      "reasoning": "",
+      "usage": {
+        "prompt_tokens": 9253,
+        "total_tokens": 9264,
+        "completion_tokens": 11,
+        "prompt_tokens_details": null,
+        "reasoning_tokens": 0
+      },
+      "finish_reason": "stop",
+      "wall_seconds": 52.328002745023696,
+      "ttft_seconds": 51.61952493400895,
+      "stream_chunks": 4
+    }
+  ],
+  "concurrent_wall_seconds": 1.936259631998837
+}

@@ -1,0 +1,32 @@
+{
+  "task": "P1：NVFP4 canonical pack 工具与全量打包（Strata 引擎 NVFP4 移植）",
+  "date": "2026-10-02",
+  "executor": "器灵写出工具主体（两次 run 均被基础设施杀死，零验收）→ 主模型按单次机会制接手：修 2 个 bug、跑全部验收与全量打包",
+  "tool": "strata-src/tools/nvfp4_pack.py（pack/selftest/manifest/inspect 四命令；hot 风味直接调 sglang marlin_utils_fp4 函数，cold 纯字节直通；--resume 断点续打）",
+  "blob_format_v2": {
+    "header": "64B：MAGIC STRNVFP4 + VERSION 2 + flavor + layer + expert + n_planes + 各平面字节数 + sha256 前 8B",
+    "trailer": "6×f32 原始全局标量（gate/up/down 各 weight_scale_2+input_scale），整体 256B 对齐",
+    "hot_planes": ["w13_weight 1,638,400B（gate+up 融合整体 marlin repack，严禁切半）", "w2_weight 819,200B", "w13_scale 204,800B（融合 swizzle）", "w2_scale 102,400B"],
+    "cold_planes": ["gate/up/down 权重各 819,200B（原始行序）", "gate/up/down scale 各 102,400B（原始 F8）"],
+    "blob_bytes": 2765056
+  },
+  "bugs_fixed_by_takeover": [
+    "cold 自验收全 FAIL 是工具 bug：marlin_*_equal=None 经 dict.get(key,True) 仍为 None 使与链为假（改为 is not False）",
+    "hot v1 设计 bug：融合 w13 经 marlin repack 后按字节切半充当 gate/up 各自 marlin 平面——marlin tile 置换跨整个 1280 维，切半无意义；重构为融合 4 平面 + VERSION 2"
+  ],
+  "acceptance": {
+    "cold_selftest": "PASS 144/144（48 层 × 每层面随机 1 专家 × 3 投影；权重/scale/反量化与 sglang 参考逐比特一致）/home/<3080>/strata-pack/selftest-cold.json",
+    "hot_selftest": "PASS 48/48（48 层 × 每层面随机 1 专家；融合 w13/w2 权重与 scale 与 sglang prepare 逐比特一致）/home/<3080>/strata-pack/selftest-hot.json"
+  },
+  "full_pack": {
+    "hot": "48/48 层 × 512 专家完成，/home/<3080>/strata-pack/pack-hot/（67.95GB，manifest-hot.json 含每层 md5），elapsed 5348s",
+    "cold": "48/48 层完成并经 Windows 接力流式送达 Spark：<spark>:~/strata-cold-pack/（48 层共 67,954,016,256 B + manifest/state），3080 本地已逐层清除（磁盘放不下两份）",
+    "relay_tool": "strata-src/tests/_cold_relay.py（断点续传、尺寸校验、出错重连）"
+  },
+  "ops_notes": [
+    "hot 打包需 GPU（marlin repack 是 CUDA op）——hotep 曾停机 3.6h（12:55~16:30 本地），打包完成后已 cluster.py start×3 恢复，双端 health/ready=true、请求计数恢复",
+    "3080 无 c++ 软链：已建 ~/.local/bin/{c++,g++,gcc,cc}→g++-13/gcc-13（sglang JIT 与 nvcc 依赖）",
+    "SSH 并发限制：<spark>/<3080> sshd 对新建连接有 MaxStartups 类限流，密集轮询会引发 banner 超时，需低频；已建立的长连接不受影响",
+    "本地 manage.py 必须 MSYS2_ARG_CONV_EXCL='*'，否则 POSIX 路径被 MSYS 转换"
+  ]
+}

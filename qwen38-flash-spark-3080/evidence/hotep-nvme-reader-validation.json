@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "reader": "sglang_ssd_stream._io.PageReader",
+  "records": [
+    {
+      "rows": 5,
+      "ms": 0.25969398848246783
+    },
+    {
+      "rows": 4096,
+      "ms": 0.8117719989968464
+    }
+  ],
+  "fixture_bytes": 655360,
+  "registered_buffers": true
+}
