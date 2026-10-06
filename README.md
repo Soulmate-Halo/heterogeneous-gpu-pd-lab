@@ -6,14 +6,16 @@
 
 Public reproducible bundle: [qwen38-flash-spark-3080](qwen38-flash-spark-3080/). NVFP4 dense/Prefill and FP8 KV run on the RTX 3080 20GB; MoE cold experts and the PLE/KV worker run on the DGX Spark / GB10.
 
-| Metric | Value | Scope |
+| Metric | Value | Single-machine baseline |
 | --- | ---: | --- |
-| Prefill, three runs | 1030.80 / 1163.40 / 1161.10 tok/s | prompt=3600, measured |
-| Prefill peak | 1163.40 tok/s | measured |
-| Prefill mean | 1118.43 tok/s | measured mean of the three runs |
-| Aggregate Decode peak | 60.25 tok/s | C12, 12-way, 2048 input / 256 output, 156/156 complete, measured end-to-end |
-| V2 aggregate Decode target | 240.00 tok/s | N=8 kernel batch-scaling projection/target, **not an end-to-end measurement** |
-| Single-request end-to-end Decode | 45.54 tok/s | N=1, measured |
+| Prefill, three runs | 1030.80 / 1163.40 / 1161.10 tok/s | 1117.93 tok/s (Spark solo, 2047 tokens) |
+| Prefill peak | 1163.40 tok/s | 1117.93 tok/s (Spark solo, 2047 tokens) |
+| Prefill mean | 1118.43 tok/s | 1117.93 tok/s (Spark solo, 2047 tokens) |
+| Aggregate Decode peak | 60.25 tok/s | Not measured (solo C12 aggregate) |
+| V2 aggregate Decode target | 240.00 tok/s | Not measured (solo N=8 end-to-end) |
+| Single-request end-to-end Decode | 45.54 tok/s | 24.51 tok/s (Spark solo, single stream) |
+
+The solo baselines come from `evidence/nvfp4-spark-solo-prefill-20261004.json`; Prefill input length, concurrency and Decode measurement differ, so these values do not form a strict speedup ratio.
 
 Docker image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest` (fixed tag `sha-3fcd285` as a supplementary pin).
 
@@ -73,8 +75,6 @@ All cases use an output budget of **1024 tokens**, allowing natural EOS; long in
 **The six GPUs form a two-stage PP2 pipeline: two RTX 6000D GPUs use TP2 for long-input Prefill, and four DGX Sparks use TP4 to receive context and generate the response. DS4.1's dedicated Prefill path does not require the accelerator side to load the full model. Both 6000D GPUs can therefore cooperate on the entire long-input encoding path, concentrating compute where acceleration matters most.**
 
 **Why does the model allow this?** DeepSeek-V4.1-Flash uses a causal encoder-decoder (CED). Long prompts pass through the encoder, and the decoder's global KV is projected from the encoder's final hidden states. The decoder therefore need not process the entire long prompt again. The official active-parameter counts are **8B** per Prefill token and **16B** per Decode token; generation still requires the complete encoder-and-decoder path. [Official model description](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash#introduction) · [Inference framework explanation](https://github.com/vllm-project/recipes/blob/main/models/deepseek-ai/DeepSeek-V4.1-Flash.yaml)
-
-**Figure 1 · Two-stage topology across six GPUs**
 
 ```mermaid
 flowchart LR

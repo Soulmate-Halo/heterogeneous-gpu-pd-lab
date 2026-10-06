@@ -6,14 +6,16 @@
 
 公开可复现包：[qwen38-flash-spark-3080](qwen38-flash-spark-3080/)。RTX 3080 20GB 承担 NVFP4 dense/Prefill 与 FP8 KV；DGX Spark / GB10 承担 MoE 冷专家与 PLE/KV worker。
 
-| 指标 | 数值 | 口径 |
+| 指标 | 数值 | 单机基线 |
 | --- | ---: | --- |
-| Prefill 三次 | 1030.80 / 1163.40 / 1161.10 tok/s | prompt=3600，实测 |
-| Prefill 峰值 | 1163.40 tok/s | 实测 |
-| Prefill 均值 | 1118.43 tok/s | 三次实测均值 |
-| 聚合解码峰值 | 60.25 tok/s | C12，12 路，2048 input / 256 output，156/156 完成，端到端实测 |
-| V2 聚合解码目标 | 240.00 tok/s | N=8 内核批量缩放推算/目标，**不是端到端实测** |
-| 单请求端到端解码 | 45.54 tok/s | N=1 实测 |
+| Prefill 三次 | 1030.80 / 1163.40 / 1161.10 tok/s | 1117.93 tok/s（Spark 单机，2047 token） |
+| Prefill 峰值 | 1163.40 tok/s | 1117.93 tok/s（Spark 单机，2047 token） |
+| Prefill 均值 | 1118.43 tok/s | 1117.93 tok/s（Spark 单机，2047 token） |
+| 聚合解码峰值 | 60.25 tok/s | 未测（单机 C12 聚合） |
+| V2 聚合解码目标 | 240.00 tok/s | 未测（单机 N=8 端到端） |
+| 单请求端到端解码 | 45.54 tok/s | 24.51 tok/s（Spark 单机，单流） |
+
+单机基线来自 `evidence/nvfp4-spark-solo-prefill-20261004.json`；Prefill 输入长度、并发和 Decode 测法不同，不能据此直接计算严格倍率。
 
 Docker 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark-3080:latest`（补充固定标签 `sha-3fcd285`）。
 
@@ -73,8 +75,6 @@ P 阶段整批吞吐包含 P 排队，按输入总量除以“请求发起至监
 **六卡按 PP2 两段流水组织：首段由两张 RTX 6000D 组成 TP2，集中承担长输入 Prefill；尾段由四台 DGX Spark 组成 TP4，承接上下文并完成后续生成。关键在于 DS4.1 的 Prefill 专用路径不需要在加速侧加载完整模型权重，两张 6000D 因而可以共同承接整条长输入编码路径，把算力用在最需要提速的环节。**
 
 **模型结构为什么允许这样做？** DeepSeek-V4.1-Flash 采用因果编码器—解码器（CED）：长提示词先经过编码器，解码器所需的全局 KV 由编码器最终隐藏状态投影得到。因此，长输入不必在解码器中再完整计算一遍。官方给出的每 token 激活参数为 Prefill **8B**、Decode **16B**；生成时仍需完整的编码器与解码器路径。[模型官方说明](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash#introduction) · [推理框架原理说明](https://github.com/vllm-project/recipes/blob/main/models/deepseek-ai/DeepSeek-V4.1-Flash.yaml)
-
-**图 1 · 六卡的两段拓扑**
 
 ```mermaid
 flowchart LR
