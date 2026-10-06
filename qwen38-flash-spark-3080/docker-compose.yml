@@ -54,7 +54,7 @@ services:
   gpu3080:
     <<: *common
     gpus: all
-    profiles: [3080]
+    profiles: ["3080"]
     container_name: qwen38-rtx3080
     environment:
       NVIDIA_VISIBLE_DEVICES: ${ENGINE_GPUS:-0}
