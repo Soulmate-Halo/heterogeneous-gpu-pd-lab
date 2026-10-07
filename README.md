@@ -231,12 +231,11 @@ This is **aggregate input throughput across the Prefill serving stage**: all inp
 
 | Metric / workload | 6000D standalone | Spark standalone | Pair: capacity profile | Pair: special PP2 split |
 | --- | --- | --- | --- | --- |
-| 4K Prefill · C1 | not measured | not measured | **8016.63** | 7538.10 |
-| 8K Prefill · C1 | not measured | not measured | **8157.74** | **8696.94** |
-| C6 aggregate output (includes TTFT) | not measured | not measured | **414.90** | 284.56 |
-| Standalone baseline · measured 2026-10 | Prefill **7831.64** / single-stream decode **41** | Prefill **1117.93** / aggregate **107.60** / single-stream **22.30** | — | — |
+| 4K Prefill · C1 | **7831.64** | **1117.93** | **8016.63** | 7538.10 |
+| 8K Prefill · C1 | **7831.64** | **1117.93** | **8157.74** | **8696.94** |
+| C6 aggregate output (includes TTFT) | **41.00** (single-stream) | **107.60** (aggregate) · **22.30** (single-stream) | **414.90** | 284.56 |
 
-**Standalone baseline caveats (measured 2026-10):** 6000D standalone reaches **7831.64 tok/s** Prefill and **41 tok/s** single-stream decode; the Spark standalone figures come from the 2026-10-06 3080+Spark control experiment (NVFP4 weights / FP8 KV): **1117.93 tok/s** Prefill as the mean of three 2047-token runs (1030.80 / 1163.40 / 1161.10), **107.60** aggregate and **22.30 tok/s** single-stream decode. Standalone and pair setups differ (input length, concurrency, TTFT inclusion) — treat as order-of-magnitude reference, not a direct comparison.
+**Standalone notes (measured 2026-10):** 6000D standalone Prefill measured **7831.64 tok/s** with **41 tok/s** single-stream decode; the Spark standalone figures come from the 2026-10-06 3080+Spark control experiment (NVFP4 weights / FP8 KV), Prefill **1117.93 tok/s** being the mean of three 2047-token runs (1030.80 / 1163.40 / 1161.10). Standalone numbers are single-point representative values, not bucketed by 4K/8K, and differ in methodology from the pair results (input length, concurrency, TTFT inclusion) — treat as order-of-magnitude reference.
 
 **Parameters of that pair:** vLLM nightly; NVFP4 MoE weights / fp8_e4m3 KV; context 65536; concurrency limit 6; Prefill chunk 2048; MTP 3 + full draft vocabulary; capacity profile GMU 0.99 and KV pool 198332 tokens. Prefill uses C1 at 4K–32K; serving emits 256 tokens/request with 3 measured rounds + 1 warmup, **63/63 successful requests** over C1–C6. PP2 has 8 GiB KV per device; exact layer allocation stays private.
 
