@@ -10,6 +10,8 @@
 
 十分钟讲清 GPU 异构：MoE 混合专家模型原理、五种搭建方式、三组实测（3080+Spark PD 分工、Qwen3.8 Flash EP、DS4.1 对照），以及生产级部署结论。
 
+> 📌 **数据口径说明**：本仓库所有实验数据均为**未调参裸数据**——未启用投机解码、KV 缓存量化、CUDA Graph 等任何加速调优手段。用其他开源项目已调参的数据与本仓库裸数据直接对比没有意义：这些加速手段同样适配异构架构，仅为保持数据纯净而未启用。
+
 ## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark · 2026-10-06
 
 **DGX Spark 单独承担 Prefill，Spark 与 RTX 3080 协同 Decode，主要提升解码速度。** [完整搭建方案](qwen38-flash-spark-3080/README_ZH.md) · [部署包](qwen38-flash-spark-3080/)

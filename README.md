@@ -10,6 +10,8 @@
 
 Ten minutes on GPU heterogeneity: MoE mixture-of-experts basics, five build patterns, three real-hardware benchmarks (3080+Spark PD split, Qwen3.8 Flash EP, DS4.1 comparison), and the production-grade deployment takeaway.
 
+> 📌 **Data methodology note:** All experiment results in this repository are **untuned raw numbers** — no speculative decoding, KV-cache quantization, CUDA Graphs, or any other acceleration tuning is enabled. Comparing tuned figures from other open-source projects against these raw numbers is meaningless: those techniques are equally applicable to heterogeneous setups and are left off only to keep the measurements clean.
+
 ## Qwen3.8 Flash-Next V2: RTX 3080 + DGX Spark · 2026-10-06
 
 **DGX Spark handles Prefill alone; Spark and the RTX 3080 cooperate on Decode to accelerate decoding.** [Deployment guide](qwen38-flash-spark-3080/README.md) · [Bundle](qwen38-flash-spark-3080/)
