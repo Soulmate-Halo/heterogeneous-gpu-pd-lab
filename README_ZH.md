@@ -66,6 +66,25 @@ flowchart LR
     G --> O["Output tokens"]
 ```
 
+## DS4.1 Flash V10：单卡 6000D 加速 4 机 Spark（PD 分离） · 2026-10-14
+
+**1 张 RTX 6000D 承担全部 Prefill（vLLM，21/40 层 Prefill 专用切片，TP1），4 台 DGX Spark 承担 Decode（SGLang TP4），KV 经 NIXL 走 RoCE 直传，Engram 表由 4 台 Spark 上的 8 个分片服务远程供给。** 本方案适用全部 DS4.1 部署在需要 6000D 加速的场景。GHCR 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest`，内含部署配置、启动模板与校验脚本；130GB 官方角色镜像包与 232GB 权重不包含在内。
+
+| 方案 | 机型 | Prefill tok/s | Decode 聚合 tok/s | 测试口径 |
+| --- | --- | --- | --- | --- |
+| **V10（本方案）** | 1×6000D + 4×Spark | 100K 输入 C1/C2/C4/C8：**10082 / 10308 / 10372 / 10340** | 100K 上下文 C8：**214.3**；短上下文 C1/C4/C8：81.7 / 186.7 / **260.5** | 2026-10-14 代理全链路实测 |
+| V8 | 2×6000D + 4×Spark | 32K 输入 C16/C24/C32：**16326.03 / 16297.20 / 16297.81** | 短代码 C32：**442.02** | 2026-09-21 seq32 批次 |
+| 4 机基线 | 4×Spark TP4，无 6000D | 单流 **4138.75**；C4 **4451.46** | 代码 C8：**323.24** | 4096 分块档基线 |
+
+三种方案的输入长度、并发档位与负载类型不同，只作量级参考，不据此计算跨方案提速倍率。V10 单张 6000D 的 Prefill 边际速率为 **10,195 tok/s**（98.1 µs/token，88K prompt 单请求 8.62 s），高于官方双卡 TP2 部署 12,996 tok/s 的单卡折算水平；端到端聚合（100K 输入 / 500 输出，C8）为 **44.72 tok/s**。
+
+[完整部署记录（中文）](ds41-flash-v10/DEPLOYMENT.zh-CN.md) · [部署指南](ds41-flash-v10/README.md) · [Dockerfile](ds41-flash-v10/Dockerfile)
+
+```bash
+docker pull ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest
+docker run --rm ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest show-config
+```
+
 ## DS4.1 Flash V8 Docker 镜像（PP2 / PD 分离） · 2026-09-30
 
 GHCR 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`。内含 V8 跨引擎补丁、DSpark 最终增量、运行环境和 SHA256 证据，不包含 510GB 权重或私有角色镜像。

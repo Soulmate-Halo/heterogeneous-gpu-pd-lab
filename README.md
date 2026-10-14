@@ -66,6 +66,25 @@ flowchart LR
     G --> O["Output tokens"]
 ```
 
+## DS4.1 Flash V10: single 6000D accelerating 4× Spark (PD separation) · 2026-10-14
+
+**One RTX 6000D runs all Prefill (vLLM, 21/40-layer Prefill-only slice, TP1); four DGX Spark nodes run Decode (SGLang TP4); KV crosses hosts over NIXL/RoCE, and the Engram tables are served remotely by 8 shard servers on the Spark nodes.** This layout applies to any DS4.1 deployment when 6000D acceleration is available. GHCR image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest` — it ships the deployment configs, launch templates and verification scripts; the 130 GB vendor role-image package and the 232 GB weights are not included.
+
+| Setup | Machines | Prefill tok/s | Aggregate Decode tok/s | Test basis |
+| --- | --- | --- | --- | --- |
+| **V10 (this)** | 1×6000D + 4×Spark | 100K input, C1/C2/C4/C8: **10082 / 10308 / 10372 / 10340** | 100K context, C8: **214.3**; short context C1/C4/C8: 81.7 / 186.7 / **260.5** | 2026-10-14 full-path proxy run |
+| V8 | 2×6000D + 4×Spark | 32K input, C16/C24/C32: **16326.03 / 16297.20 / 16297.81** | short-code C32: **442.02** | 2026-09-21 seq32 batches |
+| 4-node baseline | 4×Spark TP4, no 6000D | single stream **4138.75**; C4 **4451.46** | code C8: **323.24** | 4096-chunk baseline |
+
+Input lengths, concurrency levels and workloads differ across the three rows; treat them as order-of-magnitude references only, not as a basis for cross-setup speedup ratios. The single 6000D in V10 sustains a marginal Prefill rate of **10,195 tok/s** (98.1 µs/token; one 88K prompt in 8.62 s), above the per-card share of the official dual-card TP2 deployment (12,996 tok/s); end-to-end aggregate (100K in / 500 out, C8) is **44.72 tok/s**.
+
+[Full deployment record (Chinese)](ds41-flash-v10/DEPLOYMENT.zh-CN.md) · [Deployment guide](ds41-flash-v10/README.md) · [Dockerfile](ds41-flash-v10/Dockerfile)
+
+```bash
+docker pull ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest
+docker run --rm ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest show-config
+```
+
 ## DS4.1 Flash V8 Docker image (PP2 / PD separation) · 2026-09-30
 
 The reproducibility image is published at `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`. It contains the frozen V8 cross-engine patches, final DSpark delta, runtime environment, and SHA256 evidence; it deliberately does not redistribute the 510 GB official weights or private role images.

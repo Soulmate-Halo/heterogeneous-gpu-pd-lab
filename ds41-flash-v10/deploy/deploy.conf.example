@@ -1,0 +1,62 @@
+# DS4.1 Flash V10 deployment variables
+#
+# Copy this file to deploy.conf and fill in every <...> placeholder before
+# running the launch templates. Placeholder names match the redacted values in
+# ../DEPLOYMENT.zh-CN.md, so the two stay in sync.
+#
+# Placeholders to replace:
+#   <P_IP>            office-network address of the Prefill host (1x RTX 6000D)
+#   <P_ROCE_IP>       RoCE address of the Prefill host (ConnectX-3 / mlx4_0)
+#   <SPARK0_ROCE_IP>  RoCE address of Spark rank 0   (D40 + engram l14/l1)
+#   <SPARK1_ROCE_IP>  RoCE address of Spark rank 1
+#   <SPARK2_ROCE_IP>  RoCE address of Spark rank 2
+#   <SPARK3_ROCE_IP>  RoCE address of Spark rank 3
+#   <ROCE_SUBNET>     RoCE subnet, written as a CIDR block
+#   <SPARK0-3_ROCE_IP> shorthand for the four Spark RoCE addresses
+
+# --- Office network (proxy endpoint) -------------------------------------
+P_IP=<P_IP>
+
+# --- RoCE network (KV over NIXL/UCX) -------------------------------------
+P_ROCE_IP=<P_ROCE_IP>
+SPARK0_ROCE_IP=<SPARK0_ROCE_IP>
+SPARK1_ROCE_IP=<SPARK1_ROCE_IP>
+SPARK2_ROCE_IP=<SPARK2_ROCE_IP>
+SPARK3_ROCE_IP=<SPARK3_ROCE_IP>
+ROCE_SUBNET=<ROCE_SUBNET>
+
+# --- RDMA devices and GID indices (RoCE v1 IPv4) -------------------------
+# Prefill host: ConnectX-3, mlx4_0, RoCE v1 IPv4 GID index 12
+P_IB_DEV=mlx4_0
+P_GID_INDEX=12
+# Decode nodes: ConnectX-7, rocep1s0f0, RoCE v1 IPv4 GID index 2
+D_IB_DEV=rocep1s0f0
+D_GID_INDEX=2
+NCCL_SOCKET_IFNAME=enp1s0f0np0
+
+# --- Ports ---------------------------------------------------------------
+PROXY_PORT=5701
+P_AGENT_PORT=8000
+D_API_PORT=8200
+NIXL_SIDE_CHANNEL_PORT=5600
+ENGRAM_L14_PORT=9611
+ENGRAM_L1_PORT=9612
+
+# --- Images (loaded from the vendor role-image tarballs) -----------------
+P_IMAGE=dsv41-p5:vllm-exl3-sm120-rdma
+D_IMAGE=dsv41-sglang:mhcbf16parts
+PROXY_IMAGE=vllm-dsv41-x86:overlay6
+
+# --- Paths ---------------------------------------------------------------
+# Official DS4.1 FP4 weights, mounted read-only into the containers.
+WEIGHTS_DIR=/mnt/dsv41-tp6/fp4h96
+WEIGHTS_CONTAINER_PATH=/models/DeepSeek-V4.1-Flash
+ENGRAM_SLICES_DIR=/var/tmp/dsv41-engram-l{1,14}-4of
+ENGRAM_SERVER_DIR=/var/tmp/dsv41-engram-remote
+
+# --- Engram remote shard map (see DEPLOYMENT.zh-CN.md section 7.3 step 4) -
+# layer 1 -> port 9612, layer 14 -> port 9611, four shards each.
+DSV41_ENGRAM_REMOTE=1=<SPARK0_ROCE_IP>:9612@0:96001542,1=<SPARK1_ROCE_IP>:9612@96001542:192003084,1=<SPARK2_ROCE_IP>:9612@192003084:288004626,1=<SPARK3_ROCE_IP>:9612@288004626:384006168,14=<SPARK0_ROCE_IP>:9611@0:96004171,14=<SPARK1_ROCE_IP>:9611@96004171:192008342,14=<SPARK2_ROCE_IP>:9611@192008342:288012513,14=<SPARK3_ROCE_IP>:9611@288012513:384016682
+
+# --- Proxy limits --------------------------------------------------------
+XY_MAX_PROMPT_CHARS=2000000
