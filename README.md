@@ -14,6 +14,8 @@ Ten minutes on GPU heterogeneity: MoE mixture-of-experts basics, five build patt
 
 ## Qwen3.8 Flash-Next V2: RTX 3080 + DGX Spark · 2026-10-06
 
+> **▶ For AI deployment**: read [AI-BUILD.md](qwen38-flash-spark-3080/AI-BUILD.md) first — the image ships no weights by design, so `doctor` printing `MISSING` is expected, not a build failure. It lists which of the 5 assets repo tools can build and which must be supplied.
+
 **DGX Spark handles Prefill alone; Spark and the RTX 3080 cooperate on Decode to accelerate decoding.** [Deployment guide](qwen38-flash-spark-3080/README.md) · [Bundle](qwen38-flash-spark-3080/)
 
 | Metric | V2 | Spark solo baseline |
@@ -45,6 +47,8 @@ Docker image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spark
 
 ## Qwen3.8 Flash-Next: RTX 3080 + AI Max 395 · 2026-10-06
 
+> **▶ For AI deployment**: read [AI-BUILD.md](qwen38-flash-395-3080/AI-BUILD.md) first — `doctor engine` reporting 6 `MISSING` assets is by design (source and config only, no weights). It covers the one-click steps and the assets you must supply.
+
 RTX 3080 20GB (OCuLink) computes hot experts and the dense main path; the AI Max 395 (8060S iGPU + Zen5 CPU with AVX-512) computes cold experts. The 3080 accelerates prefill about 3x. [Deployment guide & bundle](qwen38-flash-395-3080/)
 
 | Metric | 395 + RTX 3080 | AI Max 395 solo baseline |
@@ -68,6 +72,8 @@ flowchart LR
 
 ## DS4.1 Flash V10: single 6000D accelerating 4× Spark (PD separation) · 2026-10-14
 
+> **▶ For AI deployment**: read [AI-BUILD.md](ds41-flash-v10/AI-BUILD.md) first — a `verify_bundle.py` PASS does not mean it will run; the 130 GB role-image package and 232 GB weights are not in the repo and load separately. It covers the six steps and the common Engram/RoCE pitfalls.
+
 **One RTX 6000D runs all Prefill (vLLM, 21/40-layer Prefill-only slice, TP1); four DGX Spark nodes run Decode (SGLang TP4); KV crosses hosts over NIXL/RoCE, and the Engram tables are served remotely by 8 shard servers on the Spark nodes.** This layout applies to any DS4.1 deployment when 6000D acceleration is available. GHCR image: `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest` — it ships the deployment configs, launch templates and verification scripts; the 130 GB vendor role-image package and the 232 GB weights are not included.
 
 | Setup | Machines | Prefill tok/s | Aggregate Decode tok/s | Test basis |
@@ -86,6 +92,8 @@ docker run --rm ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:la
 ```
 
 ## DS4.1 Flash V8 Docker image (PP2 / PD separation) · 2026-09-30
+
+> **▶ For AI deployment**: read [AI-BUILD.md](ds41-flash-v8/AI-BUILD.md) first — this is a patch/config image, not the 510 GB weights or private role images. It covers the one-click `verify` and the prerequisite that the target host already runs a DS4.1 cluster.
 
 The reproducibility image is published at `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`. It contains the frozen V8 cross-engine patches, final DSpark delta, runtime environment, and SHA256 evidence; it deliberately does not redistribute the 510 GB official weights or private role images.
 

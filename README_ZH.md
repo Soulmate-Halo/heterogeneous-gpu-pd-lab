@@ -14,6 +14,8 @@
 
 ## Qwen3.8 Flash-Next V2：RTX 3080 + DGX Spark · 2026-10-06
 
+> **▶ 让 AI 一键部署**：先读 [AI-BUILD.md](qwen38-flash-spark-3080/AI-BUILD.md) —— 镜像按设计不含权重，`doctor` 报 `MISSING` 是正常现象、不是构建失败；文中列清 5 个资产哪些能用仓库工具自造、哪些必须外部提供。
+
 **DGX Spark 单独承担 Prefill，Spark 与 RTX 3080 协同 Decode，主要提升解码速度。** [完整搭建方案](qwen38-flash-spark-3080/README_ZH.md) · [部署包](qwen38-flash-spark-3080/)
 
 | 指标 | V2 | Spark 单机基线 |
@@ -45,6 +47,8 @@ Docker 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/qwen38-flash-spa
 
 ## Qwen3.8 Flash-Next：RTX 3080 + AI Max 395 · 2026-10-06
 
+> **▶ 让 AI 一键部署**：先读 [AI-BUILD.md](qwen38-flash-395-3080/AI-BUILD.md) —— `doctor engine` 报 6 个资产 `MISSING` 是设计使然，镜像只含源码与配置、不含权重；文中给出一键构建步骤与必须外部提供的资产。
+
 RTX 3080 20GB（OCuLink）承担热专家与主计算；AI Max 395（8060S 核显 + Zen5 CPU AVX-512）承担冷专家计算。3080 将预填充加速约 3 倍。[部署指南·捆绑包](qwen38-flash-395-3080/)
 
 | 指标 | 395 + RTX 3080 | AI Max 395 单机基线 |
@@ -68,6 +72,8 @@ flowchart LR
 
 ## DS4.1 Flash V10：单卡 6000D 加速 4 机 Spark（PD 分离） · 2026-10-14
 
+> **▶ 让 AI 一键部署**：先读 [AI-BUILD.md](ds41-flash-v10/AI-BUILD.md) —— `verify_bundle.py` 通过不等于能跑，130GB 角色镜像包与 232GB 权重不在仓库、需另行载入；文中给出六步部署与最常见的 Engram/RoCE 坑。
+
 **1 张 RTX 6000D 承担全部 Prefill（vLLM，21/40 层 Prefill 专用切片，TP1），4 台 DGX Spark 承担 Decode（SGLang TP4），KV 经 NIXL 走 RoCE 直传，Engram 表由 4 台 Spark 上的 8 个分片服务远程供给。** 本方案适用全部 DS4.1 部署在需要 6000D 加速的场景。GHCR 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:latest`，内含部署配置、启动模板与校验脚本；130GB 官方角色镜像包与 232GB 权重不包含在内。
 
 | 方案 | 机型 | Prefill tok/s | Decode 聚合 tok/s | 测试口径 |
@@ -86,6 +92,8 @@ docker run --rm ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v10:la
 ```
 
 ## DS4.1 Flash V8 Docker 镜像（PP2 / PD 分离） · 2026-09-30
+
+> **▶ 让 AI 一键部署**：先读 [AI-BUILD.md](ds41-flash-v8/AI-BUILD.md) —— 这是补丁/配置镜像、不含 510GB 权重与私有角色镜像；需目标主机已有可运行的 DS4.1 集群，文中说明 `verify` 一键校验与部署前提。
 
 GHCR 镜像：`ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8:latest`。内含 V8 跨引擎补丁、DSpark 最终增量、运行环境和 SHA256 证据，不包含 510GB 权重或私有角色镜像。
 
