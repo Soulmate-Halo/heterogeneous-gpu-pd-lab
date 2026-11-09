@@ -70,6 +70,70 @@ flowchart LR
     G --> O["Output tokens"]
 ```
 
+## DS4.1 Flash-1017 · Latest three build plans (live measurements) · 2026-11-10
+
+> 📌 **All three plans run DeepSeek-V4.1-Flash-1017.** Every figure in this section comes from the [Soulmate · Heterogeneous GPU](https://qlsoulmate.com/gear/) page; these are internal measurements of live production configurations and vary with input length and load. They follow a different methodology from the untuned raw numbers in the experiment sections below, so do not compare the two directly. The deployment images of the three plans are not yet released; a placeholder is reserved under each plan.
+
+| Metric | V11 · 4 Spark + 6000D | M5 + 6000D | V8 (1017 edition) · 4 Spark + 2×6000D |
+| --- | --- | --- | --- |
+| Hardware | 4× DGX Spark + 1× RTX 6000D | Mac Studio M5 Ultra (256GB) + 1× RTX 6000D | 4× DGX Spark + 2× RTX 6000D |
+| Context | 256K (up to 1M) | 256K (up to 1M) | 256K (up to 1M) |
+| Single-stream Prefill | **10,286 tok/s** (30.9K input) | **9,743 tok/s** (100K input) | **16,174 tok/s** (dual-card total 18,899) |
+| Hot Prefill (cache hit) | 26,286 tok/s | 25,743 tok/s | 37,164 tok/s |
+| Single-stream Decode | **103 tok/s** (text; code 112) | **152 tok/s** | **112 tok/s** |
+| Aggregate Decode | **406 tok/s** (32 concurrent) | **168 tok/s** (8 concurrent, total) | **428 tok/s** (32 concurrent) |
+| Daily capacity | 2.7 billion tokens/day | 2.5 billion tokens/day | 3.5 billion tokens/day |
+| Official-price daily value | ≈ ¥1,014/day | ≈ ¥800/day | ≈ ¥1,249/day |
+| Base price | ¥241,500 | ¥191,850 | ¥305,600 |
+| Online trial | Open | Open | Coming soon |
+| Deployment image | Reserved | Reserved | Reserved |
+
+Definitions (all from the gear page): daily capacity follows the official definition (cache-hit, cache-miss input and output tokens are all counted), estimated at full load over 24 hours; the official-price daily value is converted at DeepSeek's official V4.1-Flash-1017 peak prices (per million tokens: 0.04 CNY for cache-hit input, 2 CNY for cache-miss input, 8 CNY for output), where output is counted at full aggregate Decode load and the input is split by a prefix cache hit rate of about 88% (a typical Agent / coding workload); hot Prefill is the effective speed on a prefix-cache hit, which the gear page derives as "single-stream Prefill + 16,000 tok/s" (V8 uses 37,164 directly); the base price is the sum of the second-hand hardware prices plus ¥40,000 for deployment and tuning; used prices on 2026-11-09 were DGX Spark ¥34,350, RTX 6000D ¥64,100 and M5 Ultra ¥87,750. Prices float with the market daily, and the live quote on the gear page prevails.
+
+### V11: 4× Spark + single 6000D (4+1)
+
+> **▶ For AI deployment**: the deployment image of this plan is **reserved and not yet released**. Do not assemble a deployment from this section on your own; the placeholder is [ds41-flash-v11/](ds41-flash-v11/), and AI-BUILD.md will be added in that directory once the image is released.
+
+![V11 plan: 4 DGX Spark nodes form the TP4 inference cluster, Prefill and Decode both run inside the cluster, the RTX 6000D is the request entry and the expansion slot](assets/ds41-flash-1017-v11.png)
+
+**Four DGX Spark nodes form a TP4 inference cluster where Prefill and Decode both run inside the cluster, and the RTX 6000D is the entry and the expansion slot.** It fits long documents, repository-scale code context and multi-user concurrency.
+
+- **Inference cluster**: 4× DGX Spark (GB10 · 128GB unified memory), SGLang TP4; routed experts MXFP4, shared experts FP8; every node holds a full copy of the weights locally; the Engram tables are sharded 1/4 across the nodes.
+- **Interconnect**: the nodes are linked by a switched ConnectX-7 200GbE RoCE network; Prefill and Decode finish inside the same cluster, so no KV crosses machines.
+- **RTX 6000D (84GB)**: the request entry (it transparently forwards requests to the cluster) and the expansion slot; it does no inference compute at the moment.
+- **Decode acceleration**: DSpark speculative decoding, with Recall on top. Recall stores the token sequences the server has seen by token ID only, copies the following content as a draft when the same prefix shows up and outputs it only after the main model verifies it, so the output is identical to running without it; it applies to requests with temperature=0 only.
+- **Compared with V10**: in V10 the 6000D runs all Prefill and hands the KV over NIXL / RoCE to the Spark nodes for Decode; in V11 the cluster runs Prefill and Decode itself and the 6000D steps back to the entry role.
+- **Deployment image**: reserved, the planned image name is `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v11`, not yet released.
+
+### M5 + 6000D: Mac Studio M5 Ultra + single 6000D (PD separation)
+
+> **▶ For AI deployment**: the deployment image of this plan is **reserved and not yet released**. Do not assemble a deployment from this section on your own; the placeholder is [ds41-flash-m5-6000d/](ds41-flash-m5-6000d/), and AI-BUILD.md will be added in that directory once the image is released.
+
+![M5 + 6000D plan: the RTX 6000D runs Prefill, the Mac Studio M5 Ultra runs Decode, PD separation with a two-tier hot/cold KV cache](assets/ds41-flash-1017-m5-6000d.png)
+
+**The RTX 6000D runs Prefill and the Mac Studio M5 Ultra (256GB unified memory) runs Decode, with PD separation and a two-tier hot/cold KV cache.** The single-stream output is the fastest and the machine is quiet and low power, so it suits an office deployment.
+
+- **P side**: RTX 6000D (84GB), vLLM, Prefill-only FP4 slice.
+- **D side**: Mac Studio M5 Ultra, local Decode with mlx-serve (MLX quantized weights), DSpark speculative decoding on by default.
+- **KV handoff (stream while computing)**: the P side exports one KV block every 4096 computed tokens and sends it to the M5 through the front door, where a relay on the M5 assembles the blocks into an import package for mlx-serve; the two machines use ordinary Ethernet and do not depend on RDMA.
+- **KV cache and front door**: the prefix cache on the M5 side has two tiers, hot in unified memory and cold on SSD; the front door runs on the P host, long inputs take the PD separation path and short inputs go straight to the M5.
+- **Engram tables**: read remotely by the P side; the live configuration serves the tables from Engram shard servers on a fast network, and the M5 can also serve the tables directly, but the speed is limited by the link between the two machines.
+- **Deployment image**: reserved, the planned image name is `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-m5-6000d`, not yet released.
+
+### V8 (1017 edition): 4× Spark + dual 6000D (two parallel Prefill instances)
+
+> **▶ For AI deployment**: the deployment image of this plan is **reserved and not yet released**. Do not assemble a deployment from this section on your own; the placeholder is [ds41-flash-v8-1017/](ds41-flash-v8-1017/), and AI-BUILD.md will be added in that directory once the image is released. The existing `ds41-flash-v8` image in this repository corresponds to the old 2026-09 PP2 build and does not apply to this plan.
+
+![V8 (1017 edition) plan: two RTX 6000D run parallel Prefill instances, four DGX Spark nodes run Decode](assets/ds41-flash-1017-v8.png)
+
+**Two RTX 6000D cards run parallel Prefill and four DGX Spark nodes run Decode.** Long inputs get the first token faster, so it fits high-concurrency long-context workloads.
+
+- **P side**: 2× RTX 6000D, each card runs an independent Prefill instance (vLLM, single card, Prefill-only FP4 slice); the proxy assigns new requests to the less loaded branch by the number of in-flight requests.
+- **D side**: 4× DGX Spark, SGLang TP4/EP4, DSpark speculative decoding; the D side pulls the KV from the P side over NIXL.
+- **Interconnect and Engram**: the Spark nodes use ConnectX-7 200GbE RoCE; the Engram tables are served by shard servers on the four Spark nodes and are shared by the P side and the D side.
+- **Compared with the 2026-09 V8**: the old V8 merged the two 6000D into one vLLM TP2 instance (PP2: TP2 for the first segment, TP4 for the tail); the 1017 edition gives each card its own P instance taking requests in parallel and switches the model to DeepSeek-V4.1-Flash-1017.
+- **Deployment image**: reserved, the planned image name is `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8-1017`, not yet released.
+
 ## DS4.1 Flash V10: single 6000D accelerating 4× Spark (PD separation) · 2026-10-14
 
 > **▶ For AI deployment**: read [AI-BUILD.md](ds41-flash-v10/AI-BUILD.md) first — a `verify_bundle.py` PASS does not mean it will run; the 130 GB role-image package and 232 GB weights are not in the repo and load separately. It covers the six steps and the common Engram/RoCE pitfalls.

@@ -70,6 +70,70 @@ flowchart LR
     G --> O["Output tokens"]
 ```
 
+## DS4.1 Flash-1017 · 最新三套搭建方案（在线实测） · 2026-11-10
+
+> 📌 **模型统一为 DeepSeek-V4.1-Flash-1017**。本节数据全部取自 [器灵 Soulmate · 异构GPU](https://qlsoulmate.com/gear/) 页，是线上生产配置的内部实测，随输入长度与负载波动；与下方各实验章节的未调参裸数据口径不同，不要混合对比。三套方案的部署镜像暂未发布，已在各方案下预留镜像位。
+
+| 指标 | V11 · 4 Spark + 6000D | M5 + 6000D | V8（1017 版）· 4 Spark + 2×6000D |
+| --- | --- | --- | --- |
+| 硬件 | 4× DGX Spark + 1× RTX 6000D | Mac Studio M5 Ultra（256GB）+ 1× RTX 6000D | 4× DGX Spark + 2× RTX 6000D |
+| 上下文 | 256K（最大支持 1M） | 256K（最大支持 1M） | 256K（最大支持 1M） |
+| 单流 Prefill | **10,286 tok/s**（30.9K 输入） | **9,743 tok/s**（100K 输入） | **16,174 tok/s**（双卡合计 18,899） |
+| 热 Prefill（缓存命中） | 26,286 tok/s | 25,743 tok/s | 37,164 tok/s |
+| 单流 Decode | **103 tok/s**（文本；代码 112） | **152 tok/s** | **112 tok/s** |
+| 聚合 Decode | **406 tok/s**（32 路并发） | **168 tok/s**（8 路并发合计） | **428 tok/s**（32 路并发） |
+| 日处理能力 | 27 亿 tokens/天 | 25 亿 tokens/天 | 35 亿 tokens/天 |
+| 对标官方日产值 | ≈ ¥1,014/天 | ≈ ¥800/天 | ≈ ¥1,249/天 |
+| 基础价格 | ¥241,500 | ¥191,850 | ¥305,600 |
+| 在线试用 | 已开放 | 已开放 | 即将开放 |
+| 部署镜像 | 预留 | 预留 | 预留 |
+
+口径（均按 gear 页）：日处理能力为官方口径（缓存命中、未命中输入与输出 tokens 均计入），按 24 小时满载估算；对标官方日产值按 DeepSeek 官方 V4.1-Flash-1017 高峰价折算：缓存命中 0.04 元、未命中 2 元、输出 8 元 / 百万 tokens，输出按聚合 Decode 满载计，输入按前缀缓存命中率约 88%（Agent / 编程类典型负载）拆分；热 Prefill 是前缀缓存命中时的等效速度，gear 页按「单流 Prefill + 16,000 tok/s」折算，V8 直接取 37,164；基础价格 = 硬件二手价合计 + 部署调优 ¥40,000，2026-11-09 二手价为 DGX Spark ¥34,350、RTX 6000D ¥64,100、M5 Ultra ¥87,750，每日随市场浮动，以 gear 页实时报价为准。
+
+### V11：4 机 Spark + 单卡 6000D（4+1）
+
+> **▶ 让 AI 部署**：本方案部署镜像**预留中、暂未发布**，请不要根据本节自行拼装部署；镜像位见 [ds41-flash-v11/](ds41-flash-v11/)，发布后在该目录补充 AI-BUILD.md。
+
+![V11 方案图：4 台 DGX Spark 组成 TP4 推理集群，Prefill 与 Decode 都在集群内完成，RTX 6000D 作为请求入口与扩展位](assets/ds41-flash-1017-v11.png)
+
+**4 台 DGX Spark 组成 TP4 推理集群，Prefill 与 Decode 都在集群内完成，RTX 6000D 负责入口与扩展。** 适合长文档、代码仓库级上下文与多人并发场景。
+
+- **推理集群**：4× DGX Spark（GB10 · 128GB 统一内存），SGLang TP4；路由专家 MXFP4、共享专家 FP8；每台节点本地放一份完整权重；Engram 表按 1/4 分片放在各节点。
+- **互联**：节点之间走 ConnectX-7 200GbE RoCE 交换网络；Prefill 与 Decode 在同一集群内完成，不跨机传 KV。
+- **RTX 6000D（84GB）**：请求入口（把请求透明转发到集群）与扩展位，当前不承担推理计算。
+- **解码加速**：DSpark 投机解码，并叠加 Recall。Recall 把服务器见过的 token 序列只按 token ID 存下来，遇到相同开头时直接复制后续内容作为草稿，由主模型验证后才输出，所以输出与不开时一致；只对 temperature=0 的请求生效。
+- **相对 V10**：V10 由 6000D 承担全部 Prefill，KV 经 NIXL / RoCE 交给 Spark 做 Decode；V11 改为集群自己完成 Prefill 与 Decode，6000D 退为入口。
+- **部署镜像**：预留，规划镜像名 `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v11`，暂未发布。
+
+### M5 + 6000D：Mac Studio M5 Ultra + 单卡 6000D（PD 分离）
+
+> **▶ 让 AI 部署**：本方案部署镜像**预留中、暂未发布**，请不要根据本节自行拼装部署；镜像位见 [ds41-flash-m5-6000d/](ds41-flash-m5-6000d/)，发布后在该目录补充 AI-BUILD.md。
+
+![M5 + 6000D 方案图：RTX 6000D 负责 Prefill，Mac Studio M5 Ultra 负责 Decode，PD 分离并带冷热两级 KV 缓存](assets/ds41-flash-1017-m5-6000d.png)
+
+**RTX 6000D 负责 Prefill，Mac Studio M5 Ultra（256GB 统一内存）负责 Decode，PD 分离并带冷热两级 KV 缓存。** 单流输出最快，整机安静低功耗，适合办公室部署。
+
+- **P 端**：RTX 6000D（84GB），vLLM，Prefill 专用 FP4 切片。
+- **D 端**：Mac Studio M5 Ultra，mlx-serve 本地 Decode（MLX 量化权重），DSpark 投机解码默认开启。
+- **KV 交接（边算边传）**：P 端每算完 4096 token 就导出一块 KV，经前门发往 M5，由 M5 侧中继拼包后导入 mlx-serve；两机之间走普通以太网，不依赖 RDMA。
+- **KV 缓存与前门**：M5 端前缀缓存分冷热两级，热缓存在统一内存，冷缓存在 SSD；前门部署在 P 主机，长输入走 PD 分离，短输入直接交给 M5。
+- **Engram 表**：P 端远程读取；线上配置由高速网上的 Engram 分片服务供表，也可以由 M5 直接供表，但速度受两机之间链路限制。
+- **部署镜像**：预留，规划镜像名 `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-m5-6000d`，暂未发布。
+
+### V8（1017 版）：4 机 Spark + 双卡 6000D（双路并行 Prefill）
+
+> **▶ 让 AI 部署**：本方案部署镜像**预留中、暂未发布**，请不要根据本节自行拼装部署；镜像位见 [ds41-flash-v8-1017/](ds41-flash-v8-1017/)，发布后在该目录补充 AI-BUILD.md。仓库现有 `ds41-flash-v8` 镜像对应 2026-09 旧版 PP2，不适用于本方案。
+
+![V8（1017 版）方案图：两张 RTX 6000D 双路并行 Prefill，四台 DGX Spark 负责 Decode](assets/ds41-flash-1017-v8.png)
+
+**两张 RTX 6000D 双路并行 Prefill，四台 DGX Spark 负责 Decode。** 长输入首字更快，适合高并发长上下文业务。
+
+- **P 端**：2× RTX 6000D，每张卡跑一个独立的 Prefill 实例（vLLM，单卡，Prefill 专用 FP4 切片）；代理按在途请求数把新请求分给较空的一路。
+- **D 端**：4× DGX Spark，SGLang TP4/EP4，DSpark 投机解码；D 端经 NIXL 从 P 端拉取 KV。
+- **互联与 Engram**：Spark 之间走 ConnectX-7 200GbE RoCE；Engram 表由 4 台 Spark 上的分片服务供给，P 端与 D 端共用。
+- **相对 2026-09 的旧 V8**：旧 V8 把两张 6000D 合成一个 vLLM TP2 实例（PP2：首段 TP2、尾段 TP4）；1017 版改为两张卡各跑一个 P 实例并行接单，模型换为 DeepSeek-V4.1-Flash-1017。
+- **部署镜像**：预留，规划镜像名 `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8-1017`，暂未发布。
+
 ## DS4.1 Flash V10：单卡 6000D 加速 4 机 Spark（PD 分离） · 2026-10-14
 
 > **▶ 让 AI 一键部署**：先读 [AI-BUILD.md](ds41-flash-v10/AI-BUILD.md) —— `verify_bundle.py` 通过不等于能跑，130GB 角色镜像包与 232GB 权重不在仓库、需另行载入；文中给出六步部署与最常见的 Engram/RoCE 坑。
