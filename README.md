@@ -83,12 +83,12 @@ flowchart LR
 | Single-stream Decode | **103 tok/s** (text; code 112) | **152 tok/s** | **112 tok/s** |
 | Aggregate Decode | **406 tok/s** (32 concurrent) | **168 tok/s** (8 concurrent, total) | **428 tok/s** (32 concurrent) |
 | Daily capacity | 2.7 billion tokens/day | 2.5 billion tokens/day | 3.5 billion tokens/day |
-| Official-price daily value | ≈ ¥1,014/day | ≈ ¥800/day | ≈ ¥1,249/day |
-| Base price | ¥241,500 | ¥191,850 | ¥305,600 |
+| Official-price daily value | ≈ 1,014 CNY/day | ≈ 800 CNY/day | ≈ 1,249 CNY/day |
+| Base price | 241,500 CNY | 191,850 CNY | 305,600 CNY |
 | Online trial | Open | Open | Coming soon |
 | Deployment image | Reserved | Reserved | Reserved |
 
-Definitions (all from the gear page): daily capacity follows the official definition (cache-hit, cache-miss input and output tokens are all counted), estimated at full load over 24 hours; the official-price daily value is converted at DeepSeek's official V4.1-Flash-1017 peak prices (per million tokens: 0.04 CNY for cache-hit input, 2 CNY for cache-miss input, 8 CNY for output), where output is counted at full aggregate Decode load and the input is split by a prefix cache hit rate of about 88% (a typical Agent / coding workload); hot Prefill is the effective speed on a prefix-cache hit, which the gear page derives as "single-stream Prefill + 16,000 tok/s" (V8 uses 37,164 directly); the base price is the sum of the second-hand hardware prices plus ¥40,000 for deployment and tuning; used prices on 2026-11-09 were DGX Spark ¥34,350, RTX 6000D ¥64,100 and M5 Ultra ¥87,750. Prices float with the market daily, and the live quote on the gear page prevails.
+Definitions (all from the gear page): daily capacity follows the official definition (cache-hit, cache-miss input and output tokens are all counted), estimated at full load over 24 hours; the official-price daily value is converted at DeepSeek's official V4.1-Flash-1017 peak prices (per million tokens: 0.04 CNY for cache-hit input, 2 CNY for cache-miss input, 8 CNY for output), where output is counted at full aggregate Decode load and the input is split by a prefix cache hit rate of about 88% (a typical Agent / coding workload); hot Prefill is the effective speed on a prefix-cache hit, which the gear page derives as "single-stream Prefill + 16,000 tok/s" (V8 uses 37,164 directly); the base price is the sum of the second-hand hardware prices plus 40,000 CNY for deployment and tuning; used prices on 2026-11-09 were DGX Spark 34,350 CNY, RTX 6000D 64,100 CNY and M5 Ultra 87,750 CNY. Prices float with the market daily, and the live quote on the gear page prevails.
 
 ### V11: 4× Spark + single 6000D (4+1)
 
