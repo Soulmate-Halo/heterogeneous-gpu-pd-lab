@@ -74,7 +74,7 @@ flowchart LR
 
 > 📌 **模型统一为 DeepSeek-V4.1-Flash-1017**。本节数据全部取自 [器灵 Soulmate · 异构GPU](https://qlsoulmate.com/gear/) 页，是线上生产配置的内部实测，随输入长度与负载波动；与下方各实验章节的未调参裸数据口径不同，不要混合对比。三套方案的部署镜像暂未发布，已在各方案下预留镜像位。
 
-| 指标 | V11 · 4 Spark + 6000D | M5 + 6000D | V8（1017 版）· 4 Spark + 2×6000D |
+| 指标 | V11 · 4 Spark + 6000D | M5 + 6000D | V12 · 4 Spark + 2×6000D |
 | --- | --- | --- | --- |
 | 硬件 | 4× DGX Spark + 1× RTX 6000D | Mac Studio M5 Ultra（256GB）+ 1× RTX 6000D | 4× DGX Spark + 2× RTX 6000D |
 | 上下文 | 256K（最大支持 1M） | 256K（最大支持 1M） | 256K（最大支持 1M） |
@@ -88,7 +88,7 @@ flowchart LR
 | 在线试用 | 已开放 | 已开放 | 即将开放 |
 | 部署镜像 | 预留 | 预留 | 预留 |
 
-口径（均按 gear 页）：日处理能力为官方口径（缓存命中、未命中输入与输出 tokens 均计入），按 24 小时满载估算；对标官方日产值按 DeepSeek 官方 V4.1-Flash-1017 高峰价折算：缓存命中 0.04 元、未命中 2 元、输出 8 元 / 百万 tokens，输出按聚合 Decode 满载计，输入按前缀缓存命中率约 88%（Agent / 编程类典型负载）拆分；热 Prefill 是前缀缓存命中时的等效速度，gear 页按「单流 Prefill + 16,000 tok/s」折算，V8 直接取 37,164；基础价格 = 硬件二手价合计 + 部署调优 40,000 元，2026-11-09 二手价为 DGX Spark 34,350 元、RTX 6000D 64,100 元、M5 Ultra 87,750 元，每日随市场浮动，以 gear 页实时报价为准。
+口径（均按 gear 页）：日处理能力为官方口径（缓存命中、未命中输入与输出 tokens 均计入），按 24 小时满载估算；对标官方日产值按 DeepSeek 官方 V4.1-Flash-1017 高峰价折算：缓存命中 0.04 元、未命中 2 元、输出 8 元 / 百万 tokens，输出按聚合 Decode 满载计，输入按前缀缓存命中率约 88%（Agent / 编程类典型负载）拆分；热 Prefill 是前缀缓存命中时的等效速度，gear 页按「单流 Prefill + 16,000 tok/s」折算，V12 直接取 37,164；基础价格 = 硬件二手价合计 + 部署调优 40,000 元，2026-11-09 二手价为 DGX Spark 34,350 元、RTX 6000D 64,100 元、M5 Ultra 87,750 元，每日随市场浮动，以 gear 页实时报价为准。
 
 ### V11：4 机 Spark + 单卡 6000D（4+1）
 
@@ -120,19 +120,22 @@ flowchart LR
 - **Engram 表**：P 端远程读取；线上配置由高速网上的 Engram 分片服务供表，也可以由 M5 直接供表，但速度受两机之间链路限制。
 - **部署镜像**：预留，规划镜像名 `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-m5-6000d`，暂未发布。
 
-### V8（1017 版）：4 机 Spark + 双卡 6000D（双路并行 Prefill）
+### V12：4 机 Spark + 双卡 6000D（4+2） · 2026-11-25
 
-> **▶ 让 AI 部署**：本方案部署镜像**预留中、暂未发布**，请不要根据本节自行拼装部署；镜像位见 [ds41-flash-v8-1017/](ds41-flash-v8-1017/)，发布后在该目录补充 AI-BUILD.md。仓库现有 `ds41-flash-v8` 镜像对应 2026-09 旧版 PP2，不适用于本方案。
+> **▶ 让 AI 部署**：本方案部署镜像**预留中、暂未发布**，请不要根据本节自行拼装部署；镜像位见 [ds41-flash-v12/](ds41-flash-v12/)，发布后在该目录补充 AI-BUILD.md。仓库现有 `ds41-flash-v8` 镜像对应 2026-09 旧版 PP2，不适用于本方案。
 
-![V8（1017 版）方案图：两张 RTX 6000D 双路并行 Prefill，四台 DGX Spark 负责 Decode](assets/ds41-flash-1017-v8.png)
+![V12 方案图：两张 RTX 6000D 负责 Prefill，四台 DGX Spark 组成 TP4 集群负责 Decode](assets/ds41-flash-1017-v12.png)
 
-**两张 RTX 6000D 双路并行 Prefill，四台 DGX Spark 负责 Decode。** 长输入首字更快，适合高并发长上下文业务。
+**两张 RTX 6000D 组成一个 Prefill 实例处理长输入，四台 DGX Spark 跑自研 pico 引擎负责 Decode，多轮对话直接复用上一轮的会话。** V12 是 4+2 硬件的最新版本，适合高并发长上下文与多轮 Agent 业务。
 
-- **P 端**：2× RTX 6000D，每张卡跑一个独立的 Prefill 实例（vLLM，单卡，Prefill 专用 FP4 切片）；代理按在途请求数把新请求分给较空的一路。
-- **D 端**：4× DGX Spark，SGLang TP4/EP4，DSpark 投机解码；D 端经 NIXL 从 P 端拉取 KV。
-- **互联与 Engram**：Spark 之间走 ConnectX-7 200GbE RoCE；Engram 表由 4 台 Spark 上的分片服务供给，P 端与 D 端共用。
-- **相对 2026-09 的旧 V8**：旧 V8 把两张 6000D 合成一个 vLLM TP2 实例（PP2：首段 TP2、尾段 TP4）；1017 版改为两张卡各跑一个 P 实例并行接单，模型换为 DeepSeek-V4.1-Flash-1017。
-- **部署镜像**：预留，规划镜像名 `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v8-1017`，暂未发布。
+- **P 端**：2× RTX 6000D 组成一个 vLLM TP2 实例，只算模型前 21 层（Prefill 专用切片）。
+- **D 端**：4× DGX Spark 跑自研 pico 引擎，每台一个 rank 组成 TP4，节点之间走 RoCE；dsfront 前端负责调度与会话管理，开启 DSpark 投机解码。请求不走 PD 时，pico 自己完成 Prefill 与 Decode。
+- **KV 交接**：D 端经 NIXL 从 P 端拉取前 21 层的 KV，转换成 pico 的 KV 格式导入，补算其余层后开始 Decode。
+- **前门与分流**：自研前门代理（端口 8000）按提示长度决定是否走 PD 分离，长输入先交给 6000D 做 Prefill。分流规则仍在调优，计划只把 pico 没有可复用会话、且不带图的长输入交给 P；规则定型前 PD 默认关闭，请求由 pico 集群直接处理。
+- **会话复用（热读）**：dsfront 会话表保留每个会话已算好的 KV，下一轮只算新增内容。带图会话同样能复用，图片编码结果按内容哈希缓存，历史图片不再重复编码。
+- **Engram 表**：P 端从 4 台 Spark 上的 10 个行服务远程读表（L1、L14 两层各切 5 片）；D 端每个 rank 在本地加载自己的 Engram 分片。
+- **相对 V8**：2026-09 的旧 V8 同样由两张 6000D 组成一个 vLLM TP2 实例算首段，D 端是 SGLang TP4/EP4；V12 把 D 端换成 pico，新增 KV 格式转换导入与会话复用。2026-11-10 发布的「V8（1017 版）」按两张卡各跑一个独立 Prefill 实例来写，现由 V12 取代。
+- **部署镜像**：预留，规划镜像名 `ghcr.io/soulmate-halo/heterogeneous-gpu-pd-lab/ds41-flash-v12`，暂未发布。
 
 ## DS4.1 Flash V10：单卡 6000D 加速 4 机 Spark（PD 分离） · 2026-10-14
 
